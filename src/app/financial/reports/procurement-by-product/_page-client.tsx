@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   ArrowLeft, Loader2, FileSpreadsheet, FileText, ShoppingCart,
-  Package, DollarSign, Hash,
+  Package, DollarSign, Hash, Search, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -17,6 +20,7 @@ interface ProductRow {
   productLabel: string;
   coaCode: string;
   coaLabel: string;
+  coaCategory: string;
   totalQty: number;
   totalAmount: number;
 }
@@ -25,12 +29,16 @@ interface ReportData {
   from: string;
   to: string;
   products: ProductRow[];
+  categories: string[];
   summary: {
     productCount: number;
     totalAmount: number;
     totalQty: number;
   };
 }
+
+type SortField = 'productRef' | 'productLabel' | 'coaCode' | 'coaLabel' | 'coaCategory' | 'totalQty' | 'totalAmount';
+type SortDir = 'asc' | 'desc';
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -97,6 +105,45 @@ function KpiCard({
   );
 }
 
+// ── Sort Icon ─────────────────────────────────────────────────────────────────
+
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
+  if (field !== sortField) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+  return sortDir === 'asc'
+    ? <ArrowUp className="h-3 w-3 ml-1 text-indigo-600" />
+    : <ArrowDown className="h-3 w-3 ml-1 text-indigo-600" />;
+}
+
+// ── Logo loader for PDF ───────────────────────────────────────────────────────
+
+async function loadLogoForPDF() {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) return undefined;
+    const data = await res.json();
+    const logoPath: string | undefined = data.logoWhite || data.companyLogo;
+    if (!logoPath) return undefined;
+
+    const imgRes = await fetch(logoPath);
+    if (!imgRes.ok) return undefined;
+    const blob = await imgRes.blob();
+    const base64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+    const aspectRatio = await new Promise<number>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img.naturalWidth / img.naturalHeight || 1);
+      img.onerror = () => resolve(1);
+      img.src = base64;
+    });
+    return { base64, aspectRatio, isWhite: !!data.logoWhite };
+  } catch {
+    return undefined;
+  }
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ProcurementByProductPage() {
@@ -110,12 +157,20 @@ export default function ProcurementByProductPage() {
   const [error, setError] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
 
+  // Filters & sort
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('__all__');
+  const [sortField, setSortField] = useState<SortField>('totalAmount');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
   const buildParams = () => new URLSearchParams({ from: fromDate, to: toDate });
 
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
     setReport(null);
+    setSearch('');
+    setCategoryFilter('__all__');
     try {
       const res = await fetch(`/api/financial/reports/procurement-by-product?${buildParams()}`);
       const data = await res.json();
@@ -128,9 +183,63 @@ export default function ProcurementByProductPage() {
     }
   };
 
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  // Client-side filter + sort
+  const filteredProducts = useMemo(() => {
+    if (!report) return [];
+    let rows = report.products;
+
+    if (categoryFilter !== '__all__') {
+      rows = rows.filter((p) => p.coaCategory === categoryFilter);
+    }
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (p) =>
+          p.productRef.toLowerCase().includes(q) ||
+          p.productLabel.toLowerCase().includes(q) ||
+          p.coaCode.toLowerCase().includes(q) ||
+          p.coaLabel.toLowerCase().includes(q) ||
+          p.coaCategory.toLowerCase().includes(q),
+      );
+    }
+
+    rows = [...rows].sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      return sortDir === 'asc'
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
+    });
+
+    return rows;
+  }, [report, search, categoryFilter, sortField, sortDir]);
+
+  const filteredTotal = useMemo(
+    () => filteredProducts.reduce((s, p) => s + p.totalAmount, 0),
+    [filteredProducts],
+  );
+  const filteredQty = useMemo(
+    () => filteredProducts.reduce((s, p) => s + p.totalQty, 0),
+    [filteredProducts],
+  );
+
   const exportExcel = async () => {
     const params = buildParams();
     params.set('export', 'excel');
+    if (categoryFilter !== '__all__') params.set('category', categoryFilter);
     const res = await fetch(`/api/financial/reports/procurement-by-product?${params}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -148,37 +257,41 @@ export default function ProcurementByProductPage() {
     setExportingPdf(true);
     try {
       const { PDFReportBuilder } = await import('@/lib/pdf-builder');
-      const pdf = new PDFReportBuilder('landscape', 'blue');
+      const logo = await loadLogoForPDF();
+      const pdf = new PDFReportBuilder('landscape', 'steel');
 
-      pdf.addHeader(
-        'Hexa Steel®',
-        'Financial Reports — Procurement by Product',
-      );
+      pdf.addHeader('Hexa Steel®', 'Financial Reports — Procurement by Product', logo);
 
       pdf.addTitle(
         'Procurement by Product',
         `Period: ${formatDate(report.from)} — ${formatDate(report.to)}`,
       );
 
-      pdf.addMetadataBox({
+      const metaEntries: Record<string, string> = {
         'From': formatDate(report.from),
         'To': formatDate(report.to),
-        'Products': String(report.summary.productCount),
-        'Total Amount': formatSAR(report.summary.totalAmount),
+        'Products': String(filteredProducts.length),
+        'Total Amount': formatSAR(filteredTotal),
         'Generated': new Date().toLocaleDateString('en-SA-u-ca-gregory', {
           day: '2-digit', month: 'short', year: 'numeric',
         }),
-      });
+      };
+      if (categoryFilter !== '__all__') {
+        metaEntries['Category'] = categoryFilter;
+      }
+
+      pdf.addMetadataBox(metaEntries);
 
       pdf.addSectionHeader('Product Procurement Summary');
 
       pdf.addTable(
-        ['Product Ref', 'Product Description', 'COA Code', 'COA Account Name', 'Total Qty', 'Total Amount (SAR)'],
-        report.products.map((p) => [
+        ['Product Ref', 'Product Description', 'COA Code', 'COA Account Name', 'Category', 'Total Qty', 'Total Amount (SAR)'],
+        filteredProducts.map((p) => [
           p.productRef,
           p.productLabel,
           p.coaCode,
           p.coaLabel,
+          p.coaCategory,
           formatQty(p.totalQty),
           formatSAR(p.totalAmount),
         ]),
@@ -187,8 +300,8 @@ export default function ProcurementByProductPage() {
 
       pdf.addSectionHeader('Summary');
       pdf.addInfoGrid({
-        'Total Products': String(report.summary.productCount),
-        'Total Amount': formatSAR(report.summary.totalAmount),
+        'Total Products': String(filteredProducts.length),
+        'Total Amount': formatSAR(filteredTotal),
       }, 2);
 
       pdf.addFooter('Hexa Steel® OTS · Financial Reports · hexasteel.sa/ots');
@@ -197,6 +310,18 @@ export default function ProcurementByProductPage() {
       setExportingPdf(false);
     }
   };
+
+  const thBtn = (field: SortField, label: string, align: 'left' | 'right' = 'left', cls = '') => (
+    <th
+      className={`py-2.5 px-3 font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors ${cls}`}
+      onClick={() => handleSort(field)}
+    >
+      <span className={`inline-flex items-center ${align === 'right' ? 'justify-end w-full' : ''}`}>
+        {label}
+        <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+      </span>
+    </th>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -269,21 +394,21 @@ export default function ProcurementByProductPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <KpiCard
                 label="Products Purchased"
-                value={String(report.summary.productCount)}
-                sub="unique product references"
+                value={String(filteredProducts.length)}
+                sub={filteredProducts.length !== report.summary.productCount ? `of ${report.summary.productCount} total` : 'unique product references'}
                 icon={Package}
                 color="blue"
               />
               <KpiCard
                 label="Total Quantity"
-                value={formatQty(report.summary.totalQty)}
-                sub="combined units across all products"
+                value={formatQty(filteredQty)}
+                sub="combined units across filtered products"
                 icon={Hash}
                 color="amber"
               />
               <KpiCard
                 label="Total Amount"
-                value={`SAR ${compact(report.summary.totalAmount)}`}
+                value={`SAR ${compact(filteredTotal)}`}
                 sub={`${formatDate(report.from)} — ${formatDate(report.to)}`}
                 icon={DollarSign}
                 color="green"
@@ -298,15 +423,11 @@ export default function ProcurementByProductPage() {
                     <FileSpreadsheet className="h-5 w-5 text-blue-600" />
                     Product Procurement — {formatDate(report.from)} to {formatDate(report.to)}
                     <span className="text-sm font-normal text-muted-foreground">
-                      ({report.summary.productCount} products)
+                      ({filteredProducts.length} products)
                     </span>
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={exportExcel}
-                    >
+                    <Button variant="outline" size="sm" onClick={exportExcel}>
                       <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" />
                       Export Excel
                     </Button>
@@ -323,29 +444,58 @@ export default function ProcurementByProductPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Search + Category filter */}
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search by product ref, description, or account…"
+                      className="pl-9"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  {report.categories.length > 0 && (
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="All categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All categories</SelectItem>
+                        {report.categories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                {report.products.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                   <p className="text-center text-muted-foreground py-12">
-                    No procurement data found for this period.
+                    {report.products.length === 0
+                      ? 'No procurement data found for this period.'
+                      : 'No products match the current filters.'}
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                       <thead>
                         <tr className="border-b-2 bg-slate-50">
-                          <th className="text-left py-2.5 px-3 font-semibold text-slate-700 w-[140px]">Product Ref</th>
-                          <th className="text-left py-2.5 px-3 font-semibold text-slate-700">Product Description</th>
-                          <th className="text-left py-2.5 px-3 font-semibold text-slate-700 w-[110px]">COA Code</th>
-                          <th className="text-left py-2.5 px-3 font-semibold text-slate-700">COA Account Name</th>
-                          <th className="text-right py-2.5 px-3 font-semibold text-slate-700 w-[110px]">Total Qty</th>
-                          <th className="text-right py-2.5 px-3 font-semibold text-slate-700 w-[150px]">Total Amount</th>
+                          {thBtn('productRef', 'Product Ref', 'left', 'w-[140px]')}
+                          {thBtn('productLabel', 'Product Description')}
+                          {thBtn('coaCode', 'COA Code', 'left', 'w-[110px]')}
+                          {thBtn('coaLabel', 'COA Account Name')}
+                          {thBtn('coaCategory', 'Category', 'left', 'w-[180px]')}
+                          {thBtn('totalQty', 'Total Qty', 'right', 'w-[110px]')}
+                          {thBtn('totalAmount', 'Total Amount', 'right', 'w-[150px]')}
                         </tr>
                       </thead>
                       <tbody>
-                        {report.products.map((p, idx) => (
+                        {filteredProducts.map((p, idx) => (
                           <tr
-                            key={`${p.productRef}-${p.coaCode}`}
+                            key={`${p.productRef}-${p.coaCode}-${idx}`}
                             className={`border-b transition-colors hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
                           >
                             <td className="py-2 px-3 font-mono text-xs font-semibold text-slate-700 whitespace-nowrap">
@@ -357,8 +507,13 @@ export default function ProcurementByProductPage() {
                             <td className="py-2 px-3 font-mono text-xs text-indigo-700 font-semibold whitespace-nowrap">
                               {p.coaCode}
                             </td>
-                            <td className="py-2 px-3 text-slate-600 text-xs max-w-[240px] truncate" title={p.coaLabel}>
+                            <td className="py-2 px-3 text-slate-600 text-xs max-w-[200px] truncate" title={p.coaLabel}>
                               {p.coaLabel}
+                            </td>
+                            <td className="py-2 px-3 text-xs max-w-[180px] truncate" title={p.coaCategory}>
+                              <span className="inline-block rounded px-1.5 py-0.5 bg-slate-100 text-slate-600 font-medium">
+                                {p.coaCategory}
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-right font-mono text-xs text-slate-700 whitespace-nowrap">
                               {formatQty(p.totalQty)}
@@ -371,14 +526,14 @@ export default function ProcurementByProductPage() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 bg-slate-100 font-bold">
-                          <td className="py-2.5 px-3 text-slate-700" colSpan={4}>
-                            TOTAL
+                          <td className="py-2.5 px-3 text-slate-700" colSpan={5}>
+                            TOTAL {filteredProducts.length !== report.summary.productCount && `(filtered: ${filteredProducts.length} of ${report.summary.productCount})`}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono text-xs text-slate-700">
-                            {formatQty(report.summary.totalQty)}
+                            {formatQty(filteredQty)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono text-xs text-emerald-800 bg-emerald-50">
-                            {formatSAR(report.summary.totalAmount)}
+                            {formatSAR(filteredTotal)}
                           </td>
                         </tr>
                       </tfoot>
