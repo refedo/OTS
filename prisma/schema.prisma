@@ -2866,6 +2866,9 @@ model SystemSettings {
   // LCR Column Mapping (JSON, stores field key → 0-based column index)
   lcrColumnMapping Json?
 
+  // LCR Sync Filter — skip rows whose project number is below this value (null = sync all)
+  lcrMinProjectNumber Int?
+
   // IMS Logo (white version for dark/colored backgrounds)
   logoWhite String? @db.VarChar(500)
 

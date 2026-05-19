@@ -46,37 +46,14 @@ export const DEFAULT_LCR_COL_MAP = {
 
 export type LcrColKey = keyof typeof DEFAULT_LCR_COL_MAP;
 
-// Known stale LCR column patterns from previous wrong defaults.
-// If the saved mapping matches any of these, discard the LCR fields so new defaults take over.
-const STALE_LCR_PATTERNS = [
-  // Pre-17.24 gapped mapping
-  { LCR1: 24, LCR1_AMOUNT: 27 },
-  // Any mapping where LCR1 starts at 24 (wrong — groups start at 26)
-  { LCR1: 24 },
-  { LCR1_AMOUNT: 24 },
-  { PRICE_PER_TON_LCR1: 24 },
-  { LCR1: 24, LCR1_AMOUNT: 25 },
-  { LCR1_AMOUNT: 24, LCR1: 25 },
-];
-
-const LCR_FIELD_KEYS = [
-  'LCR1', 'LCR1_AMOUNT', 'PRICE_PER_TON_LCR1',
-  'LCR2', 'LCR2_AMOUNT', 'PRICE_PER_TON_LCR2',
-  'LCR3', 'LCR3_AMOUNT', 'PRICE_PER_TON_LCR3',
-];
-
 export async function loadColMap(): Promise<Record<LcrColKey, number>> {
   try {
-    const settings = await prisma.systemSettings.findFirst({ select: { lcrColumnMapping: true } });
+    const settings = await prisma.systemSettings.findFirst({
+      select: { lcrColumnMapping: true },
+      orderBy: { createdAt: 'asc' },
+    });
     if (settings?.lcrColumnMapping && typeof settings.lcrColumnMapping === 'object') {
-      const saved = { ...(settings.lcrColumnMapping as Record<string, number>) };
-      // Detect stale LCR columns from previous wrong defaults and discard them
-      const isStale = STALE_LCR_PATTERNS.some(
-        p => Object.entries(p).every(([k, v]) => saved[k] === v)
-      );
-      if (isStale) {
-        for (const key of LCR_FIELD_KEYS) delete saved[key];
-      }
+      const saved = settings.lcrColumnMapping as Record<string, number>;
       // Merge saved values over defaults so new fields added later still work
       return { ...DEFAULT_LCR_COL_MAP, ...saved } as Record<LcrColKey, number>;
     }
@@ -84,6 +61,18 @@ export async function loadColMap(): Promise<Record<LcrColKey, number>> {
     // DB not yet migrated — use defaults silently
   }
   return { ...DEFAULT_LCR_COL_MAP };
+}
+
+async function loadMinProjectNumber(): Promise<number | null> {
+  try {
+    const settings = await prisma.systemSettings.findFirst({
+      select: { lcrMinProjectNumber: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return settings?.lcrMinProjectNumber ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function parseDate(value: string | undefined | null): Date | null {
@@ -283,8 +272,9 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
   let pendingAliases = 0;
 
   try {
-    // 0. Load column mapping from DB (falls back to defaults if not configured)
+    // 0. Load column mapping and settings from DB
     const col = await loadColMap();
+    const minProjectNumber = await loadMinProjectNumber();
 
     // 1. Authenticate with Google Sheets
     const keyJson = process.env.GOOGLE_SHEETS_KEY_JSON;
@@ -324,15 +314,31 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
 
     // 3. Compute sheetRowId + rowHash for each row
     const sheetData = new Map<string, { hash: string; cells: string[] }>();
+    const filteredOutRowIds = new Set<string>(); // rows skipped by project filter (keep existing DB records)
+    let skippedByFilter = 0;
     for (let i = 0; i < dataRows.length; i++) {
       const cells = dataRows[i].map((c: unknown) => String(c ?? ''));
       const rowNumber = String(i + 2); // 1-indexed, skip header
-      const hash = createHash('md5').update(cells.join('|')).digest('hex');
 
       // Skip completely empty rows
       if (cells.every((c: string) => c.trim() === '')) continue;
 
+      // Apply project number minimum filter if configured
+      if (minProjectNumber !== null) {
+        const projectNumRaw = cells[col.PROJECT_NUMBER]?.trim() ?? '';
+        const projectNum = parseInt(projectNumRaw, 10);
+        if (!isNaN(projectNum) && projectNum < minProjectNumber) {
+          filteredOutRowIds.add(rowNumber);
+          skippedByFilter++;
+          continue;
+        }
+      }
+
+      const hash = createHash('md5').update(cells.join('|')).digest('hex');
       sheetData.set(rowNumber, { hash, cells });
+    }
+    if (skippedByFilter > 0) {
+      log.info({ skippedByFilter, minProjectNumber }, 'Rows skipped by project number filter');
     }
 
     // 4. Load existing non-deleted entries
@@ -359,7 +365,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
     }
 
     for (const [rowId, { id }] of existingMap) {
-      if (!sheetData.has(rowId)) {
+      if (!sheetData.has(rowId) && !filteredOutRowIds.has(rowId)) {
         toSoftDelete.push(id);
       }
     }

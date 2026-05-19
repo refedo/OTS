@@ -37,6 +37,7 @@ const STARTUP_MIGRATIONS = [
   'add_integration_toggles.sql',
   'add_lcr_column_mapping.sql',
   'add_lcr1_supplier_field.sql',
+  'add_lcr_min_project_number.sql',
   'add_credit_limit_to_thirdparties.sql',
   'add_is_locked_journal_entries.sql',
   'github_integration.sql',

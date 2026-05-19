@@ -296,9 +296,9 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
       coa_ap_def.account_name AS ap_account_name,
       coa_ap_def.account_name_ar AS ap_account_name_ar,
       COALESCE(sc.cost_category, coa_cogs.account_name) AS cost_category,
-      sc.coa_account_code AS cogs_account_code,
-      coa_cogs.account_name AS cogs_account_name,
-      coa_cogs.account_name_ar AS cogs_account_name_ar
+      COALESCE(sc.coa_account_code, coa_legacy.coa_account_code) AS cogs_account_code,
+      COALESCE(coa_cogs.account_name, coa_legacy_def.account_name) AS cogs_account_name,
+      COALESCE(coa_cogs.account_name_ar, coa_legacy_def.account_name_ar) AS cogs_account_name_ar
     FROM dolibarr_thirdparties dt
     LEFT JOIN fin_chart_of_accounts coa_ap_def ON coa_ap_def.account_code = COALESCE(
       (SELECT config_value FROM fin_config WHERE config_key = 'default_ap_account' LIMIT 1),
@@ -306,6 +306,8 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
     )
     LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = dt.dolibarr_id
     LEFT JOIN fin_chart_of_accounts coa_cogs ON coa_cogs.account_code = sc.coa_account_code
+    LEFT JOIN fin_supplier_coa_default coa_legacy ON coa_legacy.supplier_dolibarr_id = dt.dolibarr_id
+    LEFT JOIN fin_chart_of_accounts coa_legacy_def ON coa_legacy_def.account_code = coa_legacy.coa_account_code
     WHERE dt.dolibarr_id = ?
   `, dolibarrId);
 

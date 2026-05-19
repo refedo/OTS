@@ -19,7 +19,9 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2, Wand2, ChevronsUpDown, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2, Wand2, ChevronsUpDown, Check, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ColumnHeader {
@@ -124,6 +126,10 @@ export default function LcrColumnMappingPage() {
   // In-progress selections (key → column letter like "A", "AB")
   const [selections, setSelections] = useState<Record<string, string>>({});
 
+  // Min project number filter
+  const [minProjectNumber, setMinProjectNumber]       = useState<string>('');
+  const [savedMinProjectNumber, setSavedMinProjectNumber] = useState<number | null>(null);
+
   // Google Sheet columns
   const [sheetColumns, setSheetColumns]     = useState<ColumnHeader[]>([]);
   const [loadingSheet, setLoadingSheet]     = useState(false);
@@ -136,7 +142,7 @@ export default function LcrColumnMappingPage() {
   const fetchMapping = useCallback(async () => {
     setLoadingMapping(true);
     try {
-      const res = await fetch('/api/supply-chain/lcr/columns');
+      const res = await fetch('/api/supply-chain/lcr/columns', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load mapping');
       const data = await res.json();
       setMapping(data.mapping);
@@ -146,6 +152,9 @@ export default function LcrColumnMappingPage() {
         init[k] = indexToLetter(v);
       }
       setSelections(init);
+      const savedMin = data.minProjectNumber ?? null;
+      setSavedMinProjectNumber(savedMin);
+      setMinProjectNumber(savedMin !== null ? String(savedMin) : '');
     } catch (error) {
       toast({ title: 'Failed to load mapping', description: String(error), variant: 'destructive' });
     } finally {
@@ -251,16 +260,22 @@ export default function LcrColumnMappingPage() {
       }
     }
 
+    const minVal = minProjectNumber.trim() === '' ? null : parseInt(minProjectNumber.trim(), 10);
+    if (minProjectNumber.trim() !== '' && (isNaN(minVal!) || minVal! < 0)) {
+      toast({ title: 'Invalid filter', description: 'Min project number must be a positive integer.', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch('/api/supply-chain/lcr/columns', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ mapping: payload, minProjectNumber: minVal }),
       });
       if (res.ok) {
         toast({
-          title: 'Mapping Saved',
+          title: 'Settings Saved',
           description: 'Run "Force Resync All" on the LCR page to re-process all rows with the new mapping.',
         });
         fetchMapping();
@@ -273,7 +288,13 @@ export default function LcrColumnMappingPage() {
     }
   };
 
-  const isDirty = Object.keys(FIELD_META).some(k => {
+  const minProjectNumberDirty = (() => {
+    const parsed = minProjectNumber.trim() === '' ? null : parseInt(minProjectNumber.trim(), 10);
+    if (minProjectNumber.trim() !== '' && isNaN(parsed!)) return false;
+    return parsed !== savedMinProjectNumber;
+  })();
+
+  const isDirty = minProjectNumberDirty || Object.keys(FIELD_META).some(k => {
     const col = sheetColumns.find(c => c.column === selections[k]);
     const currentIdx = col ? col.index : (mapping[k] ?? defaults[k]);
     return currentIdx !== (mapping[k] ?? defaults[k]);
@@ -314,6 +335,34 @@ export default function LcrColumnMappingPage() {
           </Button>
         </div>
       </div>
+
+      {/* Sync Filter */}
+      <Card>
+        <CardHeader className="py-3 pb-0">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Filter className="size-3.5" /> Sync Filter
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-3">
+          <div className="max-w-xs space-y-1">
+            <Label htmlFor="minProjectNumber" className="text-sm font-medium">
+              Minimum Project Number
+            </Label>
+            <Input
+              id="minProjectNumber"
+              type="number"
+              min={0}
+              placeholder="e.g. 230 (leave empty to sync all)"
+              value={minProjectNumber}
+              onChange={e => setMinProjectNumber(e.target.value)}
+              className="h-9 text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Only rows whose project number is ≥ this value will be synced. Leave empty to sync all projects.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Sheet column fetch status */}
       <Card className={sheetError ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20' : 'border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800'}>
