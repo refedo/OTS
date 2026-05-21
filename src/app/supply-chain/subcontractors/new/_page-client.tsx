@@ -46,6 +46,7 @@ export default function NewSubcontractorContractPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [selectedSupplierData, setSelectedSupplierData] = useState<Supplier | null>(null);
   const [scopeLevel, setScopeLevel] = useState<'project' | 'building' | 'scope'>('building');
   const [projectOpen, setProjectOpen] = useState(false);
   const [supplierOpen, setSupplierOpen] = useState(false);
@@ -342,9 +343,7 @@ export default function NewSubcontractorContractPage() {
                 <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={supplierOpen} className="w-full justify-between font-normal">
-                      {selectedSupplier
-                        ? (() => { const s = suppliers.find(x => String(x.dolibarr_id) === selectedSupplier); return s ? s.name : 'Select a subcontractor…'; })()
-                        : 'Select a subcontractor…'}
+                      {selectedSupplierData ? selectedSupplierData.name : 'Select a subcontractor…'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -363,7 +362,7 @@ export default function NewSubcontractorContractPage() {
                               <CommandItem
                                 key={s.dolibarr_id}
                                 value={String(s.dolibarr_id)}
-                                onSelect={() => { setSelectedSupplier(String(s.dolibarr_id)); setSupplierOpen(false); setSupplierSearch(''); }}
+                                onSelect={() => { setSelectedSupplier(String(s.dolibarr_id)); setSelectedSupplierData(s); setSupplierOpen(false); setSupplierSearch(''); }}
                               >
                                 <Check className={cn('mr-2 h-4 w-4', String(s.dolibarr_id) === selectedSupplier ? 'opacity-100' : 'opacity-0')} />
                                 <span className="font-mono text-muted-foreground text-xs mr-2">{s.code_supplier ?? '—'}</span>
