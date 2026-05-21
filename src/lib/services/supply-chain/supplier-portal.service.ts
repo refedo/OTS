@@ -201,8 +201,8 @@ export async function getSupplierList(
   sortDir: 'asc' | 'desc' = 'asc',
 ): Promise<{ suppliers: SupplierListRow[]; total: number }> {
   const offset = (page - 1) * limit;
-  const searchFilter = search ? `AND dt.name LIKE ?` : '';
-  const searchArgs = search ? [`%${search}%`] : [];
+  const searchFilter = search ? `AND (dt.name LIKE ? OR dt.code_supplier LIKE ?)` : '';
+  const searchArgs = search ? [`%${search}%`, `%${search}%`] : [];
   const col = SORT_COL_MAP[sortKey] ?? 'dt.name';
   const dir = sortDir === 'desc' ? 'DESC' : 'ASC';
   const orderClause = `ORDER BY (${col} IS NULL) ASC, ${col} ${dir}, dt.name ASC`;

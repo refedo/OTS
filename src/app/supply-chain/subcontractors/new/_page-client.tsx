@@ -79,8 +79,10 @@ export default function NewSubcontractorContractPage() {
     }
   }, []);
 
-  const fetchSuppliers = useCallback(async () => {
-    const res = await fetch('/api/supply-chain/suppliers?limit=200');
+  const fetchSuppliers = useCallback(async (search: string) => {
+    const params = new URLSearchParams({ limit: '100' });
+    if (search) params.set('search', search);
+    const res = await fetch(`/api/supply-chain/suppliers?${params}`);
     if (res.ok) {
       const data = await res.json();
       setSuppliers(Array.isArray(data.suppliers) ? data.suppliers : []);
@@ -93,7 +95,12 @@ export default function NewSubcontractorContractPage() {
     if (res.ok) setBuildings(await res.json());
   }, [selectedProject]);
 
-  useEffect(() => { fetchProjects(); fetchSuppliers(); }, [fetchProjects, fetchSuppliers]);
+  useEffect(() => { fetchProjects(); fetchSuppliers(''); }, [fetchProjects, fetchSuppliers]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { fetchSuppliers(supplierSearch); }, 300);
+    return () => clearTimeout(timer);
+  }, [supplierSearch, fetchSuppliers]);
   useEffect(() => { if (selectedProject) fetchBuildings(); }, [selectedProject, fetchBuildings]);
 
   useEffect(() => {
@@ -352,14 +359,6 @@ export default function NewSubcontractorContractPage() {
                         <CommandEmpty>No subcontractors found.</CommandEmpty>
                         <CommandGroup>
                           {suppliers
-                            .filter(s => {
-                              if (!supplierSearch) return true;
-                              const q = supplierSearch.toLowerCase();
-                              return (
-                                s.name.toLowerCase().includes(q) ||
-                                (s.code_supplier ?? '').toLowerCase().includes(q)
-                              );
-                            })
                             .map(s => (
                               <CommandItem
                                 key={s.dolibarr_id}
