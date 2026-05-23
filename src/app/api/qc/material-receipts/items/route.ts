@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,9 +73,20 @@ export async function PATCH(request: NextRequest) {
     // Build update data
     const updateData: Record<string, unknown> = {};
 
-    if (receivedQty !== undefined) updateData.receivedQty = parseFloat(receivedQty);
-    if (acceptedQty !== undefined) updateData.acceptedQty = parseFloat(acceptedQty);
-    if (rejectedQty !== undefined) updateData.rejectedQty = parseFloat(rejectedQty);
+    const parsedReceivedQty = receivedQty !== undefined ? parseFloat(receivedQty) : undefined;
+    const parsedAcceptedQty = acceptedQty !== undefined ? parseFloat(acceptedQty) : undefined;
+
+    if (parsedReceivedQty !== undefined && !isNaN(parsedReceivedQty)) updateData.receivedQty = parsedReceivedQty;
+    if (parsedAcceptedQty !== undefined && !isNaN(parsedAcceptedQty)) updateData.acceptedQty = parsedAcceptedQty;
+
+    // Auto-compute rejectedQty: if not provided or empty, derive from received - accepted
+    if (rejectedQty !== undefined && rejectedQty !== '' && !isNaN(parseFloat(rejectedQty))) {
+      updateData.rejectedQty = parseFloat(rejectedQty);
+    } else if (parsedAcceptedQty !== undefined && !isNaN(parsedAcceptedQty)) {
+      const rec = parsedReceivedQty ?? 0;
+      updateData.rejectedQty = Math.max(0, rec - parsedAcceptedQty);
+    }
+
     if (qualityStatus) updateData.qualityStatus = qualityStatus;
 
     if (surfaceCondition !== undefined) updateData.surfaceCondition = surfaceCondition;
@@ -125,14 +137,35 @@ export async function PATCH(request: NextRequest) {
     });
 
     const newStatus = computeReceiptStatus(allItems);
+
+    // Auto-advance workflow from Draft → Inspected when all items have been inspected
+    const allInspected = allItems.length > 0 && allItems.every(i => i.inspectionResult !== 'Pending');
+    const receiptMeta = allInspected
+      ? await prisma.materialInspectionReceipt.findUnique({
+          where: { id: item.receiptId },
+          select: { workflowStatus: true },
+        })
+      : null;
+
+    const shouldAutoAdvance =
+      allInspected &&
+      (receiptMeta?.workflowStatus === 'Draft' || receiptMeta?.workflowStatus === null);
+
     await prisma.materialInspectionReceipt.update({
       where: { id: item.receiptId },
-      data: { status: newStatus },
+      data: {
+        status: newStatus,
+        ...(shouldAutoAdvance && {
+          workflowStatus: 'Inspected',
+          submittedAt: new Date(),
+          submittedById: session.sub,
+        }),
+      },
     });
 
-    return NextResponse.json(item);
+    return NextResponse.json({ ...item, _receiptAutoAdvanced: shouldAutoAdvance });
   } catch (error) {
-    console.error('Error updating receipt item:', error);
+    logger.error({ error }, 'Error updating receipt item');
     return NextResponse.json(
       { error: 'Failed to update receipt item' },
       { status: 500 }
@@ -179,7 +212,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting receipt item:', error);
+    logger.error({ error }, 'Error deleting receipt item');
     return NextResponse.json(
       { error: 'Failed to delete receipt item' },
       { status: 500 }
