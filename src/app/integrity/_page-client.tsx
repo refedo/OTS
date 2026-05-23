@@ -128,6 +128,8 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
     severity: 'MEDIUM',
   });
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Detail/resolve dialog state
   const [selectedReport, setSelectedReport] = useState<ReportDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -157,7 +159,8 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
 
   // ─── Submit new report ────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!form.category || !form.title || !form.description) return;
+    setSubmitError(null);
+    if (!form.category || form.title.length < 5 || form.description.length < 20) return;
     setSubmitting(true);
     try {
       const res = await fetch('/api/integrity', {
@@ -170,7 +173,12 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
         setSubmitSuccess({ reportNumber: data.report.reportNumber });
         setForm({ category: '', title: '', description: '', isAnonymous: false, severity: 'MEDIUM' });
         fetchReports();
+      } else {
+        const errData: { error?: string } = await res.json().catch(() => ({}));
+        setSubmitError(errData.error ?? 'Submission failed. Please check your inputs and try again.');
       }
+    } catch {
+      setSubmitError('Network error. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -178,6 +186,7 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
 
   const handleOpenDialog = () => {
     setSubmitSuccess(null);
+    setSubmitError(null);
     setShowSubmitDialog(true);
   };
 
@@ -501,6 +510,9 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
                     onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                     maxLength={255}
                   />
+                  {form.title.length > 0 && form.title.length < 5 && (
+                    <p className="text-xs text-destructive">Title must be at least 5 characters ({form.title.length}/5)</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -516,11 +528,18 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
                 </div>
               </div>
 
+              {submitError && (
+                <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                  {submitError}
+                </div>
+              )}
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>Cancel</Button>
                 <Button
                   className="bg-red-600 hover:bg-red-700 text-white"
-                  disabled={submitting || !form.category || !form.title || form.description.length < 20}
+                  disabled={submitting || !form.category || form.title.length < 5 || form.description.length < 20}
                   onClick={handleSubmit}
                 >
                   {submitting ? <><Loader2 className="size-4 animate-spin mr-2" />Submitting…</> : 'Submit Report'}

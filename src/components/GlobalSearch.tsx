@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
 import Link from 'next/link';
-import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package, Building2, Users, UserCircle, PackageSearch, FileText, ScrollText } from 'lucide-react';
+import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package, Building2, Users, UserCircle, PackageSearch, FileText, ScrollText, Store, Receipt, Truck, CreditCard, ClipboardCheck, BarChart2, Flag, Settings2, ShieldCheck, Target, Briefcase, ShoppingCart } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,18 @@ interface SearchResults {
   assets: SearchResult[];
   contracts: SearchResult[];
   hrLetters: SearchResult[];
+  thirdparties: SearchResult[];
+  customerInvoices: SearchResult[];
+  supplierInvoices: SearchResult[];
+  payments: SearchResult[];
+  auditPlans: SearchResult[];
+  managementReviews: SearchResult[];
+  auditFindings: SearchResult[];
+  qmsProcesses: SearchResult[];
+  approvedSuppliers: SearchResult[];
+  companyObjectives: SearchResult[];
+  bdCompanies: SearchResult[];
+  purchaseOrders: SearchResult[];
 }
 
 const CATEGORY_META: Record<
@@ -58,6 +70,18 @@ const CATEGORY_META: Record<
   assets: { label: 'Assets', icon: PackageSearch, color: 'text-amber-600' },
   contracts: { label: 'Contracts', icon: FileText, color: 'text-rose-500' },
   hrLetters: { label: 'HR Letters', icon: ScrollText, color: 'text-indigo-600' },
+  thirdparties: { label: 'Suppliers & Clients', icon: Store, color: 'text-teal-600' },
+  customerInvoices: { label: 'Customer Invoices', icon: Receipt, color: 'text-green-600' },
+  supplierInvoices: { label: 'Supplier Invoices', icon: Truck, color: 'text-orange-600' },
+  payments: { label: 'Payments', icon: CreditCard, color: 'text-blue-600' },
+  auditPlans: { label: 'Audit Plans', icon: ClipboardCheck, color: 'text-violet-600' },
+  managementReviews: { label: 'Management Reviews', icon: BarChart2, color: 'text-sky-700' },
+  auditFindings: { label: 'Audit Findings', icon: Flag, color: 'text-red-600' },
+  qmsProcesses: { label: 'QMS Processes', icon: Settings2, color: 'text-slate-600' },
+  approvedSuppliers: { label: 'Approved Suppliers', icon: ShieldCheck, color: 'text-emerald-600' },
+  companyObjectives: { label: 'Objectives', icon: Target, color: 'text-amber-700' },
+  bdCompanies: { label: 'BD Companies', icon: Briefcase, color: 'text-cyan-700' },
+  purchaseOrders: { label: 'Purchase Orders', icon: ShoppingCart, color: 'text-indigo-700' },
 };
 
 const EMPTY_RESULTS: SearchResults = {
@@ -76,6 +100,18 @@ const EMPTY_RESULTS: SearchResults = {
   assets: [],
   contracts: [],
   hrLetters: [],
+  thirdparties: [],
+  customerInvoices: [],
+  supplierInvoices: [],
+  payments: [],
+  auditPlans: [],
+  managementReviews: [],
+  auditFindings: [],
+  qmsProcesses: [],
+  approvedSuppliers: [],
+  companyObjectives: [],
+  bdCompanies: [],
+  purchaseOrders: [],
 };
 
 function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructive' | 'outline' {
