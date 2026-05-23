@@ -316,7 +316,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { receiptId, status, remarks } = body;
+    const { receiptId, status, remarks, projectId } = body;
 
     if (!receiptId) {
       return NextResponse.json(
@@ -325,9 +325,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (status) updateData.status = status;
     if (remarks !== undefined) updateData.remarks = remarks;
+    if (projectId !== undefined) {
+      updateData.projectId = projectId === '__none__' || projectId === null ? null : projectId;
+    }
 
     const receipt = await prisma.materialInspectionReceipt.update({
       where: { id: receiptId },

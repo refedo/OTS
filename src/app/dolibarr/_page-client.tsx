@@ -163,6 +163,9 @@ export default function DolibarrIntegrationPage() {
   const [poSearch, setPoSearch] = useState('');
   const [syncingDeliveryDates, setSyncingDeliveryDates] = useState(false);
   const [deliveryDateSyncResult, setDeliveryDateSyncResult] = useState<{ updated: number; errors: number } | null>(null);
+  const [poRealTotal, setPoRealTotal] = useState<number | null>(null);
+  const [poCountLoading, setPoCountLoading] = useState(false);
+  const [lastPoRefresh, setLastPoRefresh] = useState<string | null>(null);
 
   // Reference data
   const [refData, setRefData] = useState<any>(null);
@@ -256,6 +259,21 @@ export default function DolibarrIntegrationPage() {
     }
   }, [poPage, poSearch]);
 
+  const fetchPoCount = useCallback(async () => {
+    setPoCountLoading(true);
+    try {
+      const res = await fetch('/api/dolibarr/po-count');
+      if (res.ok) {
+        const data = await res.json();
+        setPoRealTotal(data.total ?? null);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setPoCountLoading(false);
+    }
+  }, []);
+
   const fetchReferenceData = useCallback(async () => {
     try {
       const res = await fetch('/api/dolibarr/reference-data');
@@ -267,7 +285,13 @@ export default function DolibarrIntegrationPage() {
     }
   }, []);
 
-  useEffect(() => { fetchSyncStatus(); fetchReferenceData(); }, [fetchSyncStatus, fetchReferenceData]);
+  useEffect(() => {
+    fetchSyncStatus();
+    fetchReferenceData();
+    fetchPoCount();
+    const stored = localStorage.getItem('dolibarr_last_po_refresh');
+    if (stored) setLastPoRefresh(stored);
+  }, [fetchSyncStatus, fetchReferenceData, fetchPoCount]);
   useEffect(() => { if (activeTab === 'products') fetchProducts(); }, [activeTab, fetchProducts]);
   useEffect(() => { if (activeTab === 'thirdparties') fetchThirdParties(); }, [activeTab, fetchThirdParties]);
   useEffect(() => { if (activeTab === 'purchase-orders') fetchPurchaseOrders(); }, [activeTab, fetchPurchaseOrders]);
@@ -513,6 +537,10 @@ export default function DolibarrIntegrationPage() {
                         <span className="text-muted-foreground">Contacts:</span>
                         <span>{formatDate(syncStatus.lastContactsSync)}</span>
                       </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Purchase Orders:</span>
+                        <span>{lastPoRefresh ? formatDate(lastPoRefresh) : 'Not refreshed'}</span>
+                      </div>
                     </CardContent>
                   </Card>
 
@@ -541,12 +569,20 @@ export default function DolibarrIntegrationPage() {
                         <span className="text-muted-foreground">Contacts:</span>
                         <span>{syncStatus.recordCounts.contacts.active} / {syncStatus.recordCounts.contacts.total}</span>
                       </div>
-                      {poTotal > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Purchase Orders:</span>
-                          <span>{poTotal}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Purchase Orders:</span>
+                        <span>
+                          {poCountLoading ? (
+                            <span className="text-muted-foreground text-xs">Loading…</span>
+                          ) : poRealTotal !== null ? (
+                            poRealTotal
+                          ) : poTotal > 0 ? (
+                            `${poTotal}+`
+                          ) : (
+                            '—'
+                          )}
+                        </span>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -566,7 +602,7 @@ export default function DolibarrIntegrationPage() {
                     <Button variant="outline" size="sm" onClick={() => handleSync('contacts')} disabled={syncing}>
                       <FileText className="h-4 w-4 mr-1" /> Sync Contacts
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setActiveTab('purchase-orders'); fetchPurchaseOrders(); }} disabled={poLoading}>
+                    <Button variant="outline" size="sm" onClick={() => { setActiveTab('purchase-orders'); fetchPurchaseOrders(); const now = new Date().toISOString(); setLastPoRefresh(now); localStorage.setItem('dolibarr_last_po_refresh', now); }} disabled={poLoading}>
                       {poLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Refresh P.O&apos;s
                     </Button>

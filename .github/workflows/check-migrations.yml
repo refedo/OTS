@@ -1,0 +1,59 @@
+name: Check Migration Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List all migration files in repo
+        run: |
+          echo "=== Migration files in prisma/manual_migrations/ ==="
+          ls -1 prisma/manual_migrations/*.sql 2>/dev/null | xargs -I{} basename {} | sort || echo "(none found)"
+
+      - name: Check migration status on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          port: ${{ secrets.DO_PORT }}
+          script: |
+            set -e
+            APP_DIR=/var/www/hexasteel.sa/ots
+            MIGRATIONS_DONE_FILE="$APP_DIR/.migrations_applied"
+            MIGRATIONS_DIR="$APP_DIR/prisma/manual_migrations"
+
+            echo "=== Applied Migrations ==="
+            if [ -f "$MIGRATIONS_DONE_FILE" ]; then
+              cat "$MIGRATIONS_DONE_FILE"
+            else
+              echo "(no .migrations_applied file found)"
+            fi
+
+            echo ""
+            echo "=== All Migration Files on Server ==="
+            ls -1 "$MIGRATIONS_DIR"/*.sql 2>/dev/null | xargs -I{} basename {} | sort || echo "(no SQL files found)"
+
+            echo ""
+            echo "=== Pending Migrations (not yet applied) ==="
+            PENDING=0
+            for sql_file in "$MIGRATIONS_DIR"/*.sql; do
+              [ -f "$sql_file" ] || continue
+              filename=$(basename "$sql_file")
+              if ! grep -qxF "$filename" "$MIGRATIONS_DONE_FILE" 2>/dev/null; then
+                echo "  ⏳ PENDING: $filename"
+                PENDING=$((PENDING + 1))
+              fi
+            done
+            if [ "$PENDING" -eq 0 ]; then
+              echo "  ✅ All migrations have been applied."
+            else
+              echo ""
+              echo "Total pending: $PENDING migration(s)"
+            fi

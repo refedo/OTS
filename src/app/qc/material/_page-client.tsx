@@ -226,6 +226,12 @@ export default function MaterialInspectionReceiptPage() {
   const [evaluationDialogExisting, setEvaluationDialogExisting] = useState<ExistingEvaluation | null>(null);
   const [evaluationPromptReceipt, setEvaluationPromptReceipt] = useState<MaterialReceipt | null>(null);
 
+  // Workflow filter from stats tiles
+  const [workflowFilter, setWorkflowFilter] = useState<string>('all');
+  const [editingProjectMir, setEditingProjectMir] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
+  const [editProjectId, setEditProjectId] = useState('__none__');
+
   useEffect(() => {
     fetchReceipts();
     fetchProjects();
@@ -592,7 +598,15 @@ export default function MaterialInspectionReceiptPage() {
 
     const matchesStatus = statusFilter === 'all' || receipt.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const wf = receipt.workflowStatus ?? 'Draft';
+    const matchesWorkflow =
+      workflowFilter === 'all' ||
+      (workflowFilter === 'draft' && (!receipt.workflowStatus || wf === 'Draft')) ||
+      (workflowFilter === 'inspected' && (wf === 'Inspected' || wf === 'Reviewed')) ||
+      (workflowFilter === 'approved' && wf === 'Approved') ||
+      (workflowFilter === 'rejected' && wf === 'Rejected');
+
+    return matchesSearch && matchesStatus && matchesWorkflow;
   });
 
   const stats = {
@@ -707,25 +721,37 @@ export default function MaterialInspectionReceiptPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${workflowFilter === 'all' ? 'ring-2 ring-primary/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setWorkflowFilter('all')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">Total Receipts</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${workflowFilter === 'draft' ? 'ring-2 ring-gray-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setWorkflowFilter('draft')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-gray-500">{stats.draft}</div>
             <p className="text-xs text-muted-foreground">Draft / In Progress</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${workflowFilter === 'inspected' ? 'ring-2 ring-amber-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setWorkflowFilter('inspected')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-amber-600">{stats.inspected}</div>
             <p className="text-xs text-muted-foreground">Awaiting Approval</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${workflowFilter === 'approved' ? 'ring-2 ring-green-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setWorkflowFilter('approved')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
             <p className="text-xs text-muted-foreground">Fully Approved</p>
@@ -1110,12 +1136,23 @@ export default function MaterialInspectionReceiptPage() {
           <DialogContent className="w-full sm:max-w-[95vw] md:max-w-5xl max-h-[92vh] flex flex-col p-0">
             <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
               <div className="flex items-center justify-between">
-                <div>
-                  <DialogTitle className="text-lg">Material Receipt: {selectedReceipt.receiptNumber}</DialogTitle>
-                  <DialogDescription>
-                    PO: {selectedReceipt.dolibarrPoRef} | Supplier: {selectedReceipt.supplierName}
-                    {selectedReceipt.project && ` | Project: ${selectedReceipt.project.projectNumber}`}
-                  </DialogDescription>
+                <div className="space-y-1 min-w-0">
+                  <DialogTitle className="text-lg font-bold tracking-tight">
+                    Material Receipt: <span className="font-mono">{selectedReceipt.receiptNumber}</span>
+                  </DialogTitle>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                    <span className="text-sm text-muted-foreground font-mono">{selectedReceipt.dolibarrPoRef}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-sm font-semibold text-foreground">{selectedReceipt.supplierName || '—'}</span>
+                    {selectedReceipt.project && (
+                      <>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-sm font-bold text-primary font-mono tracking-wide">
+                          Project {selectedReceipt.project.projectNumber}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Button
                   variant="outline"
@@ -1260,6 +1297,132 @@ export default function MaterialInspectionReceiptPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Project Assignment (editable) */}
+              <div className="flex items-center gap-3 px-1">
+                <span className="text-sm text-muted-foreground shrink-0">Project:</span>
+                {editingProjectMir ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Select
+                      value={editProjectId}
+                      onValueChange={setEditProjectId}
+                    >
+                      <SelectTrigger className="h-8 text-sm flex-1 max-w-xs">
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— No Project —</SelectItem>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.projectNumber} — {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      className="h-8"
+                      disabled={savingProject}
+                      onClick={async () => {
+                        setSavingProject(true);
+                        try {
+                          const res = await fetch('/api/qc/material-receipts', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              receiptId: selectedReceipt.id,
+                              projectId: editProjectId,
+                            }),
+                          });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            setSelectedReceipt(updated);
+                            fetchReceipts();
+                          }
+                        } finally {
+                          setSavingProject(false);
+                          setEditingProjectMir(false);
+                        }
+                      }}
+                    >
+                      {savingProject ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingProjectMir(false)} disabled={savingProject}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold font-mono ${selectedReceipt.project ? 'text-primary' : 'text-muted-foreground italic'}`}>
+                      {selectedReceipt.project ? `${selectedReceipt.project.projectNumber} — ${selectedReceipt.project.name}` : 'Not assigned'}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setEditProjectId(selectedReceipt.project?.id || '__none__');
+                        setEditingProjectMir(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Shipment Evaluation Result */}
+              {selectedReceipt.evaluation && (
+                <div className={`rounded-lg border p-4 ${
+                  selectedReceipt.evaluation.rating === 'A' ? 'border-green-200 bg-green-50/40 dark:bg-green-950/10' :
+                  selectedReceipt.evaluation.rating === 'B' ? 'border-amber-200 bg-amber-50/40 dark:bg-amber-950/10' :
+                  selectedReceipt.evaluation.rating === 'C' ? 'border-orange-200 bg-orange-50/40 dark:bg-orange-950/10' :
+                  'border-red-200 bg-red-50/40 dark:bg-red-950/10'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Star className={`h-4 w-4 ${
+                        selectedReceipt.evaluation.rating === 'A' ? 'fill-green-500 text-green-500' :
+                        selectedReceipt.evaluation.rating === 'B' ? 'fill-amber-500 text-amber-500' :
+                        selectedReceipt.evaluation.rating === 'C' ? 'fill-orange-500 text-orange-500' :
+                        'fill-red-500 text-red-500'
+                      }`} />
+                      <span className="text-sm font-semibold">Shipment Evaluation</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-medium ${
+                        selectedReceipt.evaluation.rating === 'A' ? 'text-green-700' :
+                        selectedReceipt.evaluation.rating === 'B' ? 'text-amber-700' :
+                        selectedReceipt.evaluation.rating === 'C' ? 'text-orange-700' :
+                        'text-red-700'
+                      }`}>
+                        Score: {Number(selectedReceipt.evaluation.weightedScore).toFixed(1)}
+                      </span>
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                        selectedReceipt.evaluation.rating === 'A' ? 'bg-green-100 text-green-700 border-2 border-green-300' :
+                        selectedReceipt.evaluation.rating === 'B' ? 'bg-amber-100 text-amber-700 border-2 border-amber-300' :
+                        selectedReceipt.evaluation.rating === 'C' ? 'bg-orange-100 text-orange-700 border-2 border-orange-300' :
+                        'bg-red-100 text-red-700 border-2 border-red-300'
+                      }`}>
+                        {selectedReceipt.evaluation.rating}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1"
+                        onClick={async () => {
+                          const res = await fetch(`/api/qc/material-receipts/evaluate?mirId=${selectedReceipt.id}`);
+                          const data: ExistingEvaluation = await res.json();
+                          setEvaluationDialogExisting(data);
+                          setEvaluationDialogMir(selectedReceipt);
+                        }}
+                      >
+                        <Eye className="h-3 w-3" /> View
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h3 className="font-semibold mb-3">Items ({selectedReceipt.items.length})</h3>

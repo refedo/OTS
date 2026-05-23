@@ -104,7 +104,7 @@ export default function InitiativeTasksClient({ initiative, session, userPermiss
       endDate: formData.get('endDate') as string || null,
       progress: parseFloat(formData.get('progress') as string) || 0,
       status: formData.get('status') as string,
-      assignedTo: formData.get('assignedTo') as string || null,
+      assignedTo: (formData.get('assignedTo') as string) === '__none__' ? null : (formData.get('assignedTo') as string || null),
     };
 
     try {
@@ -145,7 +145,7 @@ export default function InitiativeTasksClient({ initiative, session, userPermiss
       endDate: formData.get('endDate') as string || null,
       progress: parseFloat(formData.get('progress') as string) || 0,
       status: formData.get('status') as string,
-      assignedTo: formData.get('assignedTo') as string || null,
+      assignedTo: (formData.get('assignedTo') as string) === '__none__' ? null : (formData.get('assignedTo') as string || null),
     };
 
     try {
@@ -308,7 +308,7 @@ export default function InitiativeTasksClient({ initiative, session, userPermiss
                       <SelectValue placeholder="Select person" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
@@ -547,14 +547,14 @@ export default function InitiativeTasksClient({ initiative, session, userPermiss
                 <Label htmlFor="edit-assignedTo">Assigned To</Label>
                 <Select
                   name="assignedTo"
-                  defaultValue={selectedTask.assignedTo || ''}
+                  defaultValue={selectedTask.assignedTo || '__none__'}
                   disabled={loading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select person" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name}

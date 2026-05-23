@@ -112,8 +112,8 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
   const [reports, setReports] = useState<IntegrityReport[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [search, setSearch] = useState('');
 
   // Submit form state
@@ -139,8 +139,8 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.set('status', statusFilter);
-      if (categoryFilter) params.set('category', categoryFilter);
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+      if (categoryFilter && categoryFilter !== 'all') params.set('category', categoryFilter);
 
       const res = await fetch(`/api/integrity?${params}`);
       if (res.ok) {
@@ -294,7 +294,7 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="all">All statuses</SelectItem>
                       {Object.entries(STATUS_CFG).map(([k, v]) => (
                         <SelectItem key={k} value={k}>{v.label}</SelectItem>
                       ))}
@@ -305,7 +305,7 @@ export default function IntegrityPageClient({ canViewAll, canResolve }: Props) {
                       <SelectValue placeholder="All categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All categories</SelectItem>
+                      <SelectItem value="all">All categories</SelectItem>
                       {Object.entries(CATEGORIES).map(([k, v]) => (
                         <SelectItem key={k} value={k}>{v}</SelectItem>
                       ))}

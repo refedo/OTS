@@ -104,7 +104,7 @@ export default function MilestonesClient({ initiative, session, userPermissions 
       actualDate: formData.get('actualDate') as string || null,
       progress: parseFloat(formData.get('progress') as string) || 0,
       status: formData.get('status') as string,
-      responsibleId: formData.get('responsibleId') as string || null,
+      responsibleId: (formData.get('responsibleId') as string) === '__none__' ? null : (formData.get('responsibleId') as string || null),
     };
 
     try {
@@ -145,7 +145,7 @@ export default function MilestonesClient({ initiative, session, userPermissions 
       actualDate: formData.get('actualDate') as string || null,
       progress: parseFloat(formData.get('progress') as string) || 0,
       status: formData.get('status') as string,
-      responsibleId: formData.get('responsibleId') as string || null,
+      responsibleId: (formData.get('responsibleId') as string) === '__none__' ? null : (formData.get('responsibleId') as string || null),
     };
 
     try {
@@ -310,7 +310,7 @@ export default function MilestonesClient({ initiative, session, userPermissions 
                       <SelectValue placeholder="Select person" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
@@ -550,14 +550,14 @@ export default function MilestonesClient({ initiative, session, userPermissions 
                 <Label htmlFor="edit-responsibleId">Responsible Person</Label>
                 <Select
                   name="responsibleId"
-                  defaultValue={selectedMilestone.responsibleId || ''}
+                  defaultValue={selectedMilestone.responsibleId || '__none__'}
                   disabled={loading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select person" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name}
