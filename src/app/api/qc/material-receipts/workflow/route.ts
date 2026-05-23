@@ -8,6 +8,9 @@
  *   Inspected  → Reviewed   (action: 'review')
  *   Inspected|Reviewed → Approved (action: 'approve')
  *   Inspected|Reviewed → Rejected (action: 'reject')
+ *
+ * Designated personnel are notified at each transition via the NotificationService.
+ * Recipients are resolved by PBAC permission (quality.mir.review / quality.mir.approve).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,6 +18,11 @@ import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { NotificationService } from '@/lib/services/notification.service';
+import {
+  resolvePermissionsFromData,
+  parseCustomPermissions,
+} from '@/lib/services/permission-resolution.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +31,33 @@ const workflowSchema = z.object({
   action: z.enum(['submit', 'review', 'approve', 'reject']),
   notes: z.string().optional(),
 });
+
+// Resolve all active users that hold the given PBAC permission
+async function getUsersWithPermission(permission: string): Promise<{ id: string; name: string }[]> {
+  const users = await prisma.user.findMany({
+    where: { status: 'active' },
+    select: {
+      id: true,
+      name: true,
+      isAdmin: true,
+      role: { select: { permissions: true, restrictedModules: true } },
+      customPermissions: true,
+    },
+  });
+
+  return users.filter(u => {
+    const rolePermissions = (u.role.permissions as string[]) ?? [];
+    const customPerms = parseCustomPermissions(u.customPermissions);
+    const restrictedModules = (u.role.restrictedModules as string[]) ?? [];
+    const resolved = resolvePermissionsFromData({
+      isAdmin: u.isAdmin,
+      rolePermissions,
+      customPermissions: customPerms,
+      restrictedModules,
+    });
+    return resolved.includes(permission);
+  });
+}
 
 export const POST = withApiContext(async (req: NextRequest, session) => {
   const body: unknown = await req.json();
@@ -38,13 +73,15 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
   const { receiptId, action, notes } = parsed.data;
   const userId = session!.userId;
 
-  // Fetch the receipt with its items to validate state
+  // Fetch the receipt with items + inspector/submitter IDs for notifications
   const receipt = await prisma.materialInspectionReceipt.findUnique({
     where: { id: receiptId },
     select: {
       id: true,
       receiptNumber: true,
       workflowStatus: true,
+      inspectorId: true,
+      submittedById: true,
       items: {
         select: { id: true, inspectionResult: true },
       },
@@ -94,6 +131,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         reviewedBy: { select: { id: true, name: true } },
         approvedBy: { select: { id: true, name: true } },
         items: true,
+        evaluation: { select: { id: true } },
       },
     });
 
@@ -101,6 +139,20 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       { receiptId, receiptNumber: receipt.receiptNumber, action, userId },
       '[MIR Workflow] Receipt submitted for inspection review',
     );
+
+    // Notify all users with quality.mir.review permission
+    getUsersWithPermission('quality.mir.review').then(reviewers => {
+      reviewers.forEach(r =>
+        NotificationService.createNotification({
+          userId: r.id,
+          type: 'APPROVAL_REQUIRED',
+          title: 'MIR Ready for Review',
+          message: `MIR ${receipt.receiptNumber} has been submitted and requires your QC review.`,
+          relatedEntityType: 'MaterialInspectionReceipt',
+          relatedEntityId: receiptId,
+        }).catch(err => logger.error({ err, reviewerId: r.id }, '[MIR] Failed to notify reviewer')),
+      );
+    }).catch(err => logger.error({ err }, '[MIR] Failed to fetch reviewers for submit notification'));
 
     return NextResponse.json(updated);
   }
@@ -130,6 +182,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         reviewedBy: { select: { id: true, name: true } },
         approvedBy: { select: { id: true, name: true } },
         items: true,
+        evaluation: { select: { id: true } },
       },
     });
 
@@ -137,6 +190,20 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       { receiptId, receiptNumber: receipt.receiptNumber, action, userId },
       '[MIR Workflow] Receipt reviewed',
     );
+
+    // Notify all users with quality.mir.approve permission
+    getUsersWithPermission('quality.mir.approve').then(approvers => {
+      approvers.forEach(a =>
+        NotificationService.createNotification({
+          userId: a.id,
+          type: 'APPROVAL_REQUIRED',
+          title: 'MIR Awaiting Final Approval',
+          message: `MIR ${receipt.receiptNumber} has been reviewed and awaits your final approval.`,
+          relatedEntityType: 'MaterialInspectionReceipt',
+          relatedEntityId: receiptId,
+        }).catch(err => logger.error({ err, approverId: a.id }, '[MIR] Failed to notify approver')),
+      );
+    }).catch(err => logger.error({ err }, '[MIR] Failed to fetch approvers for review notification'));
 
     return NextResponse.json(updated);
   }
@@ -166,12 +233,26 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         reviewedBy: { select: { id: true, name: true } },
         approvedBy: { select: { id: true, name: true } },
         items: true,
+        evaluation: { select: { id: true } },
       },
     });
 
     logger.info(
       { receiptId, receiptNumber: receipt.receiptNumber, action, userId },
       '[MIR Workflow] Receipt approved',
+    );
+
+    // Notify inspector and submitter (deduplicated)
+    const notifyIds = [...new Set([receipt.inspectorId, receipt.submittedById].filter((id): id is string => !!id))];
+    notifyIds.forEach(uid =>
+      NotificationService.createNotification({
+        userId: uid,
+        type: 'APPROVED',
+        title: 'MIR Approved',
+        message: `MIR ${receipt.receiptNumber} has been approved.${notes ? ` Note: ${notes}` : ''}`,
+        relatedEntityType: 'MaterialInspectionReceipt',
+        relatedEntityId: receiptId,
+      }).catch(err => logger.error({ err, uid }, '[MIR] Failed to send approval notification')),
     );
 
     return NextResponse.json(updated);
@@ -203,12 +284,26 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       reviewedBy: { select: { id: true, name: true } },
       approvedBy: { select: { id: true, name: true } },
       items: true,
+      evaluation: { select: { id: true } },
     },
   });
 
   logger.info(
     { receiptId, receiptNumber: receipt.receiptNumber, action, userId },
     '[MIR Workflow] Receipt rejected',
+  );
+
+  // Notify inspector and submitter (deduplicated)
+  const notifyIds = [...new Set([receipt.inspectorId, receipt.submittedById].filter((id): id is string => !!id))];
+  notifyIds.forEach(uid =>
+    NotificationService.createNotification({
+      userId: uid,
+      type: 'REJECTED',
+      title: 'MIR Rejected',
+      message: `MIR ${receipt.receiptNumber} has been rejected.${notes ? ` Reason: ${notes}` : ''}`,
+      relatedEntityType: 'MaterialInspectionReceipt',
+      relatedEntityId: receiptId,
+    }).catch(err => logger.error({ err, uid }, '[MIR] Failed to send rejection notification')),
   );
 
   return NextResponse.json(updated);

@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
             mtcFilePath: true,
           },
         },
+        evaluation: { select: { id: true, rating: true, weightedScore: true } },
       },
       orderBy: { receiptDate: 'desc' },
     });
@@ -174,6 +175,7 @@ export async function POST(request: NextRequest) {
       dolibarrPoId,
       dolibarrPoRef,
       supplierName,
+      dolibarrSocId,
       projectId,
       receiptDate,
       items,
@@ -200,6 +202,7 @@ export async function POST(request: NextRequest) {
           dolibarrPoId,
           dolibarrPoRef,
           supplierName: supplierName || null,
+          dolibarrSocId: dolibarrSocId ? Number(dolibarrSocId) : null,
           projectId: projectId || null,
           receiptDate: receiptDate ? new Date(receiptDate) : new Date(),
           inspectorId: session.sub,

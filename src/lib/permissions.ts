@@ -114,6 +114,9 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'quality.view_ncr', name: 'View NCR', description: 'View Non-Conformance Reports', category: 'quality' },
       { id: 'quality.create_ncr', name: 'Create NCR', description: 'Create NCR reports', category: 'quality' },
       { id: 'quality.close_ncr', name: 'Close NCR', description: 'Close NCR reports', category: 'quality' },
+      { id: 'quality.mir.inspect', name: 'Inspect MIR', description: 'Perform material inspection and submit MIR for review', category: 'quality' },
+      { id: 'quality.mir.review',  name: 'Review MIR',  description: 'Conduct QC review of submitted Material Inspection Receipts', category: 'quality' },
+      { id: 'quality.mir.approve', name: 'Approve MIR', description: 'Approve or reject reviewed Material Inspection Receipts', category: 'quality' },
     ],
   },
   {
@@ -690,6 +693,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'quality.create_wps',
     'quality.edit_wps',
     'quality.approve_wps',
+    'quality.mir.inspect',
+    'quality.mir.review',
+    'quality.mir.approve',
     // Project Planning
     'planning.view',
     'planning.create',
@@ -849,6 +855,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'quality.view_wps',
     'quality.create_wps',
     'quality.edit_wps',
+    'quality.mir.inspect',
     // Project Planning
     'planning.view',
     // Document Access

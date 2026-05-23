@@ -37,7 +37,9 @@ import {
   ClipboardCheck,
   Trash2,
   MoreHorizontal,
+  Star,
 } from 'lucide-react';
+import ShipmentEvaluationDialog, { type ExistingEvaluation } from '@/components/qc/ShipmentEvaluationDialog';
 import {
   Dialog,
   DialogContent,
@@ -100,10 +102,12 @@ type MaterialReceipt = {
   dolibarrPoId: string;
   dolibarrPoRef: string;
   supplierName?: string;
+  dolibarrSocId?: number | null;
   projectId?: string;
   receiptDate: string;
   status: string;
   workflowStatus: string;
+  evaluation?: { id: string; rating: string; weightedScore: number } | null;
   submittedAt?: string;
   submittedById?: string;
   submittedBy?: { id: string; name: string } | null;
@@ -215,6 +219,11 @@ export default function MaterialInspectionReceiptPage() {
   const [workflowNotes, setWorkflowNotes] = useState('');
   const [processingWorkflow, setProcessingWorkflow] = useState(false);
 
+  // Shipment evaluation
+  const [evaluationDialogMir, setEvaluationDialogMir] = useState<MaterialReceipt | null>(null);
+  const [evaluationDialogExisting, setEvaluationDialogExisting] = useState<ExistingEvaluation | null>(null);
+  const [evaluationPromptReceipt, setEvaluationPromptReceipt] = useState<MaterialReceipt | null>(null);
+
   useEffect(() => {
     fetchReceipts();
     fetchProjects();
@@ -316,6 +325,7 @@ export default function MaterialInspectionReceiptPage() {
           dolibarrPoId: selectedPO.id.toString(),
           dolibarrPoRef: selectedPO.ref,
           supplierName: selectedPO.supplier_name,
+          dolibarrSocId: selectedPO.socid ?? null,
           projectId: (selectedProject && selectedProject !== '__none__') ? selectedProject : null,
           items,
         }),
@@ -522,12 +532,18 @@ export default function MaterialInspectionReceiptPage() {
       });
       if (res.ok) {
         const updated = await res.json();
+        const wasSubmit = workflowDialog.action === 'submit';
+        const submittedReceipt = workflowDialog.receipt;
         setWorkflowDialog(null);
         setWorkflowNotes('');
-        if (selectedReceipt?.id === workflowDialog.receipt.id) {
+        if (selectedReceipt?.id === submittedReceipt.id) {
           setSelectedReceipt(updated);
         }
         fetchReceipts();
+        // Prompt to rate the shipment after inspector submits (only if no evaluation yet)
+        if (wasSubmit && !submittedReceipt.evaluation && submittedReceipt.dolibarrSocId) {
+          setEvaluationPromptReceipt(submittedReceipt);
+        }
       }
     } catch {
       // silently handled
@@ -808,6 +824,27 @@ export default function MaterialInspectionReceiptPage() {
                             <DropdownMenuItem onClick={() => handlePrintPDF(receipt)} disabled={generatingPdf}>
                               <Printer className="h-4 w-4 mr-2" /> Export PDF
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {receipt.evaluation ? (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const res = await fetch(`/api/qc/material-receipts/evaluate?mirId=${receipt.id}`);
+                                  const data: ExistingEvaluation = await res.json();
+                                  setEvaluationDialogExisting(data);
+                                  setEvaluationDialogMir(receipt);
+                                }}
+                              >
+                                <Star className="h-4 w-4 mr-2 fill-amber-400 text-amber-400" /> View Evaluation
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                disabled={!receipt.dolibarrSocId}
+                                onClick={() => { setEvaluationDialogExisting(null); setEvaluationDialogMir(receipt); }}
+                                title={!receipt.dolibarrSocId ? 'This MIR predates shipment evaluations' : undefined}
+                              >
+                                <Star className="h-4 w-4 mr-2" /> Evaluate Shipment
+                              </DropdownMenuItem>
+                            )}
                             {['Admin', 'CEO'].includes(currentUserRole) && (
                               <>
                                 <DropdownMenuSeparator />
@@ -1840,6 +1877,45 @@ export default function MaterialInspectionReceiptPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Evaluation prompt — appears after inspector submits */}
+      <Dialog open={!!evaluationPromptReceipt} onOpenChange={() => setEvaluationPromptReceipt(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-500" /> Rate This Shipment?
+            </DialogTitle>
+            <DialogDescription>
+              {evaluationPromptReceipt?.receiptNumber} has been submitted. Would you like to evaluate the quality of this supplier shipment?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEvaluationPromptReceipt(null)}>
+              Skip
+            </Button>
+            <Button onClick={() => {
+              setEvaluationDialogExisting(null);
+              setEvaluationDialogMir(evaluationPromptReceipt);
+              setEvaluationPromptReceipt(null);
+            }}>
+              Evaluate Shipment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shipment Evaluation Dialog */}
+      {evaluationDialogMir && (
+        <ShipmentEvaluationDialog
+          open={!!evaluationDialogMir}
+          onOpenChange={open => { if (!open) { setEvaluationDialogMir(null); setEvaluationDialogExisting(null); } }}
+          mirId={evaluationDialogMir.id}
+          mirNumber={evaluationDialogMir.receiptNumber}
+          supplierName={evaluationDialogMir.supplierName}
+          existingEvaluation={evaluationDialogExisting}
+          onSuccess={() => { setEvaluationDialogMir(null); setEvaluationDialogExisting(null); fetchReceipts(); }}
+        />
       )}
     </div>
   );
