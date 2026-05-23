@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.6.1] - 2026-05-23
+
+### Fixed
+- **LCR sync: unique constraint error blocking all new data** — The sync was silently failing with `uk_sheet_row_id` unique constraint violations when rows that were previously soft-deleted reappeared in the Google Sheet. The sync then reported success with zero changes. Fixed by loading both active and soft-deleted records, detecting restoration candidates, and routing them through `update()` with `isDeleted: false` instead of `create()`.
+
+---
+
 ## [23.6.0] - 2026-05-17
 
 ### QC Material Receipts, Task Scope, MIR Numbering
