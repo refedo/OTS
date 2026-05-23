@@ -220,7 +220,13 @@ async function resolveBuildingId(buildingNameRaw: string | null): Promise<string
     where: { aliasText: buildingNameRaw, entityType: 'building' },
     select: { entityId: true },
   });
-  return alias?.entityId ?? null;
+  if (!alias) return null;
+  // Verify the building still exists — stale aliases pointing to deleted buildings cause FK violations
+  const building = await prisma.building.findFirst({
+    where: { id: alias.entityId },
+    select: { id: true },
+  });
+  return building?.id ?? null;
 }
 
 async function resolveSupplierId(awardedToRaw: string | null): Promise<number | null> {

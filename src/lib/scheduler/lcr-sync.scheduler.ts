@@ -20,10 +20,9 @@ export class LcrSyncScheduler {
 
   static isEnabled(): boolean {
     const envValue = process.env.ENABLE_LCR_SCHEDULER;
-    if (envValue === undefined) {
-      return process.env.NODE_ENV === 'production';
-    }
-    return envValue === 'true' || envValue === '1';
+    // Disabled only when explicitly set to 'false' or '0'; default is enabled
+    if (envValue === 'false' || envValue === '0') return false;
+    return true;
   }
 
   static initialize(): void {
