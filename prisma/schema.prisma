@@ -1632,7 +1632,8 @@ model MaterialInspectionReceipt {
   projectId     String? @map("project_id") @db.Char(36)
 
   // Receipt info
-  receiptDate DateTime @default(now()) @map("receipt_date")
+  receiptDate           DateTime  @default(now()) @map("receipt_date")
+  plannedDeliveryDate   DateTime? @map("planned_delivery_date")
   inspectorId String   @map("inspector_id") @db.Char(36)
 
   // Overall status

@@ -193,49 +193,75 @@ function mapRow(cells: string[], col: Record<LcrColKey, number>): RawRow {
   };
 }
 
-async function resolveProjectId(projectNumber: string | null): Promise<string | null> {
+function resolveProjectId(projectNumber: string | null, cache: Map<string, string>): string | null {
   if (!projectNumber) return null;
-  const project = await prisma.project.findFirst({
-    where: { projectNumber, deletedAt: null },
-    select: { id: true },
-  });
-  return project?.id ?? null;
+  return cache.get(projectNumber) ?? null;
 }
 
-async function resolveProductId(itemLabel: string | null): Promise<number | null> {
+function resolveProductId(itemLabel: string | null, cache: Map<string, number>): number | null {
   if (!itemLabel) return null;
-  const trimmedLower = itemLabel.trim().toLowerCase();
-  const results: Array<{ dolibarr_id: number }> = await prisma.$queryRaw`
-    SELECT dolibarr_id FROM dolibarr_products
-    WHERE LOWER(TRIM(label)) = ${trimmedLower}
-    AND is_active = 1
-    LIMIT 1
-  `;
-  return results.length > 0 ? results[0].dolibarr_id : null;
+  return cache.get(itemLabel.trim().toLowerCase()) ?? null;
 }
 
-async function resolveBuildingId(buildingNameRaw: string | null): Promise<string | null> {
+function resolveBuildingId(buildingNameRaw: string | null, cache: Map<string, string>): string | null {
   if (!buildingNameRaw) return null;
-  const alias = await prisma.lcrAliasMap.findFirst({
-    where: { aliasText: buildingNameRaw, entityType: 'building' },
-    select: { entityId: true },
-  });
-  if (!alias) return null;
-  // Verify the building still exists — stale aliases pointing to deleted buildings cause FK violations
-  const building = await prisma.building.findFirst({
-    where: { id: alias.entityId },
-    select: { id: true },
-  });
-  return building?.id ?? null;
+  return cache.get(buildingNameRaw) ?? null;
 }
 
-async function resolveSupplierId(awardedToRaw: string | null): Promise<number | null> {
+function resolveSupplierId(awardedToRaw: string | null, cache: Map<string, number>): number | null {
   if (!awardedToRaw) return null;
-  const alias = await prisma.lcrAliasMap.findFirst({
-    where: { aliasText: awardedToRaw, entityType: 'supplier' },
-    select: { entityId: true },
-  });
-  return alias ? parseInt(alias.entityId, 10) : null;
+  return cache.get(awardedToRaw) ?? null;
+}
+
+// Pre-load all lookup tables into memory once per sync run
+interface LookupCaches {
+  projects: Map<string, string>;       // projectNumber → id
+  products: Map<string, number>;       // label.toLowerCase() → dolibarr_id
+  buildings: Map<string, string>;      // aliasText → entityId (verified)
+  suppliers: Map<string, number>;      // aliasText → dolibarr_id
+}
+
+async function buildLookupCaches(): Promise<LookupCaches> {
+  const [projectRows, productRows, aliasRows, buildingRows] = await Promise.all([
+    prisma.project.findMany({
+      where: { deletedAt: null },
+      select: { id: true, projectNumber: true },
+    }),
+    prisma.$queryRaw<Array<{ label: string; dolibarr_id: number }>>`
+      SELECT LOWER(TRIM(label)) AS label, dolibarr_id
+      FROM dolibarr_products WHERE is_active = 1
+    `,
+    prisma.lcrAliasMap.findMany({
+      select: { aliasText: true, entityType: true, entityId: true },
+    }),
+    prisma.building.findMany({
+      select: { id: true },
+    }),
+  ]);
+
+  const validBuildingIds = new Set(buildingRows.map(b => b.id));
+
+  const projects = new Map<string, string>(
+    projectRows.map(p => [p.projectNumber, p.id]),
+  );
+  const products = new Map<string, number>(
+    productRows.map(p => [p.label, p.dolibarr_id]),
+  );
+  const buildings = new Map<string, string>();
+  const suppliers = new Map<string, number>();
+
+  for (const alias of aliasRows) {
+    if (alias.entityType === 'building') {
+      // Only include if the building still exists
+      if (validBuildingIds.has(alias.entityId)) {
+        buildings.set(alias.aliasText, alias.entityId);
+      }
+    } else if (alias.entityType === 'supplier') {
+      suppliers.set(alias.aliasText, parseInt(alias.entityId, 10));
+    }
+  }
+
+  return { projects, products, buildings, suppliers };
 }
 
 function computeResolutionStatus(
@@ -251,22 +277,6 @@ function computeResolutionStatus(
   if (raw.buildingNameRaw && !buildingId) allResolved = false;
   if (raw.awardedToRaw && !supplierId) allResolved = false;
   return allResolved ? 'resolved' : 'pending';
-}
-
-async function getSystemUserId(): Promise<string> {
-  const admin = await prisma.user.findFirst({
-    where: { role: { name: 'Admin' }, status: 'active' },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  if (admin) return admin.id;
-
-  const anyUser = await prisma.user.findFirst({
-    where: { status: 'active' },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  return anyUser?.id ?? 'system';
 }
 
 export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = false): Promise<LcrSyncResult> {
@@ -392,15 +402,18 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
     }
 
     // 6. Process inserts and updates
+    // Build lookup caches once to avoid N×4 sequential DB queries per row
+    const caches = await buildLookupCaches();
+
     const now = new Date();
     const upsertOperations: Prisma.PrismaPromise<unknown>[] = [];
 
     for (const item of toInsert) {
       const raw = mapRow(item.cells, col);
-      const projectId = await resolveProjectId(raw.projectNumber);
-      const productId = await resolveProductId(raw.itemLabel);
-      const buildingId = await resolveBuildingId(raw.buildingNameRaw);
-      const supplierId = await resolveSupplierId(raw.awardedToRaw);
+      const projectId = resolveProjectId(raw.projectNumber, caches.projects);
+      const productId = resolveProductId(raw.itemLabel, caches.products);
+      const buildingId = resolveBuildingId(raw.buildingNameRaw, caches.buildings);
+      const supplierId = resolveSupplierId(raw.awardedToRaw, caches.suppliers);
       const resolutionStatus = computeResolutionStatus(raw, projectId, productId, buildingId, supplierId);
 
       upsertOperations.push(
@@ -454,10 +467,10 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
 
     for (const item of toUpdate) {
       const raw = mapRow(item.cells, col);
-      const projectId = await resolveProjectId(raw.projectNumber);
-      const productId = await resolveProductId(raw.itemLabel);
-      const buildingId = await resolveBuildingId(raw.buildingNameRaw);
-      const supplierId = await resolveSupplierId(raw.awardedToRaw);
+      const projectId = resolveProjectId(raw.projectNumber, caches.projects);
+      const productId = resolveProductId(raw.itemLabel, caches.products);
+      const buildingId = resolveBuildingId(raw.buildingNameRaw, caches.buildings);
+      const supplierId = resolveSupplierId(raw.awardedToRaw, caches.suppliers);
       const resolutionStatus = computeResolutionStatus(raw, projectId, productId, buildingId, supplierId);
 
       upsertOperations.push(
@@ -538,7 +551,6 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
     await writeSyncLog(status, triggeredBy, totalRows, inserted, updated, unchanged, deleted, pendingAliases, durationMs, null);
 
     // 10. Audit log
-    const systemUserId = await getSystemUserId();
     await auditService.logSync('LcrEntry', 'batch', 'GoogleSheets', {
       inserted,
       updated,

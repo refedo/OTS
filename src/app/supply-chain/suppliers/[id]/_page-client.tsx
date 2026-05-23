@@ -1298,6 +1298,7 @@ interface ShipmentEvaluationRow {
   id: string;
   mirId: string;
   mirNumber: string;
+  dolibarrPoRef: string;
   dolibarrId: number;
   evaluationDate: string;
   scoreQuality: number;
@@ -1385,7 +1386,7 @@ function ShipmentRatingsTab({ supplierId }: { supplierId: number }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-xs">MIR</th>
+              <th className="px-3 py-2 text-left font-medium text-xs">MIR / PO</th>
               <th className="px-3 py-2 text-left font-medium text-xs">Date</th>
               <th className="px-3 py-2 text-center font-medium text-xs">Quality</th>
               <th className="px-3 py-2 text-center font-medium text-xs">OTIF</th>
@@ -1400,7 +1401,10 @@ function ShipmentRatingsTab({ supplierId }: { supplierId: number }) {
           <tbody className="divide-y">
             {rows.map(row => (
               <tr key={row.id} className="hover:bg-muted/30">
-                <td className="px-3 py-2 font-mono text-xs font-semibold">{row.mirNumber}</td>
+                <td className="px-3 py-2">
+                  <p className="font-mono text-xs font-semibold">{row.mirNumber}</p>
+                  {row.dolibarrPoRef && <p className="font-mono text-[10px] text-muted-foreground">{row.dolibarrPoRef}</p>}
+                </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(row.evaluationDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
                 {(['scoreQuality', 'scoreOtif', 'scoreService', 'scoreDocumentation', 'scoreHse', 'scoreStacking'] as const).map(k => (
                   <td key={k} className="px-3 py-2 text-center">

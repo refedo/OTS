@@ -54,6 +54,7 @@ export interface ShipmentEvaluationRow {
   id:                string;
   mirId:             string;
   mirNumber:         string;
+  dolibarrPoRef:     string;
   dolibarrId:        number;
   evaluationDate:    string;
   scoreQuality:      number;
@@ -263,6 +264,7 @@ export async function getSupplierShipmentEvaluations(dolibarrId: number): Promis
       e.id,
       e.mir_id       AS mirId,
       r.receipt_number AS mirNumber,
+      r.dolibarr_po_ref AS dolibarrPoRef,
       e.dolibarr_id  AS dolibarrId,
       e.evaluation_date AS evaluationDate,
       e.score_quality      AS scoreQuality,
@@ -289,6 +291,7 @@ export async function getSupplierShipmentEvaluations(dolibarrId: number): Promis
     id:                s(r.id)!,
     mirId:             s(r.mirId)!,
     mirNumber:         s(r.mirNumber)!,
+    dolibarrPoRef:     s(r.dolibarrPoRef) ?? '',
     dolibarrId:        Number(r.dolibarrId),
     evaluationDate:    r.evaluationDate instanceof Date
       ? r.evaluationDate.toISOString().slice(0, 10)

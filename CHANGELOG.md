@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.7.0] - 2026-05-23
+
+### Added
+- **Supply Chain: Planned delivery date in MIR** — When selecting a P.O. to create a Material Inspection Receipt, the Dolibarr "Planned date of delivery" (`date_livraison`) is now synced and displayed alongside the PO details. It is stored on the MIR record and shown in the MIR detail view so inspectors can evaluate OTIF punctuality against the committed delivery date.
+- **Supply Chain: P.O. number in Shipment Ratings tab** — Each row in the Supplier › Shipment Ratings table now shows the P.O. reference below the MIR number for quick cross-reference.
+
+### Changed
+- **Supply Chain: Shipment evaluation — stars instead of dropdowns** — The per-criterion score selectors in the Shipment Evaluation dialog have been replaced with a clickable 5-star rating (1=Poor … 5=Excellent) with colour-coded feedback and a label. The stars are read-only when viewing an existing evaluation.
+- **LCR sync: pre-load all lookups to fix 502 timeout** — Project/product/building/supplier resolution previously issued 4 sequential DB queries per row, causing the sync to time out on large sheets and return 502. All lookup tables are now loaded once at the start of the sync and resolved from in-memory Maps. This reduces per-row DB calls from 4 to 0.
+
+### Fixed
+- **Supply Chain: `toFixed is not a function` in view evaluation** — `weightedScore` returned from the DB as a Decimal was not guaranteed to be a JS `number`; calling `.toFixed()` on it threw `TypeError`. Wrapped with `Number()` throughout the evaluation dialog.
+
+---
+
 ## [23.6.2] - 2026-05-23
 
 ### Fixed

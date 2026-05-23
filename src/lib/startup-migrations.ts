@@ -247,6 +247,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── v32.0.0 — MIR workflow notifications + shipment evaluation bank ────────
   'v32_0_mir_workflow_and_evaluation.sql', // dolibarr_soc_id on MIR; mir_shipment_evaluations table; MIR_INSPECTION workflow definition
+
+  // ── v33.0.0 — MIR backfill: dolibarr_soc_id + workflow_status ────────────
+  'v33_0_mir_backfill_soc_id_and_workflow.sql',
+
+  // ── v34.0.0 — MIR: planned_delivery_date from Dolibarr PO ────────────────
+  'v34_0_mir_planned_delivery_date.sql',
 ];
 
 /**
