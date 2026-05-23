@@ -149,20 +149,43 @@ export class EarlyWarningEngineService {
 
     // If resolved, we can create a new one (condition recurred)
     // If not exists, create new
-    const riskEvent = await prisma.riskEvent.create({
-      data: {
-        severity: input.severity,
-        type: input.type,
-        affectedProjectIds: input.affectedProjectIds,
-        affectedWorkUnitIds: input.affectedWorkUnitIds,
-        reason: input.reason,
-        recommendedAction: input.recommendedAction,
-        fingerprint,
-        metadata: input.metadata || {},
-      },
-    });
+    // Use upsert to guard against race conditions when the engine runs concurrently.
+    // If two engine instances pass the findUnique check at the same time, the second
+    // create would violate the unique index — upsert handles this gracefully by
+    // refreshing the text fields instead of throwing P2002.
+    try {
+      const riskEvent = await prisma.riskEvent.upsert({
+        where: { fingerprint },
+        create: {
+          severity: input.severity,
+          type: input.type,
+          affectedProjectIds: input.affectedProjectIds,
+          affectedWorkUnitIds: input.affectedWorkUnitIds,
+          reason: input.reason,
+          recommendedAction: input.recommendedAction,
+          fingerprint,
+          metadata: input.metadata || {},
+        },
+        update: {
+          // If a resolved record was re-opened by a concurrent run, refresh text only
+          reason: input.reason,
+          recommendedAction: input.recommendedAction,
+        },
+      });
 
-    return { created: true, id: riskEvent.id };
+      return { created: true, id: riskEvent.id };
+    } catch (err: unknown) {
+      // P2002 = unique constraint violation — extremely rare but handle gracefully
+      const code = (err as { code?: string })?.code;
+      if (code === 'P2002') {
+        const race = await prisma.riskEvent.findUnique({
+          where: { fingerprint },
+          select: { id: true },
+        });
+        if (race) return { created: false, id: race.id };
+      }
+      throw err;
+    }
   }
 
   /**

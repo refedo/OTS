@@ -164,6 +164,20 @@ export class FinancialSyncService {
     }
   }
 
+  /**
+   * Reset incremental sync timestamps so the next sync fetches all records from Dolibarr.
+   * Use this when you need a forced full re-sync (e.g. after data repairs).
+   */
+  async resetIncrementalTimestamps(): Promise<void> {
+    const keys = ['last_customer_invoices_sync', 'last_supplier_invoices_sync'];
+    for (const key of keys) {
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM fin_config WHERE config_key = ?`, key
+      );
+    }
+    log.info({}, '[FinSync] Incremental sync timestamps reset — next sync will be a full re-fetch');
+  }
+
   private async logSync(result: FinSyncResult, triggeredBy: string): Promise<void> {
     try {
       await prisma.$executeRawUnsafe(
@@ -367,34 +381,59 @@ export class FinancialSyncService {
   async syncCustomerInvoices(triggeredBy: string = 'manual'): Promise<{ invoiceResult: FinSyncResult; paymentResult: FinSyncResult }> {
     const startTime = Date.now();
     let created = 0, updated = 0, unchanged = 0;
-    let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
+    let paymentsCreated = 0, paymentsUpdated = 0, paymentsSkipped = 0, paymentsTotal = 0;
     let totalInvoices = 0;
 
     try {
+      // ── Incremental sync: only fetch invoices modified since last successful sync ──
+      // On first run (or forced full), lastSyncTs will be 0 which returns everything.
+      const lastSyncIso = await this.getConfig('last_customer_invoices_sync', '');
+      let modifiedSinceFilter: string | undefined;
+      if (lastSyncIso) {
+        const ts = Math.floor(new Date(lastSyncIso).getTime() / 1000);
+        // Dolibarr sqlfilters syntax: (t.tms:>:UNIX_TIMESTAMP)
+        modifiedSinceFilter = `(t.tms:>:${ts})`;
+      }
+
+      // Pre-load set of ALL paid invoice IDs that already have payments synced —
+      // paid invoices cannot gain new payments, so we skip their payment fetch.
+      const paidSyncedIds = new Set<number>();
+      const paidRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT fci.dolibarr_id
+         FROM fin_customer_invoices fci
+         WHERE fci.is_paid = 1 AND fci.is_active = 1
+           AND EXISTS (SELECT 1 FROM fin_payments fp WHERE fp.payment_type = 'customer' AND fp.invoice_dolibarr_id = fci.dolibarr_id)`
+      );
+      paidRows.forEach((r: any) => paidSyncedIds.add(Number(r.dolibarr_id)));
+
       // Process in paginated batches to avoid loading all invoices into memory
       const BATCH_SIZE = 500;
       let page = 0;
       let hasMore = true;
 
       while (hasMore) {
-        console.log(`[FinSync] Fetching customer invoices page ${page} (batch ${BATCH_SIZE})...`);
-        const batch = await this.client.getInvoices({ limit: BATCH_SIZE, page });
-        console.log(`[FinSync] Got ${batch.length} customer invoices (page ${page})`);
+        log.info({ page, filter: modifiedSinceFilter ?? 'all' }, '[FinSync] Fetching customer invoices page');
+        const batch = await this.client.getInvoices({
+          limit: BATCH_SIZE,
+          page,
+          sqlfilters: modifiedSinceFilter,
+        });
+        log.info({ count: batch.length, page }, '[FinSync] Got customer invoices');
 
         // Batch hash pre-load (1 query per page instead of N per invoice)
         const invoiceIds = batch.map(inv => pi(inv.id)).filter(Boolean) as number[];
-        const existingMap = new Map<number, string>();
+        const existingMap = new Map<number, { hash: string; isPaid: number }>();
         if (invoiceIds.length > 0) {
           const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT dolibarr_id, sync_hash FROM fin_customer_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
+            `SELECT dolibarr_id, sync_hash, is_paid FROM fin_customer_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
           );
-          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, row.sync_hash));
+          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, { hash: row.sync_hash, isPaid: row.is_paid }));
         }
 
         for (const inv of batch) {
           totalInvoices++;
           if (totalInvoices % 200 === 0) {
-            console.log(`[FinSync] Processing customer invoice ${totalInvoices}...`);
+            log.info({ totalInvoices }, '[FinSync] Processing customer invoice');
           }
           const dolibarrId = pi(inv.id);
           if (!dolibarrId) continue;
@@ -412,66 +451,76 @@ export class FinancialSyncService {
           };
           const newHash = computeHash(hashFields);
 
-          // Payment deletions in Dolibarr don't change the invoice hash — always sync payments
-          const invoiceChanged = !existingMap.has(dolibarrId) || existingMap.get(dolibarrId) !== newHash;
+          const existingEntry = existingMap.get(dolibarrId);
+          const invoiceChanged = !existingEntry || existingEntry.hash !== newHash;
+          const isNowPaid = inv.paye === '1';
+
           if (!invoiceChanged) {
             unchanged++;
-            // Fall through to payment sync below
           }
 
           if (invoiceChanged) {
-          const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
-          const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
-          const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
+            const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
+            const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
+            const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
+            const rawJson = JSON.stringify(inv);
 
-          const rawJson = JSON.stringify(inv);
-          if (existingMap.has(dolibarrId)) {
-            await prisma.$executeRawUnsafe(
-              `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
-               total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
-               dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
-               WHERE dolibarr_id=?`,
-              inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
-              pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
-              pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-              invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
-            );
-            updated++;
-          } else {
-            await prisma.$executeRawUnsafe(
-              `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, fk_projet, type, status, is_paid,
-               total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
-               first_synced_at, last_synced_at, sync_hash, is_active)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
-              dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
-              pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
-              pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-              invoiceDate, dueDate, creationDate, rawJson, newHash
-            );
-            created++;
-          }
-
-          // Sync invoice lines — delete and re-insert
-          await prisma.$executeRawUnsafe(
-            `DELETE FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
-          );
-          if (inv.lines && Array.isArray(inv.lines)) {
-            for (const line of inv.lines) {
+            if (existingEntry) {
               await prisma.$executeRawUnsafe(
-                `INSERT INTO fin_customer_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
-                 product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                dolibarrId, pi(line.rowid), pi(line.fk_product),
-                line.product_ref || null, line.product_label || line.label || null,
-                pf(line.qty), pf(line.subprice), pf(line.tva_tx),
-                pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
-                line.fk_accounting_account ? String(line.fk_accounting_account) : null
+                `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
+                 total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
+                 dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
+                 WHERE dolibarr_id=?`,
+                inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
+                pi(inv.statut || inv.status), isNowPaid ? 1 : 0,
+                pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
+                invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
               );
+              updated++;
+            } else {
+              await prisma.$executeRawUnsafe(
+                `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, fk_projet, type, status, is_paid,
+                 total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
+                 first_synced_at, last_synced_at, sync_hash, is_active)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
+                dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
+                pi(inv.statut || inv.status), isNowPaid ? 1 : 0,
+                pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
+                invoiceDate, dueDate, creationDate, rawJson, newHash
+              );
+              created++;
             }
-          }
+
+            // Sync invoice lines — delete and re-insert
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
+            );
+            if (inv.lines && Array.isArray(inv.lines)) {
+              for (const line of inv.lines) {
+                await prisma.$executeRawUnsafe(
+                  `INSERT INTO fin_customer_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
+                   product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  dolibarrId, pi(line.rowid), pi(line.fk_product),
+                  line.product_ref || null, line.product_label || line.label || null,
+                  pf(line.qty), pf(line.subprice), pf(line.tva_tx),
+                  pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
+                  line.fk_accounting_account ? String(line.fk_accounting_account) : null
+                );
+              }
+            }
           } // end invoiceChanged
 
-          // Sync payments for this invoice — always runs, even when invoice data is unchanged
+          // ── Payment sync strategy ───────────────────────────────────────────────
+          // Skip Dolibarr API call for paid-and-already-synced invoices that didn't change.
+          // Paid invoices cannot receive new payments in Dolibarr; fetching them on every
+          // sync is what causes the 12k+ API calls that make sync unusably slow.
+          const alreadyPaidAndSynced = isNowPaid && paidSyncedIds.has(dolibarrId) && !invoiceChanged;
+          if (alreadyPaidAndSynced) {
+            paymentsSkipped++;
+            continue;
+          }
+
           try {
             const payments = await this.client.getInvoicePayments(dolibarrId);
             const activeRefs = new Set<string>();
@@ -515,14 +564,13 @@ export class FinancialSyncService {
                 dolibarrId, ...Array.from(activeRefs)
               );
             } else {
-              // No payments in Dolibarr — remove all OTS payments for this invoice
               await prisma.$executeRawUnsafe(
                 `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ?`,
                 dolibarrId
               );
             }
           } catch (e: any) {
-            console.error(`[FinSync] Error fetching payments for invoice ${dolibarrId}:`, e.message);
+            log.error({ dolibarrId, err: e.message }, '[FinSync] Error fetching payments for customer invoice');
           }
         }
 
@@ -530,7 +578,10 @@ export class FinancialSyncService {
         page++;
       }
 
-      console.log(`[FinSync] Customer invoices complete: ${totalInvoices} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
+      // Stamp the sync time so the next run is incremental
+      await this.setConfig('last_customer_invoices_sync', new Date().toISOString());
+
+      log.info({ totalInvoices, created, updated, unchanged, paymentsSkipped }, '[FinSync] Customer invoices complete');
 
       const invoiceResult: FinSyncResult = {
         entityType: 'customer_invoices', status: 'success',
@@ -539,8 +590,8 @@ export class FinancialSyncService {
       };
       const paymentResult: FinSyncResult = {
         entityType: 'customer_payments', status: 'success',
-        created: paymentsCreated, updated: paymentsUpdated, unchanged: 0,
-        total: paymentsTotal, durationMs: Date.now() - startTime,
+        created: paymentsCreated, updated: paymentsUpdated, unchanged: paymentsSkipped,
+        total: paymentsTotal + paymentsSkipped, durationMs: Date.now() - startTime,
       };
       await this.logSync(invoiceResult, triggeredBy);
       await this.logSync(paymentResult, triggeredBy);
@@ -563,60 +614,73 @@ export class FinancialSyncService {
   async syncSupplierInvoices(triggeredBy: string = 'manual'): Promise<{ invoiceResult: FinSyncResult; paymentResult: FinSyncResult }> {
     const startTime = Date.now();
     let created = 0, updated = 0, unchanged = 0;
-    let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
+    let paymentsCreated = 0, paymentsUpdated = 0, paymentsSkipped = 0, paymentsTotal = 0;
     let totalInvoices = 0;
 
     try {
+      // ── Incremental sync: only fetch invoices modified since last successful sync ──
+      const lastSyncIso = await this.getConfig('last_supplier_invoices_sync', '');
+      let modifiedSinceFilter: string | undefined;
+      if (lastSyncIso) {
+        const ts = Math.floor(new Date(lastSyncIso).getTime() / 1000);
+        modifiedSinceFilter = `(t.tms:>:${ts})`;
+      }
+
+      // Pre-load set of paid supplier invoice IDs that already have payments synced
+      const paidSyncedIds = new Set<number>();
+      const paidRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT fsi.dolibarr_id
+         FROM fin_supplier_invoices fsi
+         WHERE fsi.is_paid = 1 AND fsi.is_active = 1
+           AND EXISTS (SELECT 1 FROM fin_payments fp WHERE fp.payment_type = 'supplier' AND fp.invoice_dolibarr_id = fsi.dolibarr_id)`
+      );
+      paidRows.forEach((r: any) => paidSyncedIds.add(Number(r.dolibarr_id)));
+
       // Process in paginated batches to avoid loading all invoices into memory
       const BATCH_SIZE = 500;
       let page = 0;
       let hasMore = true;
 
       while (hasMore) {
-        console.log(`[FinSync] Fetching supplier invoices page ${page} (batch ${BATCH_SIZE})...`);
-        const batch = await this.client.getSupplierInvoices({ limit: BATCH_SIZE, page });
-        console.log(`[FinSync] Got ${batch.length} supplier invoices (page ${page})`);
+        log.info({ page, filter: modifiedSinceFilter ?? 'all' }, '[FinSync] Fetching supplier invoices page');
+        const batch = await this.client.getSupplierInvoices({
+          limit: BATCH_SIZE,
+          page,
+          sqlfilters: modifiedSinceFilter,
+        });
+        log.info({ count: batch.length, page }, '[FinSync] Got supplier invoices');
 
         // Collect all invoice IDs to check which exist
         const invoiceIds = batch.map(inv => pi(inv.id)).filter(Boolean) as number[];
-        const existingMap = new Map<number, string>();
-        
+        const existingMap = new Map<number, { hash: string; isPaid: number }>();
+
         if (invoiceIds.length > 0) {
           const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT dolibarr_id, sync_hash FROM fin_supplier_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
+            `SELECT dolibarr_id, sync_hash, is_paid FROM fin_supplier_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
           );
-          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, row.sync_hash));
+          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, { hash: row.sync_hash, isPaid: row.is_paid }));
         }
 
-        // Process each invoice in the batch (still one-by-one but with optimized queries)
+        // Process each invoice in the batch
         for (const inv of batch) {
           totalInvoices++;
           if (totalInvoices % 500 === 0) {
-            console.log(`[FinSync] Processing supplier invoice ${totalInvoices}...`);
+            log.info({ totalInvoices }, '[FinSync] Processing supplier invoice');
           }
           const dolibarrId = pi(inv.id);
           if (!dolibarrId) continue;
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
+          const isNowPaid = inv.paye === '1' || inv.paid === '1';
 
           // Extract direct PO link.
           // The list API (/supplierinvoices) does NOT return linked_objects, so we must
           // fetch the individual invoice record to get linked_objects.order_supplier
           // for manually-linked invoices (Dolibarr "Related Objects").
+          // Skip this extra fetch for unchanged paid invoices to reduce API calls.
           let linkedPoDolibarrId: number | null = null;
           if (inv.origin_type === 'order_supplier' && pi(inv.origin_id)) {
             linkedPoDolibarrId = pi(inv.origin_id) ?? null;
-          }
-          if (!linkedPoDolibarrId) {
-            try {
-              const fullInv = await this.client.getSupplierInvoiceById(dolibarrId);
-              if (fullInv?.linked_objects?.order_supplier) {
-                const keys = Object.keys(fullInv.linked_objects.order_supplier as Record<string, unknown>);
-                if (keys.length > 0) linkedPoDolibarrId = Number(keys[0]) || null;
-              }
-            } catch {
-              // non-fatal — leave linkedPoDolibarrId as null
-            }
           }
 
           const lineProductSig = Array.isArray(inv.lines)
@@ -630,68 +694,88 @@ export class FinancialSyncService {
           };
           const newHash = computeHash(hashFields);
 
-          // Check if unchanged — still sync payments even if invoice data is identical
-          const invoiceChanged = !existingMap.has(dolibarrId) || existingMap.get(dolibarrId) !== newHash;
+          const existingEntry = existingMap.get(dolibarrId);
+          const invoiceChanged = !existingEntry || existingEntry.hash !== newHash;
+
           if (!invoiceChanged) {
             unchanged++;
-            // Fall through to payment sync below — payment deletions don't affect the invoice hash
           }
 
           if (invoiceChanged) {
-          const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
-          const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
-          const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
-          const isNew = !existingMap.has(dolibarrId);
-          if (isNew) created++; else updated++;
+            // Only fetch linked PO if the invoice actually changed (avoids extra API calls)
+            if (!linkedPoDolibarrId) {
+              try {
+                const fullInv = await this.client.getSupplierInvoiceById(dolibarrId);
+                if (fullInv?.linked_objects?.order_supplier) {
+                  const keys = Object.keys(fullInv.linked_objects.order_supplier as Record<string, unknown>);
+                  if (keys.length > 0) linkedPoDolibarrId = Number(keys[0]) || null;
+                }
+              } catch {
+                // non-fatal — leave linkedPoDolibarrId as null
+              }
+            }
 
-          // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
-          const rawJson = JSON.stringify(inv);
-          await prisma.$executeRawUnsafe(
-            `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, linked_po_dolibarr_id, type, status, is_paid,
-             total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
-             first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
-             ON DUPLICATE KEY UPDATE
-             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet),
-             linked_po_dolibarr_id=VALUES(linked_po_dolibarr_id), type=VALUES(type),
-             status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
-             total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
-             date_creation=VALUES(date_creation), dolibarr_raw=VALUES(dolibarr_raw), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
-            dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, linkedPoDolibarrId,
-            pi(inv.type), pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
-            pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-            invoiceDate, dueDate, creationDate, rawJson, newHash
-          );
+            const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
+            const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
+            const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
+            const isNew = !existingEntry;
+            if (isNew) created++; else updated++;
 
-          // Sync invoice lines - delete old and batch insert new
-          await prisma.$executeRawUnsafe(
-            `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
-          );
-
-          if (inv.lines && Array.isArray(inv.lines) && inv.lines.length > 0) {
-            const linePlaceholders = inv.lines.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
-            const lineParams = inv.lines.flatMap(line => [
-              dolibarrId, pi(line.rowid), pi(line.fk_product),
-              line.product_ref || null, line.product_label || line.label || null,
-              pf(line.qty), pf(line.subprice), pf(line.tva_tx),
-              pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
-              line.fk_accounting_account ? String(line.fk_accounting_account) : null
-            ]);
-
+            // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
+            const rawJson = JSON.stringify(inv);
             await prisma.$executeRawUnsafe(
-              `INSERT INTO fin_supplier_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
-               product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
-               VALUES ${linePlaceholders}`,
-              ...lineParams
+              `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, linked_po_dolibarr_id, type, status, is_paid,
+               total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
+               first_synced_at, last_synced_at, sync_hash, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
+               ON DUPLICATE KEY UPDATE
+               ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet),
+               linked_po_dolibarr_id=VALUES(linked_po_dolibarr_id), type=VALUES(type),
+               status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
+               total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
+               date_creation=VALUES(date_creation), dolibarr_raw=VALUES(dolibarr_raw), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
+              dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, linkedPoDolibarrId,
+              pi(inv.type), pi(inv.statut || inv.status), isNowPaid ? 1 : 0,
+              pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
+              invoiceDate, dueDate, creationDate, rawJson, newHash
             );
-          }
+
+            // Sync invoice lines - delete old and batch insert new
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
+            );
+
+            if (inv.lines && Array.isArray(inv.lines) && inv.lines.length > 0) {
+              const linePlaceholders = inv.lines.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+              const lineParams = inv.lines.flatMap(line => [
+                dolibarrId, pi(line.rowid), pi(line.fk_product),
+                line.product_ref || null, line.product_label || line.label || null,
+                pf(line.qty), pf(line.subprice), pf(line.tva_tx),
+                pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
+                line.fk_accounting_account ? String(line.fk_accounting_account) : null
+              ]);
+
+              await prisma.$executeRawUnsafe(
+                `INSERT INTO fin_supplier_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
+                 product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
+                 VALUES ${linePlaceholders}`,
+                ...lineParams
+              );
+            }
           } // end invoiceChanged
 
-          // Sync payments for this supplier invoice — always runs, even when invoice data is unchanged
+          // ── Payment sync strategy ───────────────────────────────────────────────
+          // Skip Dolibarr API call for paid-and-already-synced invoices that didn't change.
+          const alreadyPaidAndSynced = isNowPaid && paidSyncedIds.has(dolibarrId) && !invoiceChanged;
+          if (alreadyPaidAndSynced) {
+            paymentsSkipped++;
+            continue;
+          }
+
           try {
             const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
             const activeRefs = new Set<string>();
-            console.log(`[FinSync] Supplier invoice ${dolibarrId}: Dolibarr returned ${payments.length} payment(s): [${payments.map(p => p.ref || '(no ref)').join(', ')}]`);
+            log.info({ dolibarrId, count: payments.length }, '[FinSync] Supplier invoice payments fetched');
             for (const pmt of payments) {
               paymentsTotal++;
               const pmtDate = formatDate(parseDateString(pmt.date));
@@ -727,21 +811,18 @@ export class FinancialSyncService {
             // Remove OTS payments that no longer exist in Dolibarr
             if (activeRefs.size > 0) {
               const placeholders = Array.from(activeRefs).map(() => '?').join(',');
-              const deleted = await prisma.$executeRawUnsafe(
+              await prisma.$executeRawUnsafe(
                 `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
                 dolibarrId, ...Array.from(activeRefs)
               );
-              if (deleted) console.log(`[FinSync] Supplier invoice ${dolibarrId}: deleted ${deleted} orphaned payment(s)`);
             } else {
-              // No payments in Dolibarr — remove all OTS payments for this invoice
-              const deleted = await prisma.$executeRawUnsafe(
+              await prisma.$executeRawUnsafe(
                 `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
                 dolibarrId
               );
-              if (deleted) console.log(`[FinSync] Supplier invoice ${dolibarrId}: deleted all ${deleted} payment(s) — none in Dolibarr`);
             }
           } catch (e: any) {
-            console.error(`[FinSync] Error syncing payments for supplier invoice ${dolibarrId}:`, e.message);
+            log.error({ dolibarrId, err: e.message }, '[FinSync] Error syncing payments for supplier invoice');
           }
         }
 
@@ -749,7 +830,10 @@ export class FinancialSyncService {
         page++;
       }
 
-      console.log(`[FinSync] Supplier invoices complete: ${totalInvoices} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
+      // Stamp the sync time so the next run is incremental
+      await this.setConfig('last_supplier_invoices_sync', new Date().toISOString());
+
+      log.info({ totalInvoices, created, updated, unchanged, paymentsSkipped }, '[FinSync] Supplier invoices complete');
 
       const invoiceResult: FinSyncResult = {
         entityType: 'supplier_invoices', status: 'success',
@@ -758,8 +842,8 @@ export class FinancialSyncService {
       };
       const paymentResult: FinSyncResult = {
         entityType: 'supplier_payments', status: 'success',
-        created: paymentsCreated, updated: paymentsUpdated, unchanged: 0,
-        total: paymentsTotal, durationMs: Date.now() - startTime,
+        created: paymentsCreated, updated: paymentsUpdated, unchanged: paymentsSkipped,
+        total: paymentsTotal + paymentsSkipped, durationMs: Date.now() - startTime,
       };
       await this.logSync(invoiceResult, triggeredBy);
       await this.logSync(paymentResult, triggeredBy);

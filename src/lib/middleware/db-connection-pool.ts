@@ -1,183 +1,96 @@
 /**
  * Database Connection Pool Middleware
- * 
- * Optimizes Prisma connection management:
- * - Reuses connections across requests
- * - Implements connection timeout
- * - Prevents connection leaks
- * - Graceful shutdown handling
- * 
- * Memory Impact: ~5-10MB overhead
- * Performance Impact: Reduces query latency by 20-50ms
+ *
+ * Single PrismaClient instance shared across the entire Next.js process.
+ * Uses global to survive hot-reloads in development (avoids connection leaks).
+ *
+ * Connection limit is configured via DATABASE_URL:
+ *   ?connection_limit=10&pool_timeout=20
+ *
+ * Keep the pool small — MySQL's max_connections is shared across all apps
+ * (OTS + Dolibarr). A limit of 10 leaves headroom for the Dolibarr DB pool
+ * (3 connections) and interactive MySQL sessions.
  */
 
 import { PrismaClient } from '@prisma/client';
 
-// ============================================
-// GLOBAL SINGLETON GUARD
-// ============================================
-
-// Use global to persist across Next.js hot reloads and multiple contexts
+// ── Global guard (survives Next.js hot-reloads in dev) ────────────────────────
 declare global {
+  // eslint-disable-next-line no-var
+  var __prismaClient: PrismaClient | undefined;
+  // eslint-disable-next-line no-var
   var __dbPoolActivityInterval: NodeJS.Timeout | undefined;
 }
 
-// ============================================
-// CONFIGURATION
-// ============================================
+// ── Singleton factory ─────────────────────────────────────────────────────────
 
-const POOL_CONFIG = {
-  // Connection timeout in seconds
-  TIMEOUT: 20,
-  
-  // Maximum number of connections (set via DATABASE_URL)
-  // connection_limit=20 in DATABASE_URL
-  
-  // Idle connection timeout (milliseconds)
-  IDLE_TIMEOUT: 60000, // 1 minute
-  
-  // Log connection pool stats
-  ENABLE_LOGGING: process.env.NODE_ENV === 'development',
-};
-
-// ============================================
-// CONNECTION POOL MANAGER
-// ============================================
-
-class DatabaseConnectionPool {
-  private static instance: PrismaClient | null = null;
-  private static connectionCount = 0;
-  private static lastActivity = Date.now();
-
-  /**
-   * Get or create Prisma client instance (singleton)
-   */
-  static getClient(): PrismaClient {
-    if (!this.instance) {
-      this.instance = new PrismaClient({
-        log: ['error'], // Only log errors to reduce terminal noise
-        
-        // Connection pool configuration
-        datasources: {
-          db: {
-            url: process.env.DATABASE_URL,
-          },
-        },
-      });
-
-      // Track connection activity
-      this.setupActivityTracking();
-      
-      // Setup graceful shutdown
-      this.setupGracefulShutdown();
-
-      if (POOL_CONFIG.ENABLE_LOGGING) {
-        console.log('[DB Pool] Connection pool initialized');
-      }
-    }
-
-    this.lastActivity = Date.now();
-    this.connectionCount++;
-    
-    return this.instance;
-  }
-
-  /**
-   * Track connection activity for monitoring
-   */
-  private static setupActivityTracking(): void {
-    // Use global singleton to prevent duplicate intervals across contexts
-    if (global.__dbPoolActivityInterval) {
-      return;
-    }
-
-    // Log pool stats every 5 minutes in production
-    if (process.env.NODE_ENV === 'production') {
-      global.__dbPoolActivityInterval = setInterval(() => {
-        const idleTime = Date.now() - this.lastActivity;
-        console.log(`[DB Pool] Stats - Connections: ${this.connectionCount}, Idle: ${Math.round(idleTime / 1000)}s`);
-      }, 300000); // 5 minutes
-    }
-  }
-
-  /**
-   * Setup graceful shutdown to close connections properly
-   */
-  private static setupGracefulShutdown(): void {
-    const shutdown = async () => {
-      if (this.instance) {
-        console.log('[DB Pool] Closing database connections...');
-        await this.instance.$disconnect();
-        this.instance = null;
-        console.log('[DB Pool] Database connections closed');
-      }
-    };
-
-    // Handle different shutdown signals
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-    process.on('beforeExit', shutdown);
-  }
-
-  /**
-   * Manually disconnect (for testing or maintenance)
-   */
-  static async disconnect(): Promise<void> {
-    if (this.instance) {
-      await this.instance.$disconnect();
-      this.instance = null;
-      console.log('[DB Pool] Manually disconnected');
-    }
-  }
-
-  /**
-   * Get connection pool statistics
-   */
-  static getStats(): {
-    connectionCount: number;
-    lastActivity: Date;
-    idleTime: number;
-    isConnected: boolean;
-  } {
-    return {
-      connectionCount: this.connectionCount,
-      lastActivity: new Date(this.lastActivity),
-      idleTime: Date.now() - this.lastActivity,
-      isConnected: this.instance !== null,
-    };
-  }
-
-  /**
-   * Health check - verify database connectivity
-   */
-  static async healthCheck(): Promise<boolean> {
-    try {
-      const client = this.getClient();
-      await client.$queryRaw`SELECT 1`;
-      return true;
-    } catch (error) {
-      console.error('[DB Pool] Health check failed:', error);
-      return false;
-    }
-  }
+function createClient(): PrismaClient {
+  return new PrismaClient({
+    log: ['error'],
+    // connection_limit should be set in DATABASE_URL query string.
+    // The datasources block is intentionally omitted here so Prisma reads
+    // directly from DATABASE_URL (which can include ?connection_limit=10).
+  });
 }
 
-// ============================================
-// EXPORTS
-// ============================================
-
 /**
- * Get the singleton Prisma client with connection pooling
- * Use this instead of creating new PrismaClient() instances
+ * Returns the shared PrismaClient instance.
+ * In production a module-level singleton is used.
+ * In development the global is used so hot-reloads don't create new pools.
  */
-export const db = DatabaseConnectionPool.getClient();
+function getOrCreateClient(): PrismaClient {
+  if (process.env.NODE_ENV === 'production') {
+    // Module-level variable is stable in production (no hot-reload)
+    if (!_productionInstance) {
+      _productionInstance = createClient();
+      setupGracefulShutdown(_productionInstance);
+    }
+    return _productionInstance;
+  }
 
-/**
- * Export pool manager for advanced usage
- */
-export const dbPool = DatabaseConnectionPool;
+  // Development: use global so the same instance survives hot-reloads
+  if (!global.__prismaClient) {
+    global.__prismaClient = createClient();
+  }
+  return global.__prismaClient;
+}
 
-/**
- * Default export for backward compatibility
- */
+let _productionInstance: PrismaClient | undefined;
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+export const db = getOrCreateClient();
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+
+function setupGracefulShutdown(client: PrismaClient): void {
+  const shutdown = async () => {
+    await client.$disconnect();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  process.once('beforeExit', shutdown);
+}
+
+// ── Pool stats (kept for backward-compat imports) ─────────────────────────────
+
+export const dbPool = {
+  getClient: () => db,
+  disconnect: async () => { await db.$disconnect(); },
+  getStats: () => ({
+    connectionCount: 0,
+    lastActivity: new Date(),
+    idleTime: 0,
+    isConnected: true,
+  }),
+  healthCheck: async () => {
+    try {
+      await db.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+
 export default db;

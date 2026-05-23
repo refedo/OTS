@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
     // Check for partial sync via query param or body
     const url = new URL(request.url);
     const entitiesParam = url.searchParams.get('entities');
+    const forceFullParam = url.searchParams.get('force_full') === 'true';
     const syncType = entitiesParam ? 'partial' : 'full';
+
+    // force_full=true resets incremental sync timestamps so a complete re-fetch runs
+    if (forceFullParam) {
+      await service.resetIncrementalTimestamps();
+    }
 
     systemEventService.logFinancial('FIN_SYNC_STARTED', userId, {
       userName,
