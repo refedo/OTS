@@ -350,6 +350,10 @@ model User {
   createdTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramCreatedBy")
   deletedTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramDeletedBy")
 
+  // MIR Shipment Evaluation back-relations (32.0.0)
+  mirEvaluations    MirShipmentEvaluation[] @relation("MirEvaluator")
+  mirEvalsCreated   MirShipmentEvaluation[] @relation("MirEvalCreatedBy")
+
   // Workflow Engine back-relations (21.0.0)
   initiatedWorkflows  WorkflowInstance[] @relation("WorkflowInitiatedBy")
   cancelledWorkflows  WorkflowInstance[] @relation("WorkflowCancelledBy")
@@ -1624,6 +1628,7 @@ model MaterialInspectionReceipt {
   dolibarrPoId  String  @map("dolibarr_po_id")
   dolibarrPoRef String  @map("dolibarr_po_ref")
   supplierName  String? @map("supplier_name")
+  dolibarrSocId Int?    @map("dolibarr_soc_id")
   projectId     String? @map("project_id") @db.Char(36)
 
   // Receipt info
@@ -1655,6 +1660,7 @@ model MaterialInspectionReceipt {
   approvedBy   User?                                 @relation("MIRApprovedBy", fields: [approvedById], references: [id])
   items        MaterialInspectionReceiptItem[]
   attachments  MaterialInspectionReceiptAttachment[]
+  evaluation   MirShipmentEvaluation?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1665,6 +1671,7 @@ model MaterialInspectionReceipt {
   @@index([receiptDate])
   @@index([status])
   @@index([workflowStatus])
+  @@index([dolibarrSocId])
   @@map("material_inspection_receipts")
 }
 
@@ -1763,6 +1770,46 @@ model MaterialInspectionReceiptAttachment {
   @@index([itemId])
   @@index([attachmentType])
   @@map("material_inspection_receipt_attachments")
+}
+
+// Shipment evaluation (one per MIR) — feeds the supplier Evaluations Receiving Bank (v32.0.0)
+model MirShipmentEvaluation {
+  id                 String   @id @default(uuid()) @db.Char(36)
+  mirId              String   @unique @map("mir_id") @db.Char(36)
+  dolibarrId         Int      @map("dolibarr_id")
+  evaluationDate     DateTime @map("evaluation_date") @db.Date
+
+  scoreQuality       Int      @map("score_quality") @db.TinyInt
+  scoreOtif          Int      @map("score_otif") @db.TinyInt
+  scoreService       Int      @map("score_service") @db.TinyInt
+  scoreDocumentation Int      @map("score_documentation") @db.TinyInt
+  scoreHse           Int      @map("score_hse") @db.TinyInt
+  scoreStacking      Int      @map("score_stacking") @db.TinyInt
+
+  notesQuality       String?  @map("notes_quality") @db.Text
+  notesOtif          String?  @map("notes_otif") @db.Text
+  notesService       String?  @map("notes_service") @db.Text
+  notesDocumentation String?  @map("notes_documentation") @db.Text
+  notesHse           String?  @map("notes_hse") @db.Text
+  notesStacking      String?  @map("notes_stacking") @db.Text
+  generalNotes       String?  @map("general_notes") @db.Text
+
+  weightedScore      Decimal  @map("weighted_score") @db.Decimal(6, 2)
+  rating             String   @map("rating") @db.VarChar(1)
+  outcome            String   @map("outcome") @db.VarChar(20)
+
+  evaluatorId        String?  @map("evaluator_id") @db.Char(36)
+  createdById        String   @map("created_by_id") @db.Char(36)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  mir       MaterialInspectionReceipt @relation(fields: [mirId], references: [id], onDelete: Cascade)
+  evaluator User?                     @relation("MirEvaluator", fields: [evaluatorId], references: [id], onDelete: SetNull)
+  createdBy User                      @relation("MirEvalCreatedBy", fields: [createdById], references: [id])
+
+  @@index([dolibarrId])
+  @@index([evaluationDate])
+  @@map("mir_shipment_evaluations")
 }
 
 model WeldingInspection {

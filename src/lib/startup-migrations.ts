@@ -233,8 +233,20 @@ const STARTUP_MIGRATIONS = [
   // ── Project wizard: arch drawings received flag on Building ───────────────
   'add_building_arch_drawings.sql',   // archDrawingsReceived BOOLEAN on Building
 
+  // ── v28.0.0 — MIR status backfill ────────────────────────────────────────
+  'v28_0_mir_status_backfill.sql',    // Backfill status field on existing MIR records
+
   // ── v29.0.0 — MIR Workflow (Inspector → Reviewer → Approver) ─────────────
   'v29_0_mir_workflow.sql',           // workflow_status + submission/review/approval timestamps on MIR
+
+  // ── v30.0.0 — MIR global serial ───────────────────────────────────────────
+  'v30_0_mir_global_serial.sql',      // Global receipt number serial (no monthly reset)
+
+  // ── v31.0.0 — SC contract PO link ─────────────────────────────────────────
+  'v31_0_sc_contract_po_link.sql',    // dolibarr_po_id on SubcontractorContract
+
+  // ── v32.0.0 — MIR workflow notifications + shipment evaluation bank ────────
+  'v32_0_mir_workflow_and_evaluation.sql', // dolibarr_soc_id on MIR; mir_shipment_evaluations table; MIR_INSPECTION workflow definition
 ];
 
 /**

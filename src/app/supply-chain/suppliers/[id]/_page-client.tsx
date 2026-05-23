@@ -6,7 +6,7 @@ import {
   Factory, ArrowLeft, Mail, Phone, MapPin, Building2, ChevronRight,
   ShieldCheck, ShieldAlert, ShieldOff, Shield, ClipboardList, CreditCard,
   FileText, ShoppingCart, Banknote, BarChart3, Plus, ClipboardCheck,
-  AlertTriangle, Users, Handshake, Trash2,
+  AlertTriangle, Users, Handshake, Trash2, Star, Package, TrendingUp, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -286,7 +286,8 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
             <TabsTrigger value="pos"><ShoppingCart className="h-4 w-4 mr-1.5" />Purchase Orders</TabsTrigger>
             <TabsTrigger value="payments"><Banknote className="h-4 w-4 mr-1.5" />Payments</TabsTrigger>
             <TabsTrigger value="soa"><BarChart3 className="h-4 w-4 mr-1.5" />Statement</TabsTrigger>
-            <TabsTrigger value="evaluations"><ClipboardCheck className="h-4 w-4 mr-1.5" />Evaluations</TabsTrigger>
+            <TabsTrigger value="shipment-ratings"><Star className="h-4 w-4 mr-1.5" />Shipment Ratings</TabsTrigger>
+            <TabsTrigger value="evaluations"><ClipboardCheck className="h-4 w-4 mr-1.5" />Manual Evaluations</TabsTrigger>
             <TabsTrigger value="coa"><ClipboardList className="h-4 w-4 mr-1.5" />CoA & COGS</TabsTrigger>
             {subcontractsCount > 0 && (
               <TabsTrigger value="subcontracts">
@@ -317,6 +318,9 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
               type="ap"
               apiBase={`/api/supply-chain/suppliers/${supplierId}/soa`}
             />
+          </TabsContent>
+          <TabsContent value="shipment-ratings">
+            <ShipmentRatingsTab supplierId={supplierId} />
           </TabsContent>
           <TabsContent value="evaluations">
             <EvaluationsTab supplierId={supplierId} supplierName={overview.name} onEvaluated={fetchOverview} />
@@ -1278,6 +1282,141 @@ function SupplierSubcontractsTab({ supplierId }: { supplierId: number }) {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SC_STATUS_STYLE[c.status] ?? 'bg-slate-100 text-slate-700'}`}>
                     {c.status}
                   </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Shipment Ratings Tab ─────────────────────────────────────────────────────
+
+interface ShipmentEvaluationRow {
+  id: string;
+  mirId: string;
+  mirNumber: string;
+  dolibarrId: number;
+  evaluationDate: string;
+  scoreQuality: number;
+  scoreOtif: number;
+  scoreService: number;
+  scoreDocumentation: number;
+  scoreHse: number;
+  scoreStacking: number;
+  weightedScore: number;
+  rating: string;
+  outcome: string;
+  generalNotes: string | null;
+  evaluatorName: string | null;
+  createdAt: string;
+}
+
+const RATING_BADGE: Record<string, string> = {
+  A: 'bg-green-100 text-green-800 border-green-200',
+  B: 'bg-blue-100 text-blue-800 border-blue-200',
+  C: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  D: 'bg-red-100 text-red-800 border-red-200',
+};
+
+function ShipmentRatingsTab({ supplierId }: { supplierId: number }) {
+  const [rows, setRows] = useState<ShipmentEvaluationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/supply-chain/suppliers/${supplierId}/shipment-evaluations`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setRows)
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [supplierId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading shipment evaluations…
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+        <Star className="h-12 w-12 opacity-20" />
+        <p className="text-sm">No shipment evaluations yet.</p>
+        <p className="text-xs">Evaluations are submitted during the MIR receiving process.</p>
+      </div>
+    );
+  }
+
+  const avg = rows.reduce((s, r) => s + r.weightedScore, 0) / rows.length;
+  const avgRating = avg >= 85 ? 'A' : avg >= 70 ? 'B' : avg >= 55 ? 'C' : 'D';
+
+  return (
+    <div className="space-y-4">
+      {/* Aggregate summary */}
+      <div className="flex items-center gap-6 p-4 rounded-xl border bg-muted/30">
+        <div>
+          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Aggregate Rating</p>
+          <div className="flex items-center gap-2">
+            <span className="text-3xl font-bold">{avg.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">/ 100</span>
+            <span className={`text-sm font-bold px-2 py-0.5 rounded border ${RATING_BADGE[avgRating]}`}>{avgRating}</span>
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="h-3 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full ${avgRating === 'A' ? 'bg-green-500' : avgRating === 'B' ? 'bg-blue-500' : avgRating === 'C' ? 'bg-yellow-500' : 'bg-red-500'}`}
+              style={{ width: `${Math.min(avg, 100)}%` }}
+            />
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold">{rows.length}</p>
+          <p className="text-xs text-muted-foreground">shipments rated</p>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium text-xs">MIR</th>
+              <th className="px-3 py-2 text-left font-medium text-xs">Date</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Quality</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">OTIF</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Service</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Docs</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">HSE</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Stacking</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Score</th>
+              <th className="px-3 py-2 text-center font-medium text-xs">Rating</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {rows.map(row => (
+              <tr key={row.id} className="hover:bg-muted/30">
+                <td className="px-3 py-2 font-mono text-xs font-semibold">{row.mirNumber}</td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(row.evaluationDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
+                {(['scoreQuality', 'scoreOtif', 'scoreService', 'scoreDocumentation', 'scoreHse', 'scoreStacking'] as const).map(k => (
+                  <td key={k} className="px-3 py-2 text-center">
+                    <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 ${
+                      row[k] >= 4 ? 'bg-green-100 text-green-800' :
+                      row[k] >= 3 ? 'bg-blue-100 text-blue-800' :
+                      row[k] >= 2 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {row[k]}
+                    </span>
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-center font-semibold text-xs">{Number(row.weightedScore).toFixed(1)}</td>
+                <td className="px-3 py-2 text-center">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded border ${RATING_BADGE[row.rating] ?? ''}`}>{row.rating}</span>
                 </td>
               </tr>
             ))}
