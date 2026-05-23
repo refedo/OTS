@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.6.2] - 2026-05-23
+
+### Fixed
+- **LCR sync: foreign key violation on `buildingId`** — `resolveBuildingId` now verifies the building row actually exists after resolving the alias. Previously, stale alias entries pointing to deleted buildings caused a FK constraint error that aborted the entire sync.
+- **LCR scheduler: cron not starting automatically** — `isEnabled()` was gated on `NODE_ENV === 'production'` when `ENABLE_LCR_SCHEDULER` was unset, so the scheduler never started in environments where that variable wasn't exactly `'production'`. Now defaults to enabled; set `ENABLE_LCR_SCHEDULER=false` to explicitly disable.
+
+---
+
 ## [23.6.1] - 2026-05-23
 
 ### Fixed
