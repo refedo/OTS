@@ -10,6 +10,7 @@ export type NavigationPermissionMap = {
 export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Single navigation items
   '/dashboard': null, // Everyone can access dashboard
+  '/integrity': null, // Report a Violation — accessible to all authenticated users
   '/risk-dashboard': ['risk.view_dashboard', 'risk.view_alerts'],
   '/tasks': ['tasks.view', 'tasks.view_all'],
   '/tasks?filter=my-tasks': ['tasks.view'],

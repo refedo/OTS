@@ -433,6 +433,10 @@ model User {
   // HR Monthly Reports (23.4.0)
   createdHrReports HrMonthlyReport[] @relation("HrReportCreatedBy")
 
+  // Integrity Reports (26.0.0)
+  submittedIntegrityReports  IntegrityReport[] @relation("IntegrityReportReporter")
+  resolvedIntegrityReports   IntegrityReport[] @relation("IntegrityReportResolver")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -7675,4 +7679,64 @@ model HrMonthlyReport {
   @@index([status])
   @@index([createdAt])
   @@map("HrMonthlyReport")
+}
+
+// ─── Integrity Reports (26.0.0) ────────────────────────────────────────────
+
+enum IntegrityReportCategory {
+  MISCONDUCT
+  FINANCIAL_MISUSE
+  ASSET_MISUSE
+  OPERATIONAL_RISK
+  SAFETY_VIOLATION
+  POLICY_BREACH
+  OTHER
+}
+
+enum IntegrityReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum IntegrityReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model IntegrityReport {
+  id           String                  @id @default(uuid()) @db.Char(36)
+  reportNumber String                  @unique @db.VarChar(30)
+
+  category     IntegrityReportCategory
+  title        String                  @db.VarChar(255)
+  description  String                  @db.Text
+  isAnonymous  Boolean                 @default(false)
+  severity     IntegrityReportSeverity @default(MEDIUM)
+  status       IntegrityReportStatus   @default(OPEN)
+
+  // Attachments stored as JSON array: [{fileName, filePath, fileType, fileSize, uploadedAt}]
+  attachments  Json?
+
+  // Reporter — nullable if anonymous and user opts for full anonymity
+  reporterId   String?                 @db.Char(36)
+  reporter     User?                   @relation("IntegrityReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+
+  // Resolution
+  resolution   String?                 @db.Text
+  resolvedAt   DateTime?
+  resolvedById String?                 @db.Char(36)
+  resolvedBy   User?                   @relation("IntegrityReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([reporterId])
+  @@index([createdAt])
+  @@map("integrity_reports")
 }

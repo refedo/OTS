@@ -782,13 +782,14 @@ export default function MaterialInspectionReceiptPage() {
                   <th className="text-left p-3 font-medium">Workflow</th>
                   <th className="text-center p-3 font-medium">Items</th>
                   <th className="text-center p-3 font-medium" title="MTC Received & Uploaded">MTC</th>
+                  <th className="text-center p-3 font-medium" title="Shipment Evaluation">Eval</th>
                   <th className="text-center p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReceipts.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={11} className="text-center p-8 text-muted-foreground">
                       No material receipts found
                     </td>
                   </tr>
@@ -816,6 +817,23 @@ export default function MaterialInspectionReceiptPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        {receipt.evaluation ? (
+                          <span
+                            title={`Evaluated · Rating: ${receipt.evaluation.rating} · Score: ${receipt.evaluation.weightedScore}`}
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                              receipt.evaluation.rating === 'A' ? 'bg-green-100 text-green-700' :
+                              receipt.evaluation.rating === 'B' ? 'bg-amber-100 text-amber-700' :
+                              receipt.evaluation.rating === 'C' ? 'bg-orange-100 text-orange-700' :
+                              'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {receipt.evaluation.rating}
+                          </span>
+                        ) : (
+                          <span title="Not yet evaluated" className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>
                         )}
                       </td>
                       <td className="p-3 text-center" onClick={e => e.stopPropagation()}>

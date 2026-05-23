@@ -451,6 +451,16 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'integrity',
+    name: 'Integrity & Compliance Reports',
+    permissions: [
+      { id: 'integrity.report', name: 'Submit Integrity Report', description: 'Submit a confidential or anonymous violation report', category: 'integrity' },
+      { id: 'integrity.view_own', name: 'View Own Integrity Reports', description: 'View non-anonymous reports submitted by you', category: 'integrity' },
+      { id: 'integrity.view_all', name: 'View All Integrity Reports', description: 'View all submitted violation reports (Admin/CEO only)', category: 'integrity' },
+      { id: 'integrity.resolve', name: 'Resolve Integrity Reports', description: 'Update status, add resolution notes, and close reports (Admin/CEO only)', category: 'integrity' },
+    ],
+  },
+  {
     id: 'admin',
     name: 'System Administration',
     permissions: [
@@ -628,6 +638,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
   ],
   // 19.14.0 — Employee self-service role: base permissions for any OTS-linked employee
   Employee: [
@@ -644,6 +657,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // Integrity Reports — all employees can report
+    'integrity.report',
+    'integrity.view_own',
   ],
   Manager: [
     // User Management
@@ -828,6 +844,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'ims.calibration.manage',
     'ims.competence.view',
     'ims.competence.manage',
+    // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
   ],
   Engineer: [
     // Basic Access
@@ -924,6 +943,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'ims.audits.view',
     'ims.calibration.view',
     'ims.competence.view',
+    // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
   ],
   Operator: [
     // Basic Access
@@ -971,6 +993,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
   ],
   'Document Controller': [
     // Basic Access
@@ -1064,5 +1089,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'ims.calibration.manage',
     'ims.competence.view',
     'ims.competence.manage',
+    // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
   ],
 };
