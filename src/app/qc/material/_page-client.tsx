@@ -72,6 +72,7 @@ type PurchaseOrder = {
   statut: string;
   total_ttc: number;
   date_commande?: number;
+  date_livraison?: number | string | null;
   fk_projet?: number;
   project_ref?: string;
   lines: PurchaseOrderLine[];
@@ -105,6 +106,7 @@ type MaterialReceipt = {
   dolibarrSocId?: number | null;
   projectId?: string;
   receiptDate: string;
+  plannedDeliveryDate?: string | null;
   status: string;
   workflowStatus: string;
   evaluation?: { id: string; rating: string; weightedScore: number } | null;
@@ -327,6 +329,9 @@ export default function MaterialInspectionReceiptPage() {
           supplierName: selectedPO.supplier_name,
           dolibarrSocId: selectedPO.socid ?? null,
           projectId: (selectedProject && selectedProject !== '__none__') ? selectedProject : null,
+          plannedDeliveryDate: selectedPO.date_livraison
+            ? new Date(Number(selectedPO.date_livraison) * 1000).toISOString()
+            : null,
           items,
         }),
       });
@@ -1007,6 +1012,14 @@ export default function MaterialInspectionReceiptPage() {
                   <p className="text-xs text-muted-foreground">PO Project Ref</p>
                   <p className="font-medium font-mono">{selectedPO.project_ref || '—'}</p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Planned Delivery Date</p>
+                  <p className={`font-medium ${selectedPO.date_livraison ? '' : 'text-muted-foreground'}`}>
+                    {selectedPO.date_livraison
+                      ? new Date(Number(selectedPO.date_livraison) * 1000).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Not set in Dolibarr'}
+                  </p>
+                </div>
               </div>
 
               {/* Project dropdown */}
@@ -1104,7 +1117,7 @@ export default function MaterialInspectionReceiptPage() {
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Status</p>
                   {getStatusBadge(selectedReceipt.status)}
@@ -1116,6 +1129,12 @@ export default function MaterialInspectionReceiptPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Receipt Date</p>
                   <p className="font-medium">{fmtDate(selectedReceipt.receiptDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Planned Delivery</p>
+                  <p className={`font-medium ${selectedReceipt.plannedDeliveryDate ? '' : 'text-muted-foreground italic'}`}>
+                    {selectedReceipt.plannedDeliveryDate ? fmtDate(selectedReceipt.plannedDeliveryDate) : 'Not set'}
+                  </p>
                 </div>
               </div>
 

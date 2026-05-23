@@ -23,6 +23,34 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '23.7.0',
+    date: 'May 23, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'MIR Planned Delivery Date, Star Ratings & LCR Sync Fix',
+    highlights: [
+      'Shipment evaluation now uses a 5-star rating UI instead of dropdowns for each criterion.',
+      'Planned delivery date from Dolibarr PO is now synced and shown during the MIR process for OTIF evaluation.',
+      'Shipment Ratings tab shows the P.O. number alongside each MIR entry.',
+      'LCR sync pre-loads all lookup tables at startup — fixes 502 timeout on large sheets.',
+      'Fixed TypeError: toFixed is not a function when viewing shipment evaluations.',
+    ],
+    changes: {
+      added: [
+        'MIR: Planned delivery date (date_livraison) from Dolibarr PO displayed in the Create Receipt dialog and MIR detail view.',
+        'Supplier Shipment Ratings: P.O. reference shown below MIR number in each row.',
+      ],
+      changed: [
+        'Shipment Evaluation dialog: per-criterion dropdowns replaced with 5-star rating (1=Poor … 5=Excellent) with colour and label feedback.',
+        'LCR sync: all project/product/building/supplier lookups now pre-loaded into memory maps before processing rows — eliminates per-row DB queries.',
+      ],
+      fixed: [
+        'TypeError: J.toFixed is not a function when opening a shipment evaluation — weightedScore Decimal now wrapped with Number().',
+        'LCR sync 502 Bad Gateway — sequential per-row DB queries were timing out on large sheets; replaced with batch pre-loading.',
+      ],
+    },
+  },
+  {
     version: '24.1.0',
     date: 'May 10, 2026',
     type: 'patch',

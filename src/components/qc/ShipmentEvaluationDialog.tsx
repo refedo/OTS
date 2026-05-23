@@ -12,13 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +33,50 @@ const MIR_CRITERIA: ScoreKey[] = [
 ];
 
 const SCORE_LABELS: Record<number, string> = {
-  1: '1 — Poor',
-  2: '2 — Below Average',
-  3: '3 — Acceptable',
-  4: '4 — Good',
-  5: '5 — Excellent',
+  1: 'Poor',
+  2: 'Below Average',
+  3: 'Acceptable',
+  4: 'Good',
+  5: 'Excellent',
 };
+
+const STAR_COLORS: Record<number, string> = {
+  1: 'text-red-500',
+  2: 'text-orange-400',
+  3: 'text-yellow-400',
+  4: 'text-blue-500',
+  5: 'text-green-500',
+};
+
+function StarRating({ value, onChange, readOnly }: { value: number; onChange?: (v: number) => void; readOnly?: boolean }) {
+  const [hovered, setHovered] = useState(0);
+  const active = hovered || value;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            type="button"
+            disabled={readOnly}
+            onClick={() => !readOnly && onChange?.(n)}
+            onMouseEnter={() => !readOnly && setHovered(n)}
+            onMouseLeave={() => !readOnly && setHovered(0)}
+            className={`focus:outline-none transition-transform ${readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
+            aria-label={`${n} star — ${SCORE_LABELS[n]}`}
+          >
+            <Star
+              className={`h-6 w-6 transition-colors ${n <= active ? `fill-current ${STAR_COLORS[active] ?? 'text-amber-400'}` : 'text-muted-foreground/30'}`}
+            />
+          </button>
+        ))}
+      </div>
+      <span className={`text-xs font-medium ${STAR_COLORS[value] ?? 'text-muted-foreground'}`}>
+        {SCORE_LABELS[value] ?? '—'}
+      </span>
+    </div>
+  );
+}
 
 const RATING_COLORS: Record<string, string> = {
   A: 'bg-green-100 text-green-800 border-green-200',
@@ -229,7 +260,7 @@ export default function ShipmentEvaluationDialog({
               <span className="text-sm font-medium">Weighted Score</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold">{displayScore.toFixed(1)}</span>
+              <span className="text-2xl font-bold">{Number(displayScore).toFixed(1)}</span>
               <span className="text-sm text-muted-foreground">/ 100</span>
               <Badge className={`text-sm font-bold ${RATING_COLORS[displayRating]}`}>
                 {displayRating}
@@ -249,7 +280,7 @@ export default function ShipmentEvaluationDialog({
                   displayRating === 'C' ? 'bg-yellow-500' :
                   'bg-red-500'
                 }`}
-                style={{ width: `${Math.min(displayScore, 100)}%` }}
+                style={{ width: `${Math.min(Number(displayScore), 100)}%` }}
               />
             </div>
             <div className="flex justify-between mt-1">
@@ -269,29 +300,11 @@ export default function ShipmentEvaluationDialog({
                   <Badge variant="outline" className="ml-2 text-xs">{criterion.weight}</Badge>
                   <p className="text-xs text-muted-foreground mt-0.5">{criterion.description}</p>
                 </div>
-                {isReadOnly ? (
-                  <Badge variant="secondary" className="min-w-[80px] justify-center">
-                    {SCORE_LABELS[scores[criterion.key]] ?? scores[criterion.key]}
-                  </Badge>
-                ) : (
-                  <Select
-                    value={String(scores[criterion.key])}
-                    onValueChange={val =>
-                      setScores(prev => ({ ...prev, [criterion.key]: parseInt(val) }))
-                    }
-                  >
-                    <SelectTrigger className="w-44">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <SelectItem key={n} value={String(n)}>
-                          {SCORE_LABELS[n]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <StarRating
+                  value={scores[criterion.key]}
+                  readOnly={isReadOnly}
+                  onChange={val => setScores(prev => ({ ...prev, [criterion.key]: val }))}
+                />
               </div>
               {!isReadOnly && (
                 <Textarea

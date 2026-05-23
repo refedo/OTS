@@ -178,6 +178,7 @@ export async function POST(request: NextRequest) {
       dolibarrSocId,
       projectId,
       receiptDate,
+      plannedDeliveryDate,
       items,
       remarks,
     } = body;
@@ -205,6 +206,7 @@ export async function POST(request: NextRequest) {
           dolibarrSocId: dolibarrSocId ? Number(dolibarrSocId) : null,
           projectId: projectId || null,
           receiptDate: receiptDate ? new Date(receiptDate) : new Date(),
+          plannedDeliveryDate: plannedDeliveryDate ? new Date(plannedDeliveryDate) : null,
           inspectorId: session.sub,
           status: 'In Progress',
           remarks: remarks || null,
