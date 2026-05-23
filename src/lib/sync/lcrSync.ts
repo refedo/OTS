@@ -341,22 +341,34 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
       log.info({ skippedByFilter, minProjectNumber }, 'Rows skipped by project number filter');
     }
 
-    // 4. Load existing non-deleted entries
+    // 4. Load all entries (including soft-deleted) to detect restoration candidates.
+    // Querying only isDeleted:false causes create() to fail with uk_sheet_row_id
+    // when a previously-deleted row reappears in the sheet.
     const existing = await prisma.lcrEntry.findMany({
-      where: { isDeleted: false },
-      select: { id: true, sheetRowId: true, rowHash: true },
+      select: { id: true, sheetRowId: true, rowHash: true, isDeleted: true },
     });
-    const existingMap = new Map(existing.map(e => [e.sheetRowId, { id: e.id, hash: e.rowHash }]));
+    const existingMap = new Map(
+      existing.filter(e => !e.isDeleted).map(e => [e.sheetRowId, { id: e.id, hash: e.rowHash }]),
+    );
+    const deletedMap = new Map(
+      existing.filter(e => e.isDeleted).map(e => [e.sheetRowId, { id: e.id }]),
+    );
 
     // 5. Diff
     const toInsert: Array<{ sheetRowId: string; hash: string; cells: string[] }> = [];
-    const toUpdate: Array<{ id: string; sheetRowId: string; hash: string; cells: string[] }> = [];
+    const toUpdate: Array<{ id: string; sheetRowId: string; hash: string; cells: string[]; restore?: boolean }> = [];
     const toSoftDelete: string[] = [];
 
     for (const [rowId, { hash, cells }] of sheetData) {
       const ex = existingMap.get(rowId);
       if (!ex) {
-        toInsert.push({ sheetRowId: rowId, hash, cells });
+        const deleted = deletedMap.get(rowId);
+        if (deleted) {
+          // Row was soft-deleted but is back in the sheet — restore it
+          toUpdate.push({ id: deleted.id, sheetRowId: rowId, hash, cells, restore: true });
+        } else {
+          toInsert.push({ sheetRowId: rowId, hash, cells });
+        }
       } else if (forceRefresh || ex.hash !== hash) {
         toUpdate.push({ id: ex.id, sheetRowId: rowId, hash, cells });
       } else {
@@ -446,6 +458,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
             rowHash: item.hash,
             syncedAt: now,
             resolutionStatus,
+            ...(item.restore ? { isDeleted: false } : {}),
             sn: raw.sn,
             projectNumber: raw.projectNumber,
             projectId,
