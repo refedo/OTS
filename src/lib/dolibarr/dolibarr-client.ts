@@ -775,6 +775,7 @@ export class DolibarrClient {
       page: params?.page ?? 0,
       sortfield: params?.sortfield ?? 't.rowid',
       sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters,
     });
     return Array.isArray(result) ? result : [];
   }
@@ -822,6 +823,7 @@ export class DolibarrClient {
       page: params?.page ?? 0,
       sortfield: params?.sortfield ?? 't.rowid',
       sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters,
     });
     return Array.isArray(result) ? result : [];
   }

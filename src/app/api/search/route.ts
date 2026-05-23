@@ -262,16 +262,19 @@ export const GET = withApiContext(async (req) => {
           code_supplier: string | null;
           client_type: number;
           supplier_type: number;
+          ots_supplier_id: string | null;
         }>>`
-          SELECT id, name, code_client, code_supplier, client_type, supplier_type
-          FROM dolibarr_thirdparties
-          WHERE is_active = 1
-            AND (name LIKE ${`%${q}%`}
-              OR name_alias LIKE ${`%${q}%`}
-              OR code_client LIKE ${`%${q}%`}
-              OR code_supplier LIKE ${`%${q}%`}
-              OR email LIKE ${`%${q}%`})
-          ORDER BY name ASC
+          SELECT dt.id, dt.name, dt.code_client, dt.code_supplier, dt.client_type, dt.supplier_type,
+                 s.id AS ots_supplier_id
+          FROM dolibarr_thirdparties dt
+          LEFT JOIN ScApprovedSupplier s ON s.dolibarr_id = dt.id AND s.deletedAt IS NULL
+          WHERE dt.is_active = 1
+            AND (dt.name LIKE ${`%${q}%`}
+              OR dt.name_alias LIKE ${`%${q}%`}
+              OR dt.code_client LIKE ${`%${q}%`}
+              OR dt.code_supplier LIKE ${`%${q}%`}
+              OR dt.email LIKE ${`%${q}%`})
+          ORDER BY dt.name ASC
           LIMIT 5
         `),
 
@@ -620,12 +623,18 @@ export const GET = withApiContext(async (req) => {
           const isSupplier = Number(t.supplier_type) > 0;
           const role = isCustomer && isSupplier ? 'Customer & Supplier' : isCustomer ? 'Customer' : 'Supplier';
           const code = isCustomer ? t.code_client : t.code_supplier;
+          // Route to the SC supplier portal if this thirdparty is linked to an approved supplier record
+          const url = t.ots_supplier_id
+            ? `/supply-chain/suppliers/${t.ots_supplier_id}`
+            : isCustomer
+            ? `/financial/customers`
+            : `/financial/reports/supplier-invoice-report`;
           return {
             id: String(t.id),
             title: t.name || `Party #${t.id}`,
             subtitle: code ? `${code} · ${role}` : role,
             badge: role,
-            url: `/financial/thirdparties`,
+            url,
             type: 'Thirdparty',
           };
         }),
@@ -634,7 +643,7 @@ export const GET = withApiContext(async (req) => {
           title: i.ref || `Invoice #${i.dolibarr_id}`,
           subtitle: i.entity_name || 'Unknown client',
           badge: i.is_paid ? 'Paid' : 'Unpaid',
-          url: `/financial/invoices/customer`,
+          url: `/financial/reports/account-invoice-report?ref=${encodeURIComponent(i.ref || '')}`,
           type: 'Customer Invoice',
         })),
         supplierInvoices: supplierInvoiceArr.map((i) => ({
@@ -642,7 +651,7 @@ export const GET = withApiContext(async (req) => {
           title: i.ref || `Invoice #${i.dolibarr_id}`,
           subtitle: i.entity_name || 'Unknown supplier',
           badge: i.is_paid ? 'Paid' : 'Unpaid',
-          url: `/financial/invoices/supplier`,
+          url: `/financial/reports/supplier-invoice-report?ref=${encodeURIComponent(i.ref || '')}`,
           type: 'Supplier Invoice',
         })),
         payments: paymentArr.map((p) => ({
@@ -650,7 +659,9 @@ export const GET = withApiContext(async (req) => {
           title: p.dolibarr_ref || `Payment #${p.id}`,
           subtitle: p.entity_name || 'Unknown',
           badge: p.payment_type === 'customer' ? 'Income' : 'Expense',
-          url: `/financial/payments`,
+          url: p.payment_type === 'customer'
+            ? `/financial/reports/account-invoice-report?ref=${encodeURIComponent(p.dolibarr_ref || '')}`
+            : `/financial/reports/supplier-invoice-report?ref=${encodeURIComponent(p.dolibarr_ref || '')}`,
           type: 'Payment',
         })),
         auditPlans: auditPlanArr.map((a) => ({
