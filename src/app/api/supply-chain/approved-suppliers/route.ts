@@ -6,8 +6,8 @@ import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const CreateSchema = z.object({
-  supplierCode: z.string().min(1),
   name: z.string().min(1),
+  dolibarrId: z.number().int().positive().optional().nullable(),
   category: z.string().optional().nullable(),
   scopeOfApproval: z.string().optional().nullable(),
   approvalStatus: z.enum(['APPROVED', 'CONDITIONAL', 'SUSPENDED', 'EXPIRED']).default('APPROVED'),
@@ -51,6 +51,9 @@ export async function GET(req: Request) {
     const records = await prisma.scApprovedSupplier.findMany({
       where,
       orderBy: { supplierCode: 'asc' },
+      include: {
+        createdBy: { select: { id: true, name: true } },
+      },
     });
 
     return NextResponse.json(records);
@@ -72,12 +75,13 @@ export async function POST(req: Request) {
     }
 
     const data = parsed.data;
-    const supplierCode = data.supplierCode || await nextSupplierCode();
+    const supplierCode = await nextSupplierCode();
 
     const record = await prisma.scApprovedSupplier.create({
       data: {
         supplierCode,
         name: data.name,
+        dolibarrId: data.dolibarrId ?? null,
         category: data.category ?? null,
         scopeOfApproval: data.scopeOfApproval ?? null,
         approvalStatus: data.approvalStatus,

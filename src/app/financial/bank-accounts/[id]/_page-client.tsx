@@ -21,6 +21,7 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
   const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadTransactions = () => {
     setLoading(true);
@@ -34,9 +35,22 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
 
   async function handleSync() {
     setSyncing(true);
+    setSyncMessage(null);
     try {
-      await fetch('/api/financial/sync?entities=bank_transactions', { method: 'POST' });
-      loadTransactions();
+      const res = await fetch('/api/financial/sync?entities=bank_transactions', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSyncMessage({ type: 'success', text: 'Sync completed successfully.' });
+        loadTransactions();
+      } else if (res.status === 409) {
+        setSyncMessage({ type: 'error', text: 'A sync is already in progress. Please wait.' });
+      } else if (res.status === 403) {
+        setSyncMessage({ type: 'error', text: 'You do not have permission to sync transactions.' });
+      } else {
+        setSyncMessage({ type: 'error', text: data.error ?? 'Sync failed. Please try again.' });
+      }
+    } catch {
+      setSyncMessage({ type: 'error', text: 'Network error. Could not reach the server.' });
     } finally {
       setSyncing(false);
     }
@@ -104,10 +118,21 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
                 <Landmark className="size-5" />
                 Transaction History
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing || loading}>
-                <RefreshCw className={`size-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing…' : 'Sync Transactions'}
-              </Button>
+              <div className="flex items-center gap-3">
+                {syncMessage && (
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${
+                    syncMessage.type === 'success'
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                    {syncMessage.text}
+                  </span>
+                )}
+                <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing || loading}>
+                  <RefreshCw className={`size-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing…' : 'Sync Transactions'}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

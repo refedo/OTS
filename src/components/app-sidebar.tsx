@@ -332,6 +332,7 @@ const navigationSections: NavigationSection[] = [
     icon: Layers,
     items: [
       { name: 'Backlog Dashboard', href: '/backlog/dashboard', icon: LayoutDashboard },
+      { name: 'Backlog Board', href: '/backlog', icon: LayoutList, newSince: '2026-05-23' },
       { name: 'Create Backlog', href: '/backlog/new', icon: Plus },
       { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown },
     ],

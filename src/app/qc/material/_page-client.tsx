@@ -8,6 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Package,
   Search,
   Plus,
@@ -29,6 +36,7 @@ import {
   ShieldX,
   ClipboardCheck,
   Trash2,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   Dialog,
@@ -149,6 +157,12 @@ type ReceiptItem = {
   rejectionReason?: string;
   remarks?: string;
 };
+
+function fmtDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
 
 export default function MaterialInspectionReceiptPage() {
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
@@ -753,12 +767,16 @@ export default function MaterialInspectionReceiptPage() {
                   </tr>
                 ) : (
                   filteredReceipts.map((receipt) => (
-                    <tr key={receipt.id} className={getRowClass(receipt.status)}>
+                    <tr
+                      key={receipt.id}
+                      className={`${getRowClass(receipt.status)} cursor-pointer`}
+                      onClick={() => setSelectedReceipt(receipt)}
+                    >
                       <td className="p-3 font-mono text-sm font-semibold">{receipt.receiptNumber}</td>
                       <td className="p-3 text-sm font-mono">{receipt.dolibarrPoRef}</td>
                       <td className="p-3 text-sm">{receipt.supplierName || '—'}</td>
                       <td className="p-3 text-sm font-mono">{receipt.project?.projectNumber || '—'}</td>
-                      <td className="p-3 text-sm">{new Date(receipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
+                      <td className="p-3 text-sm">{fmtDate(receipt.receiptDate)}</td>
                       <td className="p-3">{getStatusBadge(receipt.status)}</td>
                       <td className="p-3">{getWorkflowBadge(receipt.workflowStatus ?? 'Draft')}</td>
                       <td className="p-3 text-center">
@@ -766,48 +784,43 @@ export default function MaterialInspectionReceiptPage() {
                       </td>
                       <td className="p-3 text-center">
                         {receiptHasMtcUploaded(receipt) ? (
-                          <span title="MTC documents uploaded" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white">
-                            <CheckCircle className="h-3.5 w-3.5" />
+                          <span title="MTC documents uploaded" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-white">
+                            <CheckCircle className="h-4 w-4" />
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>
                         )}
                       </td>
-                      <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedReceipt(receipt)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePrintPDF(receipt)}
-                            disabled={generatingPdf}
-                            title="Export PDF"
-                          >
-                            {generatingPdf ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Printer className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {['Admin', 'CEO'].includes(currentUserRole) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => setConfirmDeleteId(receipt.id)}
-                              title="Delete MIR"
-                            >
-                              <Trash2 className="h-4 w-4" />
+                      <td className="p-3 text-center" onClick={e => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelectedReceipt(receipt)}>
+                              <Eye className="h-4 w-4 mr-2" /> View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSelectedReceipt(receipt)}>
+                              <ClipboardCheck className="h-4 w-4 mr-2" /> Edit / Inspect
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePrintPDF(receipt)} disabled={generatingPdf}>
+                              <Printer className="h-4 w-4 mr-2" /> Export PDF
+                            </DropdownMenuItem>
+                            {['Admin', 'CEO'].includes(currentUserRole) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => setConfirmDeleteId(receipt.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))
@@ -1059,7 +1072,7 @@ export default function MaterialInspectionReceiptPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Receipt Date</p>
-                  <p className="font-medium">{new Date(selectedReceipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
+                  <p className="font-medium">{fmtDate(selectedReceipt.receiptDate)}</p>
                 </div>
               </div>
 
@@ -1131,7 +1144,7 @@ export default function MaterialInspectionReceiptPage() {
                     <p className="font-medium">{selectedReceipt.inspector.name}</p>
                     <p className="text-muted-foreground font-mono">ID: {selectedReceipt.inspector.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
                     {selectedReceipt.submittedAt && (
-                      <p className="text-muted-foreground">{new Date(selectedReceipt.submittedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                      <p className="text-muted-foreground">{fmtDate(selectedReceipt.submittedAt)}</p>
                     )}
                   </div>
                   <div className="space-y-0.5">
@@ -1141,7 +1154,7 @@ export default function MaterialInspectionReceiptPage() {
                         <p className="font-medium">{selectedReceipt.reviewedBy.name}</p>
                         <p className="text-muted-foreground font-mono">ID: {selectedReceipt.reviewedBy.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
                         {selectedReceipt.reviewedAt && (
-                          <p className="text-muted-foreground">{new Date(selectedReceipt.reviewedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                          <p className="text-muted-foreground">{fmtDate(selectedReceipt.reviewedAt)}</p>
                         )}
                       </>
                     ) : (
@@ -1155,7 +1168,7 @@ export default function MaterialInspectionReceiptPage() {
                         <p className="font-medium">{selectedReceipt.approvedBy.name}</p>
                         <p className="text-muted-foreground font-mono">ID: {selectedReceipt.approvedBy.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
                         {selectedReceipt.approvedAt && (
-                          <p className="text-muted-foreground">{new Date(selectedReceipt.approvedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                          <p className="text-muted-foreground">{fmtDate(selectedReceipt.approvedAt)}</p>
                         )}
                         {selectedReceipt.approvalNotes && (
                           <p className="text-muted-foreground italic">&quot;{selectedReceipt.approvalNotes}&quot;</p>
@@ -1217,40 +1230,40 @@ export default function MaterialInspectionReceiptPage() {
                           <td className="py-2.5 px-3 text-right font-mono text-red-600">{item.rejectedQty} {item.unit}</td>
                           <td className="py-2.5 px-3 text-center">
                             {item.surfaceCondition ? (
-                              <span className={`text-xs font-medium ${
-                                item.surfaceCondition === 'Good' ? 'text-green-600' :
-                                item.surfaceCondition === 'Unacceptable' ? 'text-red-600' :
-                                'text-amber-600'
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                                item.surfaceCondition === 'Good' ? 'bg-green-500 text-white' :
+                                item.surfaceCondition === 'Unacceptable' ? 'bg-red-500 text-white' :
+                                'bg-amber-400 text-white'
                               }`}>
-                                {item.surfaceCondition === 'Good' ? '✓' :
-                                 item.surfaceCondition === 'Unacceptable' ? '✗' :
-                                 '~'}
+                                {item.surfaceCondition === 'Good' ? <CheckCircle className="h-3.5 w-3.5" /> :
+                                 item.surfaceCondition === 'Unacceptable' ? <XCircle className="h-3.5 w-3.5" /> :
+                                 <AlertTriangle className="h-3.5 w-3.5" />}
                               </span>
                             ) : <span className="text-muted-foreground/40">—</span>}
                           </td>
                           <td className="py-2.5 px-3 text-center">
                             {item.dimensionStatus ? (
-                              <span className={`text-xs font-medium ${
-                                item.dimensionStatus === 'Within Tolerance' ? 'text-green-600' :
-                                item.dimensionStatus === 'Out of Tolerance' ? 'text-red-600' :
-                                'text-amber-600'
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                                item.dimensionStatus === 'Within Tolerance' ? 'bg-green-500 text-white' :
+                                item.dimensionStatus === 'Out of Tolerance' ? 'bg-red-500 text-white' :
+                                'bg-amber-400 text-white'
                               }`}>
-                                {item.dimensionStatus === 'Within Tolerance' ? '✓' :
-                                 item.dimensionStatus === 'Out of Tolerance' ? '✗' :
-                                 '~'}
+                                {item.dimensionStatus === 'Within Tolerance' ? <CheckCircle className="h-3.5 w-3.5" /> :
+                                 item.dimensionStatus === 'Out of Tolerance' ? <XCircle className="h-3.5 w-3.5" /> :
+                                 <AlertTriangle className="h-3.5 w-3.5" />}
                               </span>
                             ) : <span className="text-muted-foreground/40">—</span>}
                           </td>
                           <td className="py-2.5 px-3 text-center">
                             {item.specsCompliance ? (
-                              <span className={`text-xs font-medium ${
-                                item.specsCompliance === 'Compliant' ? 'text-green-600' :
-                                item.specsCompliance === 'Non-Compliant' ? 'text-red-600' :
-                                'text-amber-600'
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                                item.specsCompliance === 'Compliant' ? 'bg-green-500 text-white' :
+                                item.specsCompliance === 'Non-Compliant' ? 'bg-red-500 text-white' :
+                                'bg-amber-400 text-white'
                               }`}>
-                                {item.specsCompliance === 'Compliant' ? '✓' :
-                                 item.specsCompliance === 'Non-Compliant' ? '✗' :
-                                 '~'}
+                                {item.specsCompliance === 'Compliant' ? <CheckCircle className="h-3.5 w-3.5" /> :
+                                 item.specsCompliance === 'Non-Compliant' ? <XCircle className="h-3.5 w-3.5" /> :
+                                 <AlertTriangle className="h-3.5 w-3.5" />}
                               </span>
                             ) : <span className="text-muted-foreground/40">—</span>}
                           </td>

@@ -7461,6 +7461,8 @@ model SubcontractorContract {
   paymentTerms        Json?
   termsAndConditions  String?   @db.LongText
   templateType        String?   @db.VarChar(30)
+  dolibarrPoId        Int?      @map("dolibarr_po_id")
+  dolibarrPoRef       String?   @db.VarChar(100) @map("dolibarr_po_ref")
   status              String    @default("DRAFT") @db.VarChar(30)
   notes               String?   @db.Text
   createdById         String    @db.Char(36)
