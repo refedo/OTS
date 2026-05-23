@@ -176,7 +176,7 @@ export const GET = withApiContext(async (req) => {
 
         safe(() => prisma.user.findMany({
           where: {
-            isActive: true,
+            status: 'active',
             OR: [
               { name: { contains: q } },
               { email: { contains: q } },

@@ -27,10 +27,10 @@ export const POST = withApiContext(async (_req: NextRequest) => {
 
   const client = createDolibarrClient();
 
-  // Fetch all MIRs that have a linked Dolibarr PO
+  // Fetch all MIRs that have a linked Dolibarr PO (dolibarrPoId is non-nullable String, filter empty values)
   const mirs = await prisma.materialInspectionReceipt.findMany({
     where: {
-      dolibarrPoId: { not: null },
+      dolibarrPoId: { not: '' },
     },
     select: {
       id: true,
