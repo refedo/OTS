@@ -128,6 +128,7 @@ const singleNavigation: NavigationItem[] = [
   { name: 'Ops Agent', href: '/ops-agent', icon: Radar, newSince: '2026-04-16' },
   { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
+  { name: 'Report a Violation', href: '/integrity', icon: ShieldAlert, newSince: '2026-05-23' },
 ];
 
 const navigationSections: NavigationSection[] = [

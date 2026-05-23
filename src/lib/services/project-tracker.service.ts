@@ -112,12 +112,12 @@ async function computeTaskProgress(
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
   const now = new Date();
 
-  // Task model has no deletedAt — do not add that filter
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
       OR: [{ buildingId }, { buildingId: null }],
       mainActivity,
+      deletedAt: null,
     },
     select: {
       id: true,

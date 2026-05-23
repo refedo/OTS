@@ -160,6 +160,9 @@ export default function DolibarrIntegrationPage() {
   const [poPage, setPoPage] = useState(0);
   const [poTotal, setPoTotal] = useState(0);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [poSearch, setPoSearch] = useState('');
+  const [syncingDeliveryDates, setSyncingDeliveryDates] = useState(false);
+  const [deliveryDateSyncResult, setDeliveryDateSyncResult] = useState<{ updated: number; errors: number } | null>(null);
 
   // Reference data
   const [refData, setRefData] = useState<any>(null);
@@ -238,6 +241,7 @@ export default function DolibarrIntegrationPage() {
         page: String(poPage),
         limit: String(PAGE_SIZE),
       });
+      if (poSearch) params.set('search', poSearch);
 
       const res = await fetch(`/api/dolibarr/purchase-orders?${params}`);
       if (res.ok) {
@@ -250,7 +254,7 @@ export default function DolibarrIntegrationPage() {
     } finally {
       setPoLoading(false);
     }
-  }, [poPage]);
+  }, [poPage, poSearch]);
 
   const fetchReferenceData = useCallback(async () => {
     try {
@@ -303,6 +307,22 @@ export default function DolibarrIntegrationPage() {
       setConnectionResult({ success: false, error: err.message });
     } finally {
       setTestingConnection(false);
+    }
+  };
+
+  const handleSyncDeliveryDates = async () => {
+    setSyncingDeliveryDates(true);
+    setDeliveryDateSyncResult(null);
+    try {
+      const res = await fetch('/api/dolibarr/sync-delivery-dates', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setDeliveryDateSyncResult({ updated: data.updated ?? 0, errors: data.errors ?? 0 });
+      }
+    } catch (err) {
+      console.error('Delivery date sync failed:', err);
+    } finally {
+      setSyncingDeliveryDates(false);
     }
   };
 
@@ -521,6 +541,12 @@ export default function DolibarrIntegrationPage() {
                         <span className="text-muted-foreground">Contacts:</span>
                         <span>{syncStatus.recordCounts.contacts.active} / {syncStatus.recordCounts.contacts.total}</span>
                       </div>
+                      {poTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Purchase Orders:</span>
+                          <span>{poTotal}</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -540,11 +566,25 @@ export default function DolibarrIntegrationPage() {
                     <Button variant="outline" size="sm" onClick={() => handleSync('contacts')} disabled={syncing}>
                       <FileText className="h-4 w-4 mr-1" /> Sync Contacts
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => { setActiveTab('purchase-orders'); fetchPurchaseOrders(); }} disabled={poLoading}>
+                      {poLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      Refresh P.O&apos;s
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleSyncDeliveryDates} disabled={syncingDeliveryDates}>
+                      {syncingDeliveryDates ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      Sync Delivery Dates
+                    </Button>
                     <Button size="sm" onClick={() => handleSync()} disabled={syncing}>
                       {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Full Sync
                     </Button>
                   </CardContent>
+                  {deliveryDateSyncResult && (
+                    <div className="px-4 pb-3 text-sm text-muted-foreground">
+                      Delivery date sync complete: {deliveryDateSyncResult.updated} updated
+                      {deliveryDateSyncResult.errors > 0 && `, ${deliveryDateSyncResult.errors} errors`}
+                    </div>
+                  )}
                 </Card>
 
                 {/* Sync History */}
@@ -895,6 +935,22 @@ export default function DolibarrIntegrationPage() {
           {/* PURCHASE ORDERS TAB */}
           {/* ============================================ */}
           <TabsContent value="purchase-orders" className="space-y-4 mt-4">
+            {/* Search bar for P.O tab */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by PO reference…"
+                  value={poSearch}
+                  onChange={e => { setPoSearch(e.target.value); setPoPage(0); }}
+                  className="pl-8"
+                />
+              </div>
+              <Button variant="outline" onClick={() => { setPoPage(0); fetchPurchaseOrders(); }} disabled={poLoading}>
+                {poLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
+
             <Card>
               <CardContent className="p-0">
                 {poLoading ? (

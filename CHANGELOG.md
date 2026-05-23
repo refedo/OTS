@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.8.0] - 2026-05-23
+
+### Added
+- **Report a Violation** — New confidential/anonymous reporting feature accessible to all team members. Submitters can choose to remain fully anonymous. Reports include category (Misconduct, Financial Misuse, Asset Misuse, Operational Risk, Safety Violation, Policy Breach), severity level, and free-text description. Only Admin and CEO can view all reports and resolve/dismiss them. Accessible via the sidebar "Report a Violation" icon.
+- **Dolibarr: Sync planned delivery dates** — New "Sync Delivery Dates" button in the Dolibarr dashboard fetches the latest `date_livraison` from each linked P.O. and updates the corresponding MIR's planned delivery date.
+- **Dolibarr: Purchase orders in dashboard overview** — P.O. count now appears in the Record Counts card on the Dolibarr overview tab.
+- **Dolibarr: Search bar for P.O. tab** — The Purchase Orders tab now includes a search bar to filter P.O.'s by reference and a refresh button.
+- **QC / MIR: Evaluation icon column** — The MIR table now shows an "Eval" column with a colour-coded rating badge (A/B/C/D) for evaluated receipts, or "—" for not-yet-evaluated ones, making it easy to see at a glance whether a shipment has been rated.
+- **Global search: Purchase Orders** — Search results now include Purchase Orders matched via linked MIR records (by P.O. reference or supplier name), linking directly to the Dolibarr P.O. tab.
+- **Global search: Supplier Portal direct links** — Approved supplier search results now link to the individual supplier portal page (`/supply-chain/suppliers/{id}`) instead of the list page.
+
+### Fixed
+- **Project Tracker: Percentages reverting from 100%** — Fixed a bug where soft-deleted tasks were included in the tracker calculation, causing activity percentages (Design Stage, Shop Drawings) to incorrectly drop from 100% to 50%. Deleted tasks are now excluded.
+- **File serving: Nextcloud fallback** — When a file was uploaded to Nextcloud but its local disk copy is missing, the `/api/files` endpoint now falls back to serving the file directly from Nextcloud. Also supports Nextcloud remote paths natively.
+
+---
+
 ## [23.7.0] - 2026-05-23
 
 ### Added

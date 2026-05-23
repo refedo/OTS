@@ -28,7 +28,7 @@ export const GET = withApiContext(async (req) => {
       assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters,
       thirdparties, customerInvoices, supplierInvoices, payments,
       auditPlans, managementReviews, auditFindings, qmsProcesses, approvedSuppliers,
-      companyObjectives, bdCompanies,
+      companyObjectives, bdCompanies, mirPOs,
     ] =
       await Promise.all([
         safe(() => prisma.task.findMany({
@@ -437,9 +437,30 @@ export const GET = withApiContext(async (req) => {
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
         })),
+
+        // ─── Purchase Orders (via linked MIRs) ──────────────────────────────────
+        safe(() => prisma.materialInspectionReceipt.findMany({
+          where: {
+            OR: [
+              { dolibarrPoRef: { contains: q } },
+              { supplierName: { contains: q } },
+            ],
+          },
+          select: {
+            id: true,
+            dolibarrPoRef: true,
+            dolibarrPoId: true,
+            supplierName: true,
+            receiptNumber: true,
+            status: true,
+          },
+          take: MAX_PER_CATEGORY,
+          orderBy: { createdAt: 'desc' },
+        })),
       ]);
 
     const taskArr = Array.isArray(tasks) ? tasks : [];
+    const mirPOArr = Array.isArray(mirPOs) ? mirPOs : [];
     const projectArr = Array.isArray(projects) ? projects : [];
     const initiativeArr = Array.isArray(initiatives) ? initiatives : [];
     const weeklyIssueArr = Array.isArray(weeklyIssues) ? weeklyIssues : [];
@@ -669,8 +690,8 @@ export const GET = withApiContext(async (req) => {
           title: s.name,
           subtitle: `${s.supplierCode} · ${s.category ?? 'General'}`,
           badge: s.approvalStatus,
-          url: `/supply-chain/approved-suppliers`,
-          type: 'Approved Supplier',
+          url: `/supply-chain/suppliers/${s.id}`,
+          type: 'Supplier Portal',
         })),
         companyObjectives: companyObjectiveArr.map((o) => ({
           id: o.id,
@@ -687,6 +708,14 @@ export const GET = withApiContext(async (req) => {
           badge: c.registrationStatus.replace(/_/g, ' '),
           url: `/business-development`,
           type: 'BD Company',
+        })),
+        purchaseOrders: mirPOArr.map((m) => ({
+          id: m.id,
+          title: m.dolibarrPoRef ?? `PO #${m.dolibarrPoId}`,
+          subtitle: `${m.supplierName ?? 'Unknown supplier'} · MIR ${m.receiptNumber}`,
+          badge: m.status,
+          url: `/dolibarr?tab=purchase-orders&search=${encodeURIComponent(m.dolibarrPoRef ?? '')}`,
+          type: 'Purchase Order',
         })),
       },
     });
