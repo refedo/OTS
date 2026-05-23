@@ -15,6 +15,8 @@ const createSchema = z.object({
   buildingId: z.string().optional().nullable(),
   supplierId: z.string().optional().nullable(),
   dolibarrId: z.number().int().positive().optional().nullable(),
+  dolibarrPoId: z.number().int().positive().optional().nullable(),
+  dolibarrPoRef: z.string().optional().nullable(),
   scopeLevel: z.enum(['project', 'building', 'scope']),
   scopeTypes: z.array(z.string()).min(1),
   scopeItems: z.array(z.object({
@@ -195,6 +197,8 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         paymentTerms: data.paymentTerms ?? [],
         termsAndConditions: data.termsAndConditions ?? getDefaultTerms('steel'),
         templateType: data.templateType ?? null,
+        dolibarrPoId: data.dolibarrPoId ?? null,
+        dolibarrPoRef: data.dolibarrPoRef ?? null,
         notes: data.notes ?? null,
         status: 'DRAFT',
         createdById: session.userId,

@@ -28,6 +28,13 @@ type Supplier = {
   approval_rating: string | null;
   approved_supplier_id: string | null;
 };
+type PurchaseOrder = {
+  id: number;
+  ref: string;
+  supplier_name?: string;
+  project_ref?: string;
+  total_ttc: number;
+};
 type ScopeItem = { scopeType: string; scopeLabel: string; buildingId?: string | null; buildingDesignation?: string | null; originalQuantity?: number | null; originalUnit?: string | null; contractQuantity?: number | null; contractUnit?: string | null; unitRate?: number | null; subtotal?: number | null };
 type PaymentMilestone = { milestone: string; percentage: number; amount: number; dueDate?: string; description?: string };
 
@@ -51,6 +58,13 @@ export default function NewSubcontractorContractPage() {
   const [projectOpen, setProjectOpen] = useState(false);
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
+
+  // PO selection
+  const [poSearchQuery, setPoSearchQuery] = useState('');
+  const [poSearchResults, setPoSearchResults] = useState<PurchaseOrder[]>([]);
+  const [poSearching, setPoSearching] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [poOpen, setPoOpen] = useState(false);
 
   // Step 2
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -96,7 +110,27 @@ export default function NewSubcontractorContractPage() {
     if (res.ok) setBuildings(await res.json());
   }, [selectedProject]);
 
+  const searchPOs = useCallback(async (q: string) => {
+    if (!q.trim()) { setPoSearchResults([]); return; }
+    setPoSearching(true);
+    try {
+      const res = await fetch(`/api/qc/material-receipts/lookup-po?search=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPoSearchResults(data.orders ?? []);
+      }
+    } finally {
+      setPoSearching(false);
+    }
+  }, []);
+
   useEffect(() => { fetchProjects(); fetchSuppliers(''); }, [fetchProjects, fetchSuppliers]);
+
+  useEffect(() => {
+    if (!poOpen) { setPoSearchResults([]); setPoSearchQuery(''); return; }
+    const timer = setTimeout(() => searchPOs(poSearchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [poSearchQuery, poOpen, searchPOs]);
 
   useEffect(() => {
     const timer = setTimeout(() => { fetchSuppliers(supplierSearch); }, 300);
@@ -215,6 +249,8 @@ export default function NewSubcontractorContractPage() {
           buildingId: selectedBuilding || null,
           supplierId: supp?.approved_supplier_id ?? null,
           dolibarrId: supp?.dolibarr_id ?? null,
+          dolibarrPoId: selectedPO?.id ?? null,
+          dolibarrPoRef: selectedPO?.ref ?? null,
           scopeLevel,
           scopeTypes: selectedScopeTypes,
           scopeItems: scopeItems.map(item => ({
@@ -409,6 +445,65 @@ export default function NewSubcontractorContractPage() {
                     <SelectItem value="EUR">EUR</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Purchase Order (optional)</Label>
+                <p className="text-xs text-muted-foreground -mt-1">Link this contract to an existing P.O. from Dolibarr</p>
+                <Popover open={poOpen} onOpenChange={setPoOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={poOpen} className="w-full justify-between font-normal">
+                      {selectedPO ? `${selectedPO.ref} — ${selectedPO.supplier_name ?? ''}` : 'Search & select a P.O…'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--radix-popover-trigger-width)' }}>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Type PO number to search…"
+                        value={poSearchQuery}
+                        onValueChange={setPoSearchQuery}
+                      />
+                      <CommandList>
+                        {poSearching && (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        )}
+                        {!poSearching && poSearchQuery && poSearchResults.length === 0 && (
+                          <CommandEmpty>No purchase orders found.</CommandEmpty>
+                        )}
+                        {!poSearching && !poSearchQuery && (
+                          <CommandEmpty>Type to search purchase orders…</CommandEmpty>
+                        )}
+                        <CommandGroup>
+                          {poSearchResults.map(po => (
+                            <CommandItem
+                              key={po.id}
+                              value={String(po.id)}
+                              onSelect={() => { setSelectedPO(po); setPoOpen(false); setPoSearchQuery(''); }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', selectedPO?.id === po.id ? 'opacity-100' : 'opacity-0')} />
+                              <span className="font-mono text-primary text-sm mr-2">{po.ref}</span>
+                              <span className="text-muted-foreground text-sm">{po.supplier_name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {selectedPO && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 border border-blue-200 text-sm">
+                    <div>
+                      <span className="font-mono font-semibold text-blue-800">{selectedPO.ref}</span>
+                      {selectedPO.supplier_name && <span className="text-blue-600 ml-2">{selectedPO.supplier_name}</span>}
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="text-blue-600 h-6 px-2" onClick={() => setSelectedPO(null)}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -700,6 +795,7 @@ export default function NewSubcontractorContractPage() {
                 {[
                   { label: 'Project', value: proj ? `${proj.projectNumber} — ${proj.name}` : '—' },
                   { label: 'Subcontractor', value: supp ? `${supp.code_supplier ?? supp.dolibarr_id} — ${supp.name}` : '—' },
+                  { label: 'Purchase Order', value: selectedPO ? selectedPO.ref : '—' },
                   { label: 'Building', value: bldg ? `${bldg.designation} — ${bldg.name}` : 'Full Project' },
                   { label: 'Scope Types', value: selectedScopeTypes.map(st => SCOPE_LABELS[st] ?? st).join(', ') },
                   { label: 'Contract Value', value: `${contractValue.toLocaleString('en-SA-u-ca-gregory', { maximumFractionDigits: 2 })} ${currency}` },
