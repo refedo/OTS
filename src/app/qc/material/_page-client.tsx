@@ -402,12 +402,18 @@ export default function MaterialInspectionReceiptPage() {
       });
 
       if (response.ok) {
+        const itemResult = await response.json();
+        const autoAdvanced = itemResult._receiptAutoAdvanced === true;
         setInspectingItem(null);
         if (selectedReceipt) {
           const refreshResponse = await fetch(`/api/qc/material-receipts?id=${selectedReceipt.id}`);
           if (refreshResponse.ok) {
             const updatedReceipt = await refreshResponse.json();
             setSelectedReceipt(updatedReceipt);
+            // Show evaluation prompt when all items are inspected (workflow auto-advanced)
+            if (autoAdvanced && !updatedReceipt.evaluation && (updatedReceipt.dolibarrSocId || updatedReceipt.supplierName)) {
+              setEvaluationPromptReceipt(updatedReceipt);
+            }
           }
         }
         fetchReceipts();
@@ -541,7 +547,7 @@ export default function MaterialInspectionReceiptPage() {
         }
         fetchReceipts();
         // Prompt to rate the shipment after inspector submits (only if no evaluation yet)
-        if (wasSubmit && !submittedReceipt.evaluation && submittedReceipt.dolibarrSocId) {
+        if (wasSubmit && !submittedReceipt.evaluation && (submittedReceipt.dolibarrSocId || submittedReceipt.supplierName)) {
           setEvaluationPromptReceipt(submittedReceipt);
         }
       }
@@ -838,9 +844,9 @@ export default function MaterialInspectionReceiptPage() {
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
-                                disabled={!receipt.dolibarrSocId}
+                                disabled={!receipt.dolibarrSocId && !receipt.supplierName}
                                 onClick={() => { setEvaluationDialogExisting(null); setEvaluationDialogMir(receipt); }}
-                                title={!receipt.dolibarrSocId ? 'This MIR predates shipment evaluations' : undefined}
+                                title={!receipt.dolibarrSocId && !receipt.supplierName ? 'No supplier linked to this MIR' : undefined}
                               >
                                 <Star className="h-4 w-4 mr-2" /> Evaluate Shipment
                               </DropdownMenuItem>

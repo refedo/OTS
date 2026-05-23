@@ -106,11 +106,33 @@ export async function getMirEvaluation(mirId: string) {
 export async function createMirEvaluation(input: CreateMirEvaluationInput) {
   const mir = await prisma.materialInspectionReceipt.findUnique({
     where: { id: input.mirId },
-    select: { id: true, dolibarrSocId: true, receiptNumber: true },
+    select: { id: true, dolibarrSocId: true, receiptNumber: true, supplierName: true },
   });
 
   if (!mir) throw Object.assign(new Error('MIR not found'), { status: 404 });
-  if (!mir.dolibarrSocId) {
+
+  // If dolibarrSocId is missing, try to resolve it from dolibarr_thirdparties by supplier name
+  let resolvedSocId = mir.dolibarrSocId;
+  if (!resolvedSocId && mir.supplierName) {
+    try {
+      const rows = await prisma.$queryRawUnsafe<[{ dolibarr_id: number }]>(
+        'SELECT dolibarr_id FROM dolibarr_thirdparties WHERE name = ? LIMIT 1',
+        mir.supplierName,
+      );
+      if (rows.length > 0 && rows[0].dolibarr_id) {
+        resolvedSocId = Number(rows[0].dolibarr_id);
+        await prisma.materialInspectionReceipt.update({
+          where: { id: mir.id },
+          data: { dolibarrSocId: resolvedSocId },
+        });
+        logger.info({ mirId: mir.id, resolvedSocId, supplierName: mir.supplierName }, '[MIR Eval] Resolved dolibarrSocId from supplier name');
+      }
+    } catch (err) {
+      logger.warn({ err, mirId: mir.id }, '[MIR Eval] Could not auto-resolve dolibarrSocId from supplier name');
+    }
+  }
+
+  if (!resolvedSocId) {
     throw Object.assign(
       new Error('Cannot evaluate: this MIR has no supplier linked. It may predate the evaluation system.'),
       { status: 422 },
@@ -140,7 +162,7 @@ export async function createMirEvaluation(input: CreateMirEvaluationInput) {
     data: {
       id:                uuidv4(),
       mirId:             input.mirId,
-      dolibarrId:        mir.dolibarrSocId,
+      dolibarrId:        resolvedSocId,
       evaluationDate:    new Date(input.evaluationDate),
       scoreQuality:      input.scoreQuality,
       scoreOtif:         input.scoreOtif,
@@ -164,11 +186,11 @@ export async function createMirEvaluation(input: CreateMirEvaluationInput) {
   });
 
   logger.info(
-    { mirId: input.mirId, mirNumber: mir.receiptNumber, dolibarrId: mir.dolibarrSocId, rating, weightedScore },
+    { mirId: input.mirId, mirNumber: mir.receiptNumber, dolibarrId: resolvedSocId, rating, weightedScore },
     '[MIR Eval] Shipment evaluation created',
   );
 
-  await recomputeSupplierAggregate(mir.dolibarrSocId);
+  await recomputeSupplierAggregate(resolvedSocId);
   return evaluation;
 }
 

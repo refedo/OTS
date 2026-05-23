@@ -278,6 +278,9 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
   let pendingAliases = 0;
 
   try {
+    // Ensure Prisma engine is connected (cron jobs may run after idle periods where engine disconnects)
+    await prisma.$connect();
+
     // 0. Load column mapping and settings from DB
     const col = await loadColMap();
     const minProjectNumber = await loadMinProjectNumber();
@@ -571,22 +574,30 @@ async function writeSyncLog(
   durationMs: number,
   errorMessage: string | null,
 ): Promise<void> {
-  try {
-    await prisma.lcrSyncLog.create({
-      data: {
-        status,
-        triggeredBy,
-        totalRows,
-        rowsInserted,
-        rowsUpdated,
-        rowsUnchanged,
-        rowsDeleted,
-        pendingAliases,
-        durationMs,
-        errorMessage,
-      },
-    });
-  } catch (err) {
-    log.error({ error: err }, 'Failed to write LCR sync log');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await prisma.lcrSyncLog.create({
+        data: {
+          status,
+          triggeredBy,
+          totalRows,
+          rowsInserted,
+          rowsUpdated,
+          rowsUnchanged,
+          rowsDeleted,
+          pendingAliases,
+          durationMs,
+          errorMessage,
+        },
+      });
+      return;
+    } catch (err) {
+      if (attempt === 0) {
+        // Engine may have disconnected — reconnect and retry once
+        try { await prisma.$connect(); } catch { /* ignore */ }
+      } else {
+        log.error({ error: err }, 'Failed to write LCR sync log');
+      }
+    }
   }
 }
