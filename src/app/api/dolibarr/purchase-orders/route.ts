@@ -128,11 +128,12 @@ export async function GET(request: NextRequest) {
     }));
 
     const hasMore = orders.length >= limit;
-    const total = hasMore ? (page + 2) * limit : page * limit + orders.length;
+    // Estimate total: if we got a full page, there are likely more
+    const estimatedTotal = hasMore ? null : page * limit + orders.length;
 
     return NextResponse.json({
       orders: result,
-      pagination: { page, limit, total, hasMore },
+      pagination: { page, limit, total: estimatedTotal, hasMore },
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Failed to fetch purchase orders';

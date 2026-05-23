@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '23.7.0',
+    version: '23.8.0',
     date: 'May 23, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Report a Violation, Dolibarr PO Sync & MIR Eval Icon',
+    highlights: [
+      'New confidential/anonymous "Report a Violation" feature for all team members — categories include Misconduct, Financial Misuse, Safety Violation, etc.',
+      'Dolibarr dashboard: "Sync Delivery Dates" button now updates MIR planned delivery from Dolibarr PO date_livraison.',
+      'Dolibarr overview: P.O. count now shown in Record Counts card.',
+      'MIR list: Eval column shows colour-coded rating badge (A/B/C/D) for evaluated shipments.',
+      'Global search now includes Purchase Orders (matched via linked MIR) and direct links to Supplier Portal pages.',
+      'Fixed: Project Tracker percentages reverting from 100% due to soft-deleted tasks being included.',
+    ],
+    changes: {
+      added: [
+        'Report a Violation — confidential/anonymous reporting for all users. Categories: Misconduct, Financial Misuse, Asset Misuse, Operational Risk, Safety Violation, Policy Breach. Admin and CEO can view, resolve, and dismiss reports.',
+        'Dolibarr: Sync Delivery Dates button — fetches date_livraison from each linked PO and updates MIR planned delivery date.',
+        'Dolibarr overview: P.O. count in Record Counts card.',
+        'Dolibarr Purchase Orders tab: search bar to filter by PO reference + refresh button.',
+        'MIR list: Eval column with A/B/C/D rating badge for evaluated receipts.',
+        'Global search: Purchase Orders via linked MIR (by PO ref or supplier name).',
+        'Global search: Approved supplier results now link to individual supplier portal page.',
+      ],
+      fixed: [
+        'Project Tracker: percentages reverting from 100% — soft-deleted tasks now excluded from activity calculations.',
+        'File serving: Nextcloud fallback when local disk copy is missing.',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '23.7.0',
+    date: 'May 23, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'MIR Planned Delivery Date, Star Ratings & LCR Sync Fix',
     highlights: [
       'Shipment evaluation now uses a 5-star rating UI instead of dropdowns for each criterion.',
@@ -51,10 +82,75 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '24.1.0',
+    version: '23.6.2',
+    date: 'May 23, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'LCR Sync FK Fix & Scheduler Default',
+    highlights: [
+      'LCR sync: building FK constraint error fixed — stale alias entries pointing to deleted buildings no longer abort sync.',
+      'LCR scheduler: now defaults to enabled; set ENABLE_LCR_SCHEDULER=false to disable.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'LCR sync: resolveBuildingId now verifies the building row exists after resolving alias — prevents FK constraint error on deleted buildings.',
+        'LCR scheduler: isEnabled() no longer gates on NODE_ENV === production when ENABLE_LCR_SCHEDULER is unset — defaults to enabled.',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '23.6.1',
+    date: 'May 23, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'LCR Sync Unique Constraint Fix',
+    highlights: [
+      'LCR sync no longer silently fails with uk_sheet_row_id violations when soft-deleted rows reappear.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'LCR sync: soft-deleted rows that reappear in the Google Sheet are now restored via update() with isDeleted:false instead of re-created — fixes uk_sheet_row_id unique constraint violation.',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '23.6.0',
+    date: 'May 17, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'QC Material Receipts, Task Scope, MIR Numbering',
+    highlights: [
+      'MIR lookup: P.O. search now shows receipt status and allows resuming in-progress receipts.',
+      'Delete MIR — Admin and CEO can force-delete a receipt with confirmation.',
+      'Quick Task dialog now includes Project and Scope of Work dropdowns.',
+      'MIR sequence numbers are now a global ever-increasing serial — no monthly reset.',
+      'Fixed: Select.Item empty value crash in the Create Receipt project dropdown.',
+    ],
+    changes: {
+      added: [
+        'QC: PO receipt status in lookup dialog — finalized receipts disable Select button; in-progress receipts show Resume button.',
+        'QC: Delete MIR — Admin/CEO can force-delete a receipt, all items, and attachments.',
+        'Tasks: Scope of Work dropdown in Quick Task dialog (auto-loads when project is selected).',
+        'Tasks: Scope of Work dropdown in full task form appears whenever a project is selected (no building required).',
+      ],
+      fixed: [
+        'QC: Select.Item with value="" crash in the MIR Create Receipt project dropdown — replaced with sentinel __none__ value.',
+      ],
+      changed: [
+        'QC: MIR sequence numbers — global serial, never resets monthly.',
+        'Tasks: Full form pre-fill from Quick Task (title, priority, due date, assigned user, project, scope).',
+      ],
+    },
+  },
+  {
+    version: '23.5.2',
     date: 'May 10, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Multi-Module Bug Fixes',
     highlights: [
       'HR monthly report fixed: invalid deletedAt filter on PayrollPeriod model removed.',
@@ -85,7 +181,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '24.0.0',
+    version: '23.5.1',
     date: 'May 9, 2026',
     type: 'minor',
     status: 'previous',
