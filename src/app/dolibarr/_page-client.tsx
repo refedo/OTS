@@ -163,6 +163,7 @@ export default function DolibarrIntegrationPage() {
   const [poSearch, setPoSearch] = useState('');
   const [syncingDeliveryDates, setSyncingDeliveryDates] = useState(false);
   const [deliveryDateSyncResult, setDeliveryDateSyncResult] = useState<{ updated: number; errors: number } | null>(null);
+  const [poDetailLoading, setPoDetailLoading] = useState(false);
   const [poRealTotal, setPoRealTotal] = useState<number | null>(null);
   const [poCountLoading, setPoCountLoading] = useState(false);
   const [lastPoRefresh, setLastPoRefresh] = useState<string | null>(null);
@@ -1020,7 +1021,19 @@ export default function DolibarrIntegrationPage() {
                           <tr
                             key={po.id}
                             className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
-                            onClick={() => setSelectedPO(po)}
+                            onClick={async () => {
+                              setSelectedPO(po); // Show modal immediately with list data
+                              setPoDetailLoading(true);
+                              try {
+                                const res = await fetch(`/api/dolibarr/purchase-orders?orderId=${po.id}`);
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  if (data.order) setSelectedPO(data.order);
+                                }
+                              } catch { /* non-fatal — keep list data */ } finally {
+                                setPoDetailLoading(false);
+                              }
+                            }}
                           >
                             <td className="py-2 px-3 font-mono text-xs font-semibold">{po.ref}</td>
                             <td className="py-2 px-3 text-xs">{po.supplier_name || '—'}</td>
@@ -1116,7 +1129,13 @@ export default function DolibarrIntegrationPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">Delivery Date</p>
                         <p className="font-medium mt-1">
-                          {selectedPO.date_livraison ? new Date(Number(selectedPO.date_livraison) * 1000).toLocaleDateString() : '—'}
+                          {poDetailLoading ? (
+                            <span className="text-muted-foreground text-xs animate-pulse">Loading…</span>
+                          ) : (
+                            (Number(selectedPO.date_livraison) > 0)
+                              ? new Date(Number(selectedPO.date_livraison) * 1000).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : '—'
+                          )}
                         </p>
                       </div>
                     </div>

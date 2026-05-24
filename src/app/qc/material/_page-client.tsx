@@ -304,10 +304,25 @@ export default function MaterialInspectionReceiptPage() {
     }
   };
 
-  const handleSelectPO = (po: PurchaseOrder) => {
+  const handleSelectPO = async (po: PurchaseOrder) => {
     setSelectedPO(po);
     setShowPOLookup(false);
     setShowCreateReceipt(true);
+
+    // Dolibarr's list endpoint returns date_livraison: 0 even when the date is
+    // set in Dolibarr — only the detail endpoint returns the real value.
+    // Fetch the full PO so the planned delivery date is correct on the MIR.
+    try {
+      const res = await fetch(`/api/dolibarr/purchase-orders?orderId=${po.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.order) {
+          setSelectedPO(prev =>
+            prev ? { ...prev, date_livraison: data.order.date_livraison ?? prev.date_livraison } : prev,
+          );
+        }
+      }
+    } catch { /* non-fatal — proceed with list data */ }
   };
 
   const handleCreateReceipt = async () => {
@@ -335,7 +350,7 @@ export default function MaterialInspectionReceiptPage() {
           supplierName: selectedPO.supplier_name,
           dolibarrSocId: selectedPO.socid ?? null,
           projectId: (selectedProject && selectedProject !== '__none__') ? selectedProject : null,
-          plannedDeliveryDate: selectedPO.date_livraison
+          plannedDeliveryDate: (Number(selectedPO.date_livraison) > 0)
             ? new Date(Number(selectedPO.date_livraison) * 1000).toISOString()
             : null,
           items,
@@ -1058,8 +1073,8 @@ export default function MaterialInspectionReceiptPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Planned Delivery Date</p>
-                  <p className={`font-medium ${selectedPO.date_livraison ? '' : 'text-muted-foreground'}`}>
-                    {selectedPO.date_livraison
+                  <p className={`font-medium ${Number(selectedPO.date_livraison) > 0 ? '' : 'text-muted-foreground'}`}>
+                    {Number(selectedPO.date_livraison) > 0
                       ? new Date(Number(selectedPO.date_livraison) * 1000).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })
                       : 'Not set in Dolibarr'}
                   </p>

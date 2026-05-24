@@ -46,9 +46,12 @@ export const POST = withApiContext(async (_req: NextRequest) => {
     if (!mir.dolibarrPoId) continue;
     try {
       const po = await client.getPurchaseOrderById(String(mir.dolibarrPoId));
-      if (!po || !po.date_livraison) continue;
+      if (!po) continue;
+      // Dolibarr returns 0 (number or string) when the date is not set
+      const tsNum = Number(po.date_livraison);
+      if (!tsNum || tsNum <= 0) continue;
 
-      const newDeliveryDate = new Date(Number(po.date_livraison) * 1000);
+      const newDeliveryDate = new Date(tsNum * 1000);
       const existingDate = mir.plannedDeliveryDate ? new Date(mir.plannedDeliveryDate) : null;
 
       // Only update if date actually changed (compare day-level)

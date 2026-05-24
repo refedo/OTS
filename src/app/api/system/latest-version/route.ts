@@ -7,22 +7,23 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'May 8, 2026',
+  date: 'May 24, 2026',
   type: 'minor' as const,
-  mainTitle: 'Version synchronization',
+  mainTitle: 'Dolibarr Planned Delivery Date Fix',
   highlights: [
-    'Version synchronization across all surfaces following branch consolidation.',
+    'Fixed: Dolibarr planned delivery date (date_livraison) was always showing as "Not set" in MIRs and the Dolibarr PO modal.',
+    'Dolibarr Integration page: PO modal now fetches full PO detail on click — delivery date shows correctly.',
+    'MIR creation: planned delivery date is now fetched from the Dolibarr detail endpoint before the MIR is written, so it is always persisted correctly.',
+    'Sync Delivery Dates: improved guard handles date_livraison returned as string "0" from the API.',
   ],
   changes: {
-    added: [
-      'Submitter name and date shown in backlog item detail page header.',
-      'Copy description button with visual feedback on backlog item detail page.',
-      'Share on WhatsApp button in Quick Actions sidebar.',
+    added: [],
+    fixed: [
+      'Dolibarr planned delivery date (date_livraison) displayed as "—" / "Not set" — the list endpoint returns 0 even when the date is set; now fetches full PO detail on demand.',
+      'MIR plannedDeliveryDate always null on creation — now resolved by fetching the PO detail endpoint after user selects a PO.',
+      'sync-delivery-dates: date_livraison "0" string no longer triggers a bogus epoch update.',
     ],
-    fixed: [],
-    changed: [
-      'Version bumped to 23.5.0',
-    ],
+    changed: [],
   },
 };
 
