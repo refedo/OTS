@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [24.0.0] - 2026-05-24 — **Inventory & Warehouse Management Module**
+
+### Added
+- **INV Module — Dashboard** (`/inv`): Live KPI cards (active items, pending approvals, low-stock alerts, today's movements), recent ledger activity table, warehouse stock bar chart with red/amber/green colour coding.
+- **INV Module — Stock Levels** (`/inv/stock`): Per-warehouse balance table with factory filter and search. Click any row to open a slide-over drawer showing the item's full ledger history. Excel export via the existing `xlsx` package.
+- **INV Module — Material Issues / MIR-OUT** (`/inv/mir-out`): Paginated MIR-OUT list with status badges, filter by type/factory/status/reference.
+- **INV Module — New MIR-OUT** (`/inv/mir-out/new`): Two-step form — Step 1 selects material type (RAW_MATERIAL / CONSUMABLE), factory, project (for raw materials), production location, and notes. Step 2 adds line items with live balance fetch and amber/red warnings when requested quantity approaches or exceeds available stock. Warehouse is auto-suggested from item's `defaultWhType`.
+- **INV Module — MIR-OUT Detail** (`/inv/mir-out/[id]`): Full detail with status timeline, line items table, and a contextual action bar: Approve, Issue (modal with per-line quantity entry), Reject (modal with mandatory reason), and Print.
+- **INV Module — Returns** (`/inv/returns`): Paginated returns list with status/type filters.
+- **INV Module — New Return** (`/inv/returns/new`): HEXA-FRM-030 material return form. Return type toggle: Unused Stock auto-targets the Raw Material Warehouse; Off-cut locks destination to the Off-cuts Warehouse and requires a mandatory piece description.
+- **INV Module — Ledger** (`/inv/ledger`): Immutable, full-history stock ledger with directional arrows (↑ IN / ↓ OUT), filters for type/direction/date range/warehouse, pagination (50/page), and Excel export.
+- **INV Module — Settings** (`/inv/settings`): Three-tab settings page (Items | Warehouses | Locations). Each tab supports full CRUD via Dialog modals with activate/deactivate controls.
+- **API — Items**: `GET /api/inv/items` (list with search/category/active filters) + `POST` (create) + `PUT /api/inv/items/[id]` (update/deactivate). Soft-delete enforced.
+- **API — Warehouses**: `GET /api/inv/warehouses` (filter by siteId/type/active) + `POST` + `PUT /api/inv/warehouses/[id]`.
+- **API — Locations**: `GET /api/inv/locations` (filter by siteId/active) + `POST` + `PUT /api/inv/locations/[id]`.
+- **API — Stock Balance**: `GET /api/inv/balance` — returns real-time balances with `isLowStock` flag (quantity < minStockLevel).
+- **API — Ledger**: `GET /api/inv/ledger` — paginated (50/page) with 6 filter dimensions: item, warehouse, movementType, direction, dateFrom, dateTo, projectId.
+- **API — MIR-OUT**: Full CRUD + workflow sub-routes: `submit` (DRAFT → PENDING_APPROVAL), `approve` (PENDING_APPROVAL → APPROVED), `issue` (per-line atomic $transaction with balance decrement and low-stock check), `reject` (mandatory reason).
+- **API — Returns**: `GET` + `POST /api/inv/returns` + `receive` (PENDING → RECEIVED, writes ledger) + `reject` (PENDING → REJECTED, mandatory reason).
+- **API — Adjustments**: `GET /api/inv/adjustments` + `POST` — reads current system qty, creates InvAdjustment record and applies variance atomically via `adjustStock` service.
+- **API — Internal Stock-In Hook**: `POST /api/inv/internal/stock-in` — internal endpoint called by the MIR module on receipt confirmation. Iterates receipt lines, resolves each item's `defaultWhType`, finds the matching warehouse for the site, and calls `stockIn` service atomically.
+- **Service — inv-sequence.service**: `nextMirOutNumber(year)` → `MIR-OUT-YYYY-NNNN`, `nextReturnNumber(year)` → `RET-YYYY-NNNN`, `nextAdjustmentNumber(year)` → `ADJ-YYYY-NNNN`. Uses `findFirst desc` + parse + increment pattern (per-year reset).
+- **Service — inv-stock.service**: `stockIn`, `issueStock` (throws `InsufficientStockError` with available/requested info), `returnStock`, `adjustStock`. All run inside caller-provided `$transaction` for atomicity. Low-stock alert logged after issue if `balanceAfter < minStockLevel`.
+- **Service — inv-stubs.service**: `checkAgainstBOM()` and `postCostAllocationToFinance()` — stub functions returning `null` with TODO comments for future BOM and Financial module integration.
+- **Prisma schema — 9 new models**: `InvWarehouse`, `InvLocation`, `InvItem`, `InvStockBalance` (@@unique warehouseId+itemId), `InvStockLedger`, `InvMirOut`, `InvMirOutLine`, `InvReturn`, `InvAdjustment`.
+- **Prisma schema — 8 new enums**: `InvWarehouseType` (RAW_MATERIAL, CONSUMABLE, OFFCUT), `InvMaterialType` (RAW_MATERIAL, CONSUMABLE), `InvItemCategory` (9 categories), `InvMovementDirection` (IN, OUT), `InvMovementType` (STOCK_IN, ISSUE, RETURN, ADJUSTMENT), `InvMirOutStatus` (7 states), `InvIssueLineStatus` (4 states), `InvReturnType` (UNUSED_STOCK, OFFCUT), `InvReturnStatus` (PENDING, RECEIVED, REJECTED).
+- **SQL migration v36_0**: `prisma/manual_migrations/v36_0_inv_warehouse_management.sql` — full DDL for all 9 tables (stored-procedure IF NOT EXISTS pattern) plus seed data: 6 warehouses (RM-WH-F001, CM-WH-F001, OC-WH-F001, RM-WH-F003, CM-WH-F003, OC-WH-F003) and 7 production locations (4 × F001, 3 × F003).
+- **Permissions — 6 new INV permissions**: `inv.view`, `inv.request`, `inv.approve`, `inv.issue`, `inv.adjust`, `inv.admin` — added to `permissions.ts` and seeded into role defaults (Storekeeper, Foreman, Production Engineer, Manager, Engineer, Operator, Admin, CEO).
+- **Navigation permissions**: 9 new `/inv/*` route mappings added to `navigation-permissions.ts`.
+- **Sidebar**: New "Inventory" section with 6 items (Dashboard, Stock Levels, Material Issues, Returns, Ledger, Settings) — all tagged `newSince: '2026-05-24'`.
+
+---
+
 ## [23.9.0] - 2026-05-24
 
 ### Fixed
