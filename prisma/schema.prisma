@@ -437,6 +437,21 @@ model User {
   submittedIntegrityReports  IntegrityReport[] @relation("IntegrityReportReporter")
   resolvedIntegrityReports   IntegrityReport[] @relation("IntegrityReportResolver")
 
+  // Inventory & Warehouse Management (24.0.0)
+  invWarehousesCreated  InvWarehouse[]    @relation("InvWarehouseCreatedBy")
+  invLocationsCreated   InvLocation[]     @relation("InvLocationCreatedBy")
+  invItemsCreated       InvItem[]         @relation("InvItemCreatedBy")
+  invLedgerEntries      InvStockLedger[]  @relation("InvLedgerPerformedBy")
+  invMirOutsRequested   InvMirOut[]       @relation("InvMirOutRequestedBy")
+  invMirOutsSubmitted   InvMirOut[]       @relation("InvMirOutSubmittedBy")
+  invMirOutsApproved    InvMirOut[]       @relation("InvMirOutApprovedBy")
+  invMirOutsIssued      InvMirOut[]       @relation("InvMirOutIssuedBy")
+  invMirOutsRejected    InvMirOut[]       @relation("InvMirOutRejectedBy")
+  invReturnsRequested   InvReturn[]       @relation("InvReturnRequestedBy")
+  invReturnsReceived    InvReturn[]       @relation("InvReturnReceivedBy")
+  invReturnsRejected    InvReturn[]       @relation("InvReturnRejectedBy")
+  invAdjustments        InvAdjustment[]   @relation("InvAdjustmentAuthorizedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -7739,4 +7754,321 @@ model IntegrityReport {
   @@index([reporterId])
   @@index([createdAt])
   @@map("integrity_reports")
+}
+
+// ─── Inventory & Warehouse Management (24.0.0) ─────────────────────────────
+
+enum InvWarehouseType {
+  RAW_MATERIAL
+  CONSUMABLE
+  OFFCUT
+}
+
+enum InvMaterialType {
+  RAW_MATERIAL
+  CONSUMABLE
+}
+
+enum InvItemCategory {
+  STRUCTURAL_STEEL
+  PLATE
+  PIPE
+  CONSUMABLE
+  FASTENER
+  PAINT
+  ELECTRICAL
+  OFFCUT
+  OTHER
+}
+
+enum InvMovementDirection {
+  IN
+  OUT
+}
+
+enum InvMovementType {
+  STOCK_IN
+  ISSUE
+  RETURN
+  ADJUSTMENT
+}
+
+enum InvMirOutStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  PARTIALLY_ISSUED
+  REJECTED
+  CLOSED
+}
+
+enum InvIssueLineStatus {
+  PENDING
+  ISSUED
+  PARTIAL
+  CANCELLED
+}
+
+enum InvReturnType {
+  UNUSED_STOCK
+  OFFCUT
+}
+
+enum InvReturnStatus {
+  PENDING
+  RECEIVED
+  REJECTED
+}
+
+model InvWarehouse {
+  id       String           @id @default(uuid()) @db.Char(36)
+  code     String           @unique @db.VarChar(30)
+  name     String           @db.VarChar(100)
+  type     InvWarehouseType
+  siteId   String           @db.VarChar(10)
+  siteName String           @db.VarChar(50)
+  isActive Boolean          @default(true)
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("InvWarehouseCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  balances InvStockBalance[]
+  ledger   InvStockLedger[]
+  lines    InvMirOutLine[]
+  returns  InvReturn[]
+
+  @@index([siteId])
+  @@index([type])
+  @@index([isActive])
+  @@map("inv_warehouses")
+}
+
+model InvLocation {
+  id       String  @id @default(uuid()) @db.Char(36)
+  code     String  @unique @db.VarChar(30)
+  name     String  @db.VarChar(100)
+  siteId   String  @db.VarChar(10)
+  isActive Boolean @default(true)
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("InvLocationCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  mirOuts  InvMirOut[]
+  returns  InvReturn[]
+  ledger   InvStockLedger[]
+
+  @@index([siteId])
+  @@index([isActive])
+  @@map("inv_locations")
+}
+
+model InvItem {
+  id            String          @id @default(uuid()) @db.Char(36)
+  code          String          @unique @db.VarChar(50)
+  name          String          @db.VarChar(150)
+  description   String?         @db.Text
+  unit          String          @db.VarChar(20)
+  category      InvItemCategory
+  defaultWhType InvWarehouseType
+  minStockLevel Float           @default(0)
+  isActive      Boolean         @default(true)
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("InvItemCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  balances InvStockBalance[]
+  ledger   InvStockLedger[]
+  lines    InvMirOutLine[]
+  returns  InvReturn[]
+
+  @@index([category])
+  @@index([defaultWhType])
+  @@index([isActive])
+  @@map("inv_items")
+}
+
+model InvStockBalance {
+  id          String       @id @default(uuid()) @db.Char(36)
+  warehouseId String       @db.Char(36)
+  warehouse   InvWarehouse @relation(fields: [warehouseId], references: [id])
+  itemId      String       @db.Char(36)
+  item        InvItem      @relation(fields: [itemId], references: [id])
+  quantity    Float        @default(0)
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([warehouseId, itemId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@map("inv_stock_balances")
+}
+
+model InvStockLedger {
+  id            String               @id @default(uuid()) @db.Char(36)
+  warehouseId   String               @db.Char(36)
+  warehouse     InvWarehouse         @relation(fields: [warehouseId], references: [id])
+  itemId        String               @db.Char(36)
+  item          InvItem              @relation(fields: [itemId], references: [id])
+  direction     InvMovementDirection
+  movementType  InvMovementType
+  quantity      Float
+  balanceAfter  Float
+  referenceType String?              @db.VarChar(30)
+  referenceId   String?              @db.Char(36)
+  referenceNo   String?              @db.VarChar(50)
+  projectId     String?              @db.Char(36)
+  locationId    String?              @db.Char(36)
+  location      InvLocation?         @relation(fields: [locationId], references: [id])
+  mirOutId      String?              @db.Char(36)
+  returnId      String?              @db.Char(36)
+  notes         String?              @db.Text
+  performedById String               @db.Char(36)
+  performedBy   User                 @relation("InvLedgerPerformedBy", fields: [performedById], references: [id])
+  createdAt     DateTime             @default(now())
+
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([direction])
+  @@index([movementType])
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("inv_stock_ledger")
+}
+
+model InvMirOut {
+  id            String          @id @default(uuid()) @db.Char(36)
+  mirOutNumber  String          @unique @db.VarChar(25)
+  materialType  InvMaterialType
+  siteId        String          @db.VarChar(10)
+  projectId     String?         @db.Char(36)
+  locationId    String          @db.Char(36)
+  location      InvLocation     @relation(fields: [locationId], references: [id])
+  status        InvMirOutStatus @default(DRAFT)
+  notes         String?         @db.Text
+
+  requestedById String   @db.Char(36)
+  requestedBy   User     @relation("InvMirOutRequestedBy", fields: [requestedById], references: [id])
+
+  submittedAt   DateTime?
+  submittedById String?   @db.Char(36)
+  submittedBy   User?     @relation("InvMirOutSubmittedBy", fields: [submittedById], references: [id])
+
+  approvedAt    DateTime?
+  approvedById  String?   @db.Char(36)
+  approvedBy    User?     @relation("InvMirOutApprovedBy", fields: [approvedById], references: [id])
+
+  issuedAt      DateTime?
+  issuedById    String?   @db.Char(36)
+  issuedBy      User?     @relation("InvMirOutIssuedBy", fields: [issuedById], references: [id])
+
+  rejectedAt      DateTime?
+  rejectedById    String?   @db.Char(36)
+  rejectedBy      User?     @relation("InvMirOutRejectedBy", fields: [rejectedById], references: [id])
+  rejectionReason String?   @db.Text
+
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  lines InvMirOutLine[]
+
+  @@index([status])
+  @@index([materialType])
+  @@index([siteId])
+  @@index([projectId])
+  @@index([requestedById])
+  @@index([createdAt])
+  @@map("inv_mir_outs")
+}
+
+model InvMirOutLine {
+  id           String             @id @default(uuid()) @db.Char(36)
+  mirOutId     String             @db.Char(36)
+  mirOut       InvMirOut          @relation(fields: [mirOutId], references: [id], onDelete: Cascade)
+  itemId       String             @db.Char(36)
+  item         InvItem            @relation(fields: [itemId], references: [id])
+  warehouseId  String             @db.Char(36)
+  warehouse    InvWarehouse       @relation(fields: [warehouseId], references: [id])
+  qtyRequested Float
+  qtyIssued    Float              @default(0)
+  status       InvIssueLineStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([mirOutId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@map("inv_mir_out_lines")
+}
+
+model InvReturn {
+  id           String          @id @default(uuid()) @db.Char(36)
+  returnNumber String          @unique @db.VarChar(20)
+  returnType   InvReturnType
+  siteId       String          @db.VarChar(10)
+  locationId   String          @db.Char(36)
+  location     InvLocation     @relation(fields: [locationId], references: [id])
+  warehouseId  String          @db.Char(36)
+  warehouse    InvWarehouse    @relation(fields: [warehouseId], references: [id])
+  itemId       String          @db.Char(36)
+  item         InvItem         @relation(fields: [itemId], references: [id])
+  quantity     Float
+  description  String?         @db.Text
+  mirOutId     String?         @db.Char(36)
+  status       InvReturnStatus @default(PENDING)
+
+  requestedById String   @db.Char(36)
+  requestedBy   User     @relation("InvReturnRequestedBy", fields: [requestedById], references: [id])
+
+  receivedAt    DateTime?
+  receivedById  String?   @db.Char(36)
+  receivedBy    User?     @relation("InvReturnReceivedBy", fields: [receivedById], references: [id])
+
+  rejectedAt      DateTime?
+  rejectedById    String?   @db.Char(36)
+  rejectedBy      User?     @relation("InvReturnRejectedBy", fields: [rejectedById], references: [id])
+  rejectionReason String?   @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+  @@index([returnType])
+  @@index([siteId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([createdAt])
+  @@map("inv_returns")
+}
+
+model InvAdjustment {
+  id               String       @id @default(uuid()) @db.Char(36)
+  adjustmentNumber String       @unique @db.VarChar(20)
+  warehouseId      String       @db.Char(36)
+  warehouse        InvWarehouse @relation(fields: [warehouseId], references: [id])
+  itemId           String       @db.Char(36)
+  item             InvItem      @relation(fields: [itemId], references: [id])
+  systemQty        Float
+  physicalQty      Float
+  variance         Float
+  reason           String       @db.Text
+  authorizedById   String       @db.Char(36)
+  authorizedBy     User         @relation("InvAdjustmentAuthorizedBy", fields: [authorizedById], references: [id])
+  createdAt        DateTime     @default(now())
+
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([createdAt])
+  @@map("inv_adjustments")
 }

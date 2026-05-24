@@ -1,8 +1,17 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 23.9.0 | **Release Date:** May 24, 2026
+**Version:** 24.0.0 | **Release Date:** May 24, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
+
+### What's New in 24.0.0 — Inventory & Warehouse Management Module *(Major)*
+- **INV Module:** complete end-to-end inventory and warehouse management for Factory 001 and Factory 003.
+- **Material Issue Requests (MIR-OUT):** two-path approval workflow — Raw Material issues directly; Consumables require Foreman → Production Engineer → Storekeeper approval chain.
+- **Material Returns (HEXA-FRM-030):** Unused Stock / Off-cut return form with locked warehouse assignment and mandatory off-cut description.
+- **Stock Adjustments:** physical count vs. system reconciliation with authorized variance posting.
+- **Immutable Stock Ledger:** every movement recorded with full traceability — reference, actor, balance after.
+- Six warehouses seeded (RM, CM, OC × F001 and F003); seven production locations seeded.
+- Six new permissions: `inv.view`, `inv.request`, `inv.approve`, `inv.issue`, `inv.adjust`, `inv.admin`.
 
 ### What's New in 23.9.0 — Dolibarr Planned Delivery Date Fix
 - **Fixed:** Dolibarr planned delivery date (`date_livraison`) was always showing as "Not set" in MIRs and the Dolibarr PO modal. The list endpoint returns `0`; the fix fetches the full PO detail on demand.

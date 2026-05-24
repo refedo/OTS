@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '24.0.0',
+    date: 'May 24, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: 'Inventory & Warehouse Management Module',
+    highlights: [
+      'New INV module: complete end-to-end inventory and warehouse management for Factory 001 and Factory 003.',
+      'Material Issue Requests (MIR-OUT): two-path workflow — Raw Material issues directly; Consumables require approval chain (Foreman → Production Engineer → Storekeeper).',
+      'Material Returns: Unused Stock back to Raw Material Warehouse; Off-cuts locked to the Off-cuts Warehouse with mandatory piece description.',
+      'Stock Adjustments: physical count vs. system reconciliation with authorized variance posting to the immutable ledger.',
+      'Immutable Stock Ledger: every IN/OUT movement recorded with full traceability — reference, actor, balance after.',
+      'Six warehouses seeded (RM, CM, OC) for both factories; seven production locations seeded.',
+      'Six new permissions: inv.view, inv.request, inv.approve, inv.issue, inv.adjust, inv.admin.',
+    ],
+    changes: {
+      added: [
+        'INV Dashboard (/inv): live KPI cards, low-stock alerts, warehouse bar chart.',
+        'Stock Levels (/inv/stock): per-warehouse balance table with slide-over ledger drawer and Excel export.',
+        'Material Issues (/inv/mir-out): paginated MIR-OUT list with status badges and filters.',
+        'New MIR-OUT (/inv/mir-out/new): two-step form with live balance fetch, auto-suggest warehouse, and amber/red quantity warnings.',
+        'MIR-OUT Detail (/inv/mir-out/[id]): status timeline, line items, Approve/Issue/Reject action bar.',
+        'Returns (/inv/returns): list and HEXA-FRM-030 return form with UNUSED_STOCK / OFFCUT toggle.',
+        'Ledger (/inv/ledger): immutable full-history ledger with filters and Excel export.',
+        'Settings (/inv/settings): Items, Warehouses, Locations CRUD via Dialog modals.',
+        '19 new API routes under /api/inv/ (items, warehouses, locations, balance, ledger, mir-out + 4 sub-routes, returns + 2 sub-routes, adjustments, internal/stock-in).',
+        'Services: inv-sequence.service (sequence numbers), inv-stock.service (atomic stock operations), inv-stubs.service (BOM/Finance stubs).',
+        '9 new Prisma models, 8 new enums, SQL migration v36_0 with full DDL and seed data.',
+        '6 new INV permissions added to permissions.ts and role defaults.',
+        'Sidebar: new Inventory section with 6 navigation items.',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '23.9.0',
     date: 'May 24, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Dolibarr Planned Delivery Date Fix',
     highlights: [
       'Fixed: Dolibarr planned delivery date (date_livraison) was always "Not set" in MIRs and the Dolibarr PO modal — the list endpoint returns 0 even when the date is set in Dolibarr.',

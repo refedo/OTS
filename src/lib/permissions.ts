@@ -534,6 +534,19 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'ims.competence.manage', name: 'Manage Competence Matrix', description: 'Set competence status for employees', category: 'ims' },
     ],
   },
+  // Inventory & Warehouse Management (24.0.0)
+  {
+    id: 'inventory',
+    name: 'Inventory & Warehouse Management',
+    permissions: [
+      { id: 'inv.view',    name: 'View Inventory',           description: 'View stock balances, ledger, MIR-OUTs, and returns (read-only)', category: 'inventory' },
+      { id: 'inv.request', name: 'Create Material Requests',  description: 'Create MIR-OUT drafts and material return requests', category: 'inventory' },
+      { id: 'inv.approve', name: 'Approve Material Requests', description: 'Approve or reject consumable MIR-OUTs (Production Engineer)', category: 'inventory' },
+      { id: 'inv.issue',   name: 'Issue Stock & Receive Returns', description: 'Mark MIR-OUTs as issued, receive returned material (Storekeeper)', category: 'inventory' },
+      { id: 'inv.adjust',  name: 'Stock Adjustments',         description: 'Create stock count adjustments (Warehouse Manager / QC lead)', category: 'inventory' },
+      { id: 'inv.admin',   name: 'INV Settings Admin',        description: 'Full settings access — manage items, warehouses, and production locations', category: 'inventory' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup
@@ -847,6 +860,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Integrity Reports
     'integrity.report',
     'integrity.view_own',
+    // Inventory & Warehouse Management (24.0.0)
+    'inv.view',
+    'inv.adjust',
+    'inv.admin',
   ],
   Engineer: [
     // Basic Access
@@ -946,6 +963,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Integrity Reports
     'integrity.report',
     'integrity.view_own',
+    // Inventory & Warehouse Management (24.0.0)
+    'inv.view',
+    'inv.request',
+    'inv.approve',
   ],
   Operator: [
     // Basic Access
@@ -996,6 +1017,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Integrity Reports
     'integrity.report',
     'integrity.view_own',
+    // Inventory & Warehouse Management (24.0.0)
+    'inv.view',
+    'inv.request',
   ],
   'Document Controller': [
     // Basic Access
@@ -1090,6 +1114,78 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'ims.competence.view',
     'ims.competence.manage',
     // Integrity Reports
+    'integrity.report',
+    'integrity.view_own',
+    // Inventory (24.0.0) — Document Controller has read-only view
+    'inv.view',
+  ],
+  // Inventory-specific roles (24.0.0)
+  Storekeeper: [
+    'notifications.view',
+    // Inventory — full storekeeper duties
+    'inv.view',
+    'inv.request',
+    'inv.issue',
+    // HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
+    'integrity.report',
+    'integrity.view_own',
+  ],
+  Foreman: [
+    'notifications.view',
+    'projects.view',
+    // Inventory — request only
+    'inv.view',
+    'inv.request',
+    // HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
+    'integrity.report',
+    'integrity.view_own',
+  ],
+  'Production Engineer': [
+    'notifications.view',
+    'projects.view',
+    'buildings.view',
+    'production.view_dashboard',
+    'production.view_status',
+    'production.view_parts',
+    'production.view_logs',
+    'quality.view_itp',
+    'quality.view_wps',
+    'quality.mir.inspect',
+    // Inventory — approve consumable requests
+    'inv.view',
+    'inv.request',
+    'inv.approve',
+    // HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
     'integrity.report',
     'integrity.view_own',
   ],

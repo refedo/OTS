@@ -310,6 +310,17 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
   // Forms Directory (22.7.0)
   '/forms': null, // accessible to all logged-in users
+
+  // Inventory & Warehouse Management (24.0.0)
+  '/inv': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
+  '/inv/stock': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
+  '/inv/mir-out': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
+  '/inv/mir-out/new': ['inv.request'],
+  '/inv/mir-out/[id]': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.admin'],
+  '/inv/returns': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
+  '/inv/returns/new': ['inv.request'],
+  '/inv/ledger': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
+  '/inv/settings': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
 };
 
 // Helper function to check if user has permission to access a route

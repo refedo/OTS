@@ -99,6 +99,8 @@ import {
   IdCard,
   LayoutList,
   ShoppingCart,
+  ArrowRightLeft,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -326,6 +328,19 @@ const navigationSections: NavigationSection[] = [
       { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock },
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
       { name: 'COGS Supplier Map', href: '/financial/reports/cogs-supplier-map', icon: Layers },
+    ],
+  },
+  // Inventory & Warehouse Management (24.0.0)
+  {
+    name: 'Inventory',
+    icon: Package,
+    items: [
+      { name: 'Dashboard',       href: '/inv',           icon: LayoutDashboard, newSince: '2026-05-24' },
+      { name: 'Stock Levels',    href: '/inv/stock',     icon: Package,         newSince: '2026-05-24' },
+      { name: 'Material Issues', href: '/inv/mir-out',   icon: ArrowRightLeft,  newSince: '2026-05-24' },
+      { name: 'Returns',         href: '/inv/returns',   icon: Undo2,           newSince: '2026-05-24' },
+      { name: 'Ledger',          href: '/inv/ledger',    icon: BookOpen,        newSince: '2026-05-24' },
+      { name: 'Settings',        href: '/inv/settings',  icon: Settings,        newSince: '2026-05-24' },
     ],
   },
   {
