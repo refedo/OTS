@@ -47,6 +47,7 @@ interface SyncStatus {
   lastThirdpartiesSync: string | null;
   lastContactsSync: string | null;
   lastFullSync: string | null;
+  lastPoSync: string | null;
   recordCounts: {
     products: { total: number; active: number; withSpecs: number };
     thirdparties: { total: number; active: number };
@@ -161,12 +162,11 @@ export default function DolibarrIntegrationPage() {
   const [poTotal, setPoTotal] = useState(0);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [poSearch, setPoSearch] = useState('');
-  const [syncingDeliveryDates, setSyncingDeliveryDates] = useState(false);
-  const [deliveryDateSyncResult, setDeliveryDateSyncResult] = useState<{ updated: number; errors: number } | null>(null);
+  const [syncingPos, setSyncingPos] = useState(false);
+  const [poSyncResult, setPoSyncResult] = useState<{ updated: number; errors: number } | null>(null);
   const [poDetailLoading, setPoDetailLoading] = useState(false);
   const [poRealTotal, setPoRealTotal] = useState<number | null>(null);
   const [poCountLoading, setPoCountLoading] = useState(false);
-  const [lastPoRefresh, setLastPoRefresh] = useState<string | null>(null);
 
   // Reference data
   const [refData, setRefData] = useState<any>(null);
@@ -290,8 +290,6 @@ export default function DolibarrIntegrationPage() {
     fetchSyncStatus();
     fetchReferenceData();
     fetchPoCount();
-    const stored = localStorage.getItem('dolibarr_last_po_refresh');
-    if (stored) setLastPoRefresh(stored);
   }, [fetchSyncStatus, fetchReferenceData, fetchPoCount]);
   useEffect(() => { if (activeTab === 'products') fetchProducts(); }, [activeTab, fetchProducts]);
   useEffect(() => { if (activeTab === 'thirdparties') fetchThirdParties(); }, [activeTab, fetchThirdParties]);
@@ -335,19 +333,21 @@ export default function DolibarrIntegrationPage() {
     }
   };
 
-  const handleSyncDeliveryDates = async () => {
-    setSyncingDeliveryDates(true);
-    setDeliveryDateSyncResult(null);
+  const handleSyncPos = async () => {
+    setSyncingPos(true);
+    setPoSyncResult(null);
     try {
-      const res = await fetch('/api/dolibarr/sync-delivery-dates', { method: 'POST' });
+      const res = await fetch('/api/dolibarr/sync-pos', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        setDeliveryDateSyncResult({ updated: data.updated ?? 0, errors: data.errors ?? 0 });
+        setPoSyncResult({ updated: data.updated ?? 0, errors: data.errors ?? 0 });
+        // Refresh sync status so the Last Sync timestamp and history update
+        fetchSyncStatus();
       }
     } catch (err) {
-      console.error('Delivery date sync failed:', err);
+      console.error('PO sync failed:', err);
     } finally {
-      setSyncingDeliveryDates(false);
+      setSyncingPos(false);
     }
   };
 
@@ -540,7 +540,7 @@ export default function DolibarrIntegrationPage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Purchase Orders:</span>
-                        <span>{lastPoRefresh ? formatDate(lastPoRefresh) : 'Not refreshed'}</span>
+                        <span>{syncStatus.lastPoSync ? formatDate(syncStatus.lastPoSync) : 'Not synced'}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -603,23 +603,19 @@ export default function DolibarrIntegrationPage() {
                     <Button variant="outline" size="sm" onClick={() => handleSync('contacts')} disabled={syncing}>
                       <FileText className="h-4 w-4 mr-1" /> Sync Contacts
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setActiveTab('purchase-orders'); fetchPurchaseOrders(); const now = new Date().toISOString(); setLastPoRefresh(now); localStorage.setItem('dolibarr_last_po_refresh', now); }} disabled={poLoading}>
-                      {poLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                      Refresh P.O&apos;s
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleSyncDeliveryDates} disabled={syncingDeliveryDates}>
-                      {syncingDeliveryDates ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                      Sync Delivery Dates
+                    <Button variant="outline" size="sm" onClick={handleSyncPos} disabled={syncingPos}>
+                      {syncingPos ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      Sync PO
                     </Button>
                     <Button size="sm" onClick={() => handleSync()} disabled={syncing}>
                       {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Full Sync
                     </Button>
                   </CardContent>
-                  {deliveryDateSyncResult && (
+                  {poSyncResult && (
                     <div className="px-4 pb-3 text-sm text-muted-foreground">
-                      Delivery date sync complete: {deliveryDateSyncResult.updated} updated
-                      {deliveryDateSyncResult.errors > 0 && `, ${deliveryDateSyncResult.errors} errors`}
+                      PO sync complete: {poSyncResult.updated} delivery date{poSyncResult.updated !== 1 ? 's' : ''} updated
+                      {poSyncResult.errors > 0 && `, ${poSyncResult.errors} error${poSyncResult.errors !== 1 ? 's' : ''}`}
                     </div>
                   )}
                 </Card>

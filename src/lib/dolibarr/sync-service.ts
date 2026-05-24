@@ -45,6 +45,7 @@ export interface SyncStatus {
   lastThirdpartiesSync: string | null;
   lastContactsSync: string | null;
   lastFullSync: string | null;
+  lastPoSync: string | null;
   recordCounts: {
     products: { total: number; active: number; withSpecs: number };
     thirdparties: { total: number; active: number };
@@ -572,6 +573,7 @@ export class DolibarrSyncService {
       lastThirdpartiesSync: config.get('last_thirdparties_sync') || null,
       lastContactsSync: config.get('last_contacts_sync') || null,
       lastFullSync: config.get('last_full_sync') || null,
+      lastPoSync: config.get('last_po_sync') || null,
       recordCounts: {
         products: {
           total: Number(pc.total) || 0,
