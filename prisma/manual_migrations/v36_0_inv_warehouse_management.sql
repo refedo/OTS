@@ -353,7 +353,7 @@ BEGIN
   DECLARE v_admin_id CHAR(36) DEFAULT NULL;
 
   -- Get first user with admin/manager role, fall back to any user
-  SELECT id INTO v_admin_id FROM `User` WHERE role IN ('Admin','Manager') ORDER BY createdAt ASC LIMIT 1;
+  SELECT u.id INTO v_admin_id FROM `User` u JOIN `Role` r ON u.roleId = r.id WHERE r.name IN ('Admin','Manager') ORDER BY u.createdAt ASC LIMIT 1;
   IF v_admin_id IS NULL THEN
     SELECT id INTO v_admin_id FROM `User` ORDER BY createdAt ASC LIMIT 1;
   END IF;
@@ -397,7 +397,7 @@ DELIMITER $$
 CREATE PROCEDURE seed_inv_locations()
 BEGIN
   DECLARE v_admin_id CHAR(36) DEFAULT NULL;
-  SELECT id INTO v_admin_id FROM `User` WHERE role IN ('Admin','Manager') ORDER BY createdAt ASC LIMIT 1;
+  SELECT u.id INTO v_admin_id FROM `User` u JOIN `Role` r ON u.roleId = r.id WHERE r.name IN ('Admin','Manager') ORDER BY u.createdAt ASC LIMIT 1;
   IF v_admin_id IS NULL THEN
     SELECT id INTO v_admin_id FROM `User` ORDER BY createdAt ASC LIMIT 1;
   END IF;
