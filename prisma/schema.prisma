@@ -7836,10 +7836,11 @@ model InvWarehouse {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  balances InvStockBalance[]
-  ledger   InvStockLedger[]
-  lines    InvMirOutLine[]
-  returns  InvReturn[]
+  balances    InvStockBalance[]
+  ledger      InvStockLedger[]
+  lines       InvMirOutLine[]
+  returns     InvReturn[]
+  adjustments InvAdjustment[]
 
   @@index([siteId])
   @@index([type])
@@ -7886,10 +7887,11 @@ model InvItem {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  balances InvStockBalance[]
-  ledger   InvStockLedger[]
-  lines    InvMirOutLine[]
-  returns  InvReturn[]
+  balances    InvStockBalance[]
+  ledger      InvStockLedger[]
+  lines       InvMirOutLine[]
+  returns     InvReturn[]
+  adjustments InvAdjustment[]
 
   @@index([category])
   @@index([defaultWhType])
