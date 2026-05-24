@@ -23,10 +23,34 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '23.9.0',
+    date: 'May 24, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Dolibarr Planned Delivery Date Fix',
+    highlights: [
+      'Fixed: Dolibarr planned delivery date (date_livraison) was always "Not set" in MIRs and the Dolibarr PO modal — the list endpoint returns 0 even when the date is set in Dolibarr.',
+      'Dolibarr Integration page: clicking a PO row now fetches the full detail so the delivery date shows correctly in the modal (with a brief "Loading…" indicator).',
+      'MIR creation: after selecting a PO, the full PO detail is fetched before the MIR is written — plannedDeliveryDate is now always persisted correctly.',
+      'Sync Delivery Dates endpoint: improved guard handles date_livraison returned as string "0" or numeric 0 from the Dolibarr API.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Dolibarr PO modal "Delivery Date: —" — the supplierorders list endpoint returns date_livraison: 0 even when the date is set; the modal now fires a follow-up fetch to supplierorders/{id} on click and shows the real date.',
+        'MIR plannedDeliveryDate always null on creation — handleSelectPO now fetches the PO detail endpoint after user selection so the correct timestamp is used when writing the MIR to the DB.',
+        'MIR create dialog "Planned Delivery Date: Not set in Dolibarr" — same root cause as above; resolved by the detail fetch.',
+        'sync-delivery-dates: !po.date_livraison check was skipping records where date_livraison was returned as string "0"; replaced with Number(ts) <= 0 guard.',
+        'Existing MIRs with plannedDeliveryDate: null can now be fixed by pressing "Sync Delivery Dates" on the Dolibarr Integration page.',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '23.8.0',
     date: 'May 23, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Report a Violation, Dolibarr PO Sync & MIR Eval Icon',
     highlights: [
       'New confidential/anonymous "Report a Violation" feature for all team members — categories include Misconduct, Financial Misuse, Safety Violation, etc.',

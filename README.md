@@ -1,11 +1,18 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 23.5.0 | **Release Date:** May 8, 2026
+**Version:** 23.9.0 | **Release Date:** May 24, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 23.5.0 — Version synchronization
-- Version synchronization across all surfaces following branch consolidation.
+### What's New in 23.9.0 — Dolibarr Planned Delivery Date Fix
+- **Fixed:** Dolibarr planned delivery date (`date_livraison`) was always showing as "Not set" in MIRs and the Dolibarr PO modal. The list endpoint returns `0`; the fix fetches the full PO detail on demand.
+- **MIR creation:** `plannedDeliveryDate` is now correctly persisted by fetching the PO detail before the MIR is written.
+- **Sync Delivery Dates:** improved `date_livraison: "0"` string guard in the sync endpoint.
+
+### What's New in 23.8.0 — Report a Violation, Dolibarr PO Sync & MIR Eval Icon
+- New confidential/anonymous "Report a Violation" feature for all team members.
+- Dolibarr: "Sync Delivery Dates" button updates MIR planned delivery from `date_livraison`.
+- MIR list: Eval column with A/B/C/D rating badge.
 
 ### What's New in 22.5.3 — Stability & Version Alignment
 - Confirms **22.5.2** features as stable: Account Invoice Report, orphan purge, and sidebar double-render fix.

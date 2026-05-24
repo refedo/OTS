@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.9.0] - 2026-05-24
+
+### Fixed
+- **Dolibarr: Planned delivery date always "Not set" in MIR and PO modal** — Dolibarr's `supplierorders` list endpoint returns `date_livraison: 0` even when the date is configured in the ERP. The correct timestamp is only available from the individual PO detail endpoint (`supplierorders/{id}`). Both the Dolibarr Integration page PO modal and the MIR creation flow were using list data and therefore always showed `—` / "Not set".
+- **Dolibarr Integration page: PO modal "Delivery Date: —"** — Clicking a PO row now fires a follow-up fetch to `/api/dolibarr/purchase-orders?orderId={id}` to retrieve the full detail. The modal opens immediately with list data and shows a brief "Loading…" indicator while fetching; the real delivery date is rendered once the detail arrives.
+- **MIR creation: `plannedDeliveryDate` always `null`** — After the user selects a PO in the lookup dialog, the full PO detail is now fetched before the MIR is submitted. The correct Unix timestamp is converted and persisted to the DB.
+- **sync-delivery-dates: `date_livraison: "0"` string bypassing update** — The previous `!po.date_livraison` guard was truthy-falsy and missed the string `"0"` case. Replaced with an explicit `Number(ts) <= 0` check so any zero-value (numeric or string) is treated as "date not set".
+
+### Notes
+- Existing MIRs with `plannedDeliveryDate: null` can be fixed in one pass by pressing **"Sync Delivery Dates"** on the Dolibarr Integration page.
+
+---
+
 ## [23.8.0] - 2026-05-23
 
 ### Added
