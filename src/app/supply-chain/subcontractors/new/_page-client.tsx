@@ -247,8 +247,8 @@ export default function NewSubcontractorContractPage() {
         body: JSON.stringify({
           projectId: selectedProject,
           buildingId: selectedBuilding || null,
-          supplierId: supp?.approved_supplier_id ?? null,
-          dolibarrId: supp?.dolibarr_id ?? null,
+          supplierId: selectedSupplierData?.approved_supplier_id ?? null,
+          dolibarrId: selectedSupplierData?.dolibarr_id ?? null,
           dolibarrPoId: selectedPO?.id ?? null,
           dolibarrPoRef: selectedPO?.ref ?? null,
           scopeLevel,
@@ -289,7 +289,6 @@ export default function NewSubcontractorContractPage() {
   };
 
   const proj = projects.find(p => p.id === selectedProject);
-  const supp = suppliers.find(s => String(s.dolibarr_id) === selectedSupplier);
   const bldg = buildings.find(b => b.id === selectedBuilding);
 
   return (
@@ -794,7 +793,7 @@ export default function NewSubcontractorContractPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: 'Project', value: proj ? `${proj.projectNumber} — ${proj.name}` : '—' },
-                  { label: 'Subcontractor', value: supp ? `${supp.code_supplier ?? supp.dolibarr_id} — ${supp.name}` : '—' },
+                  { label: 'Subcontractor', value: selectedSupplierData ? `${selectedSupplierData.code_supplier ?? selectedSupplierData.dolibarr_id} — ${selectedSupplierData.name}` : '—' },
                   { label: 'Purchase Order', value: selectedPO ? selectedPO.ref : '—' },
                   { label: 'Building', value: bldg ? `${bldg.designation} — ${bldg.name}` : 'Full Project' },
                   { label: 'Scope Types', value: selectedScopeTypes.map(st => SCOPE_LABELS[st] ?? st).join(', ') },
