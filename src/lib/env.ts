@@ -22,6 +22,9 @@ interface EnvConfig {
 
   // Optional — may be undefined
   OPENAI_API_KEY: string | undefined;
+  ANTHROPIC_API_KEY: string | undefined;
+  GEMINI_API_KEY: string | undefined;
+  XAI_API_KEY: string | undefined;
   DOLIBARR_API_URL: string | undefined;
   DOLIBARR_API_KEY: string | undefined;
   DOLIBARR_API_TIMEOUT: string | undefined;
@@ -104,6 +107,9 @@ function validateEnv(): EnvConfig {
     LOG_LEVEL: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
 
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    XAI_API_KEY: process.env.XAI_API_KEY,
     DOLIBARR_API_URL: process.env.DOLIBARR_API_URL,
     DOLIBARR_API_KEY: process.env.DOLIBARR_API_KEY,
     DOLIBARR_API_TIMEOUT: process.env.DOLIBARR_API_TIMEOUT,

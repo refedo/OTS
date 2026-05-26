@@ -153,7 +153,19 @@ export class DolibarrSyncService {
             continue;
           }
 
-          // Update changed record
+          // ENRICHMENT GUARD: The following columns are OTS-owned and must NEVER be updated
+          // by the sync job. They are intentionally excluded from the UPDATE list:
+          //   item_class, material_nature, material_category, grade, finish,
+          //   profile_type, profile_designation, section_standard, bar_length_m,
+          //   all dim_* columns, all section property columns (weight_kg_per_m, area_cm2,
+          //   Ix_cm4, Iy_cm4, Wx_cm3, Wy_cm3, ix_cm, iy_cm, section_props_json),
+          //   all fastener_* columns, all weld_* columns,
+          //   density_kg_m3, kg_per_m2, kg_per_lm, unit_area_m2, kg_per_unit,
+          //   disburse_unit, unit_conversions_json,
+          //   manufacturer, manufacturer_ref, image_url, tds_url, technical_attrs_json,
+          //   classified_by, classification_conf, review_required, review_notes,
+          //   reviewed_by, reviewed_at, enriched_at
+          // Update changed record (Dolibarr mirror columns only)
           await prisma.$executeRawUnsafe(`
             UPDATE dolibarr_products SET
               ref = ?, label = ?, description = ?, product_type = ?, status_sell = ?, status_buy = ?,
