@@ -20,6 +20,7 @@ const CreateSchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
   locationId: z.string().uuid(),
   notes: z.string().optional().nullable(),
+  handedToId: z.string().uuid().optional().nullable(),
   lines: z.array(LineSchema).min(1),
 });
 
@@ -64,6 +65,7 @@ export async function GET(req: Request) {
         include: {
           requestedBy: { select: { id: true, name: true } },
           location: { select: { id: true, name: true } },
+          handedTo: { select: { id: true, name: true } },
           _count: { select: { lines: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -154,6 +156,7 @@ export async function POST(req: Request) {
         locationId: data.locationId,
         status: 'DRAFT',
         notes: data.notes ?? null,
+        handedToId: data.handedToId ?? null,
         requestedById: session.userId,
         lines: {
           create: data.lines.map(line => ({
@@ -166,7 +169,13 @@ export async function POST(req: Request) {
           })),
         },
       },
-      select: { id: true, mirOutNumber: true, status: true, materialType: true },
+      select: {
+        id: true,
+        mirOutNumber: true,
+        status: true,
+        materialType: true,
+        handedTo: { select: { id: true, name: true } },
+      },
     });
 
     // Consumable: auto-submit to PENDING_APPROVAL

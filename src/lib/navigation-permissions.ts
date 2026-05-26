@@ -321,6 +321,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/inv/returns/new': ['inv.request'],
   '/inv/ledger': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
   '/inv/material-master': ['inv.view', 'inv.admin'],
+  '/inv/stock/corrections': ['inv.adjust', 'inv.admin'],
   '/inv/settings': ['inv.view', 'inv.request', 'inv.approve', 'inv.issue', 'inv.adjust', 'inv.admin'],
 };
 

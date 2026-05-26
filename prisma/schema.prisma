@@ -447,6 +447,7 @@ model User {
   invMirOutsApproved    InvMirOut[]       @relation("InvMirOutApprovedBy")
   invMirOutsIssued      InvMirOut[]       @relation("InvMirOutIssuedBy")
   invMirOutsRejected    InvMirOut[]       @relation("InvMirOutRejectedBy")
+  invMirOutsHandedTo    InvMirOut[]       @relation("InvMirOutHandedTo")
   invReturnsRequested   InvReturn[]       @relation("InvReturnRequestedBy")
   invReturnsReceived    InvReturn[]       @relation("InvReturnReceivedBy")
   invReturnsRejected    InvReturn[]       @relation("InvReturnRejectedBy")
@@ -7978,6 +7979,10 @@ model InvMirOut {
   rejectionReason String?   @db.Text
 
   closedAt  DateTime?
+
+  handedToId  String?   @db.Char(36) @map("handed_to_id")
+  handedTo    User?     @relation("InvMirOutHandedTo", fields: [handedToId], references: [id])
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Trash2, ChevronRight, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { ItemCombobox } from '@/components/inv/item-combobox';
+import { EmployeeSelect } from '@/components/inv/employee-select';
 
 interface InvItem {
   id: string; code: string; name: string; unit: string; category: string; defaultWhType: string;
@@ -53,6 +54,7 @@ export default function NewMirOutPage() {
   const [projectId, setProjectId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [notes, setNotes] = useState('');
+  const [handedToId, setHandedToId] = useState('');
 
   // Step 2 state
   const [lines, setLines] = useState<LineItem[]>([{ id: crypto.randomUUID(), itemId: '', warehouseId: '', qtyRequested: 0 }]);
@@ -66,7 +68,6 @@ export default function NewMirOutPage() {
   // Fetch lookup data when siteId or materialType changes
   useEffect(() => {
     if (!siteId) return;
-    const whType = materialType === 'RAW_MATERIAL' ? 'RAW_MATERIAL' : 'CONSUMABLE';
     Promise.all([
       fetch(`/api/inv/items?activeOnly=true${materialType === 'RAW_MATERIAL' ? '&whType=RAW_MATERIAL' : '&whType=CONSUMABLE'}`).then(r => r.json()),
       fetch(`/api/inv/warehouses?siteId=${siteId}&activeOnly=true`).then(r => r.json()),
@@ -167,6 +168,7 @@ export default function NewMirOutPage() {
           projectId: materialType === 'RAW_MATERIAL' ? projectId : null,
           locationId,
           notes: notes || null,
+          handedToId: handedToId || null,
           lines: lines.map(l => ({ itemId: l.itemId, warehouseId: l.warehouseId, qtyRequested: l.qtyRequested })),
         }),
       });
@@ -186,7 +188,7 @@ export default function NewMirOutPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Material Issue Request</h1>
+        <h1 className="text-2xl font-bold tracking-tight">New Material Disburse</h1>
         <p className="text-muted-foreground text-sm mt-1">HEXA-FRM-029</p>
       </div>
 
@@ -274,6 +276,11 @@ export default function NewMirOutPage() {
               <Textarea placeholder="Optional notes..." value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
             </div>
 
+            <div className="space-y-2">
+              <Label>Handed To / Received By <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <EmployeeSelect value={handedToId} onValueChange={setHandedToId} placeholder="Select employee..." />
+            </div>
+
             <div className="flex justify-end">
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue to Items <ChevronRight className="h-4 w-4 ml-1" />
@@ -309,15 +316,15 @@ export default function NewMirOutPage() {
                   const nearLimit = line.availableQty !== null && line.availableQty !== undefined && line.qtyRequested > line.availableQty * 0.8;
                   return (
                     <TableRow key={line.id}>
-                      <TableCell className="min-w-[180px]">
-                        <Select value={line.itemId} onValueChange={v => updateLine(line.id, { itemId: v })}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Search item..." /></SelectTrigger>
-                          <SelectContent>
-                            {items.map(i => (
-                              <SelectItem key={i.id} value={i.id}>{i.code} — {i.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <TableCell className="min-w-[220px]">
+                        <ItemCombobox
+                          value={line.itemId}
+                          onSelect={(item) => updateLine(line.id, { itemId: item?.id ?? '', item: item ?? undefined })}
+                          disabled={!siteId}
+                          placeholder="Search items..."
+                          items={items}
+                          className="h-8"
+                        />
                       </TableCell>
                       <TableCell className="min-w-[160px]">
                         <Select value={line.warehouseId} onValueChange={v => updateLine(line.id, { warehouseId: v })}>

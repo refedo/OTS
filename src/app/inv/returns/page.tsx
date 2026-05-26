@@ -36,6 +36,9 @@ const TYPE_META: Record<string, { label: string; cls: string }> = {
 
 const PAGE_SIZE = 20;
 
+type SortDir = 'asc' | 'desc' | null;
+interface SortState { key: string; dir: SortDir }
+
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<ReturnRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -43,6 +46,7 @@ export default function ReturnsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>({ key: '', dir: null });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +69,43 @@ export default function ReturnsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const toggleSort = (key: string) => {
+    setSort(prev => ({
+      key,
+      dir: prev.key === key ? (prev.dir === 'asc' ? 'desc' : prev.dir === 'desc' ? null : 'asc') : 'asc',
+    }));
+  };
+
+  const sortedReturns = [...returns].sort((a, b) => {
+    if (!sort.key || !sort.dir) return 0;
+    let av: string | number = '';
+    let bv: string | number = '';
+    if (sort.key === 'returnNumber') { av = a.returnNumber; bv = b.returnNumber; }
+    if (sort.key === 'returnType') { av = a.returnType; bv = b.returnType; }
+    if (sort.key === 'status') { av = a.status; bv = b.status; }
+    if (sort.key === 'createdAt') { av = a.createdAt; bv = b.createdAt; }
+    if (sort.key === 'quantity') { av = a.quantity; bv = b.quantity; }
+    if (typeof av === 'string' && typeof bv === 'string') {
+      return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    if (typeof av === 'number' && typeof bv === 'number') {
+      return sort.dir === 'asc' ? av - bv : bv - av;
+    }
+    return 0;
+  });
+
+  const SortableHeader = ({ col, label, className }: { col: string; label: string; className?: string }) => (
+    <TableHead
+      className={`text-xs font-semibold uppercase tracking-wide cursor-pointer select-none hover:bg-muted/60 ${className ?? ''}`}
+      onClick={() => toggleSort(col)}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        {sort.key === col ? (sort.dir === 'asc' ? '↑' : sort.dir === 'desc' ? '↓' : '') : <span className="opacity-30">↕</span>}
+      </span>
+    </TableHead>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,15 +159,15 @@ export default function ReturnsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Return Number</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Type</TableHead>
+                  <SortableHeader col="returnNumber" label="Return Number" />
+                  <SortableHeader col="returnType" label="Type" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Item</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Warehouse</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">Quantity</TableHead>
+                  <SortableHeader col="quantity" label="Quantity" className="text-right" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">From Location</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Requested By</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Status</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Date</TableHead>
+                  <SortableHeader col="status" label="Status" />
+                  <SortableHeader col="createdAt" label="Date" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,7 +191,7 @@ export default function ReturnsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  returns.map(r => (
+                  sortedReturns.map(r => (
                     <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{r.returnNumber}</span>

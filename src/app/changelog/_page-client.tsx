@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '24.1.1',
+    date: 'May 26, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Inventory Module Refactor: Material Disburse, Sortable Tables & Stock Management',
+    highlights: [
+      'Renamed "Material Issue Request" → "Material Disburse" throughout the inventory module (HEXA-FRM-029).',
+      'Searchable item combobox in Material Disburse and Material Return forms — type to search from the InvItem master list.',
+      '"Handed To / Received By" employee dropdown added to Material Disburse form.',
+      'Stock Correction dialog (HEXA-FRM-028) and Opening Balance / Add Stock dialog (HEXA-FRM-027) on Stock Levels page.',
+      'All /inv table headers are now sortable — click any column header to sort ascending/descending.',
+      'Material Master KPI tiles (Classified, Needs Review, Avg Confidence) now show global stats, not just current page.',
+    ],
+    changes: {
+      added: [
+        'Material Disburse: renamed from Material Issue Request (HEXA-FRM-029) to distinguish from QC MIR.',
+        'Searchable ItemCombobox component for all item selection dropdowns in /inv forms.',
+        '"Handed To / Received By" employee DDL on Material Disburse form Step 1.',
+        'Stock Correction dialog (HEXA-FRM-028): physical count vs system quantity with variance display.',
+        'Opening Balance / Add Stock dialog (HEXA-FRM-027): direct stock entry for Dolibarr migration.',
+        'POST /api/inv/stock-direct: new API for direct stock addition (STOCK_IN with reference type DIRECT).',
+        'handedToId column on inv_mir_outs table (migration v37_0).',
+        'EmployeeSelect component: reusable dropdown fetching active users.',
+        'Forms directory: HEXA-FRM-027 through HEXA-FRM-030 now listed (30 total forms).',
+      ],
+      fixed: [
+        'Material Master KPI tiles now show global classified/needs-review/avg-confidence across all products, not just current page.',
+      ],
+      changed: [
+        'All /inv table views now have sortable column headers (Stock, Material Disburse, Returns, Ledger).',
+        'Dashboard "New Issue Request" button updated to "New Disburse Request".',
+        'dolibarr/products API now returns global stats on every request.',
+      ],
+    },
+  },
+  {
     version: '24.1.0',
     date: 'May 26, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'INV UI Polish + Material Master Enrichment Engine',
     highlights: [
       'Fixed deployment failure: "Too many connections" — app stops before migrations to free DB connections, then restarts cleanly.',

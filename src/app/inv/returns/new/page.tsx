@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { ItemCombobox } from '@/components/inv/item-combobox';
+import type { InvItem } from '@/components/inv/item-combobox';
 
-interface InvItem { id: string; code: string; name: string; unit: string; defaultWhType: string; }
 interface InvWarehouse { id: string; code: string; name: string; type: string; }
 interface InvLocation { id: string; code: string; name: string; siteId: string; }
 
@@ -147,10 +148,13 @@ export default function NewReturnPage() {
 
             <div className="space-y-2">
               <Label>Item *</Label>
-              <Select value={itemId} onValueChange={setItemId} disabled={!siteId}>
-                <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
-                <SelectContent>{items.map(i => <SelectItem key={i.id} value={i.id}>{i.code} — {i.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <ItemCombobox
+                value={itemId}
+                onSelect={item => setItemId(item?.id ?? '')}
+                disabled={!siteId}
+                placeholder="Search items from master list..."
+                items={items}
+              />
             </div>
 
             <div className="space-y-2">
