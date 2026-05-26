@@ -96,13 +96,61 @@ where: { deletedAt: null }
 - Stored in: prisma/manual_migrations/
 - Executed automatically on server start
 
-### Critical Constraint
-Never use:
+### Critical Constraints
+Never use MySQL-incompatible conditional DDL:
 ```sql
-ALTER TABLE ... ADD COLUMN IF NOT EXISTS
+ALTER TABLE ... ADD COLUMN IF NOT EXISTS   -- MariaDB only, not MySQL
+CREATE INDEX IF NOT EXISTS                 -- not supported in MySQL < 8.0.1
 ```
 
-Use conditional stored procedure pattern instead.
+### Conditional Column Addition Pattern
+Use the stored-procedure pattern for every ADD COLUMN and ADD INDEX:
+
+```sql
+DROP PROCEDURE IF EXISTS _mm_column_name;
+DELIMITER $$
+CREATE PROCEDURE _mm_column_name()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'your_table'
+      AND COLUMN_NAME  = 'column_name'
+  ) THEN
+    ALTER TABLE your_table
+      ADD COLUMN column_name VARCHAR(100) NULL AFTER previous_column;
+  END IF;
+END$$
+DELIMITER ;
+CALL _mm_column_name();
+DROP PROCEDURE IF EXISTS _mm_column_name;
+```
+
+### Conditional Index Addition Pattern
+```sql
+DROP PROCEDURE IF EXISTS _mm_idx_name;
+DELIMITER $$
+CREATE PROCEDURE _mm_idx_name()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'your_table'
+      AND INDEX_NAME   = 'idx_name'
+  ) THEN
+    ALTER TABLE your_table ADD INDEX idx_name (column_name);
+  END IF;
+END$$
+DELIMITER ;
+CALL _mm_idx_name();
+DROP PROCEDURE IF EXISTS _mm_idx_name;
+```
+
+Rules:
+- Name procedures with a short prefix matching the migration (e.g. `_mm_` for material master)
+- Always DROP the procedure after CALL to leave no residue
+- Check `information_schema.COLUMNS` for columns, `information_schema.STATISTICS` for indexes
+- DDL inside procedure bodies does **not** require `PREPARE`/`EXECUTE` — write it directly
 
 ---
 
@@ -184,3 +232,26 @@ Currency/number formatting (`Intl.NumberFormat`, `toLocaleString` with `style: '
 - Always paginate large queries
 - Index critical foreign keys
 - No blocking operations in API routes
+
+---
+
+## Agent Skills (`.agent/skills/`)
+
+Project-specific reusable instructions for Claude Code sessions are stored in `.agent/skills/`.  
+Each skill is a Markdown file that describes a repeatable procedure Claude should follow.
+
+### Structure
+```
+.agent/skills/
+  migration-pattern.md      # how to write idempotent MySQL migrations
+  release-checklist.md      # steps before cutting a release
+  api-route-template.md     # scaffold for new API routes
+  ...
+```
+
+### Rules
+- One skill per file, named with kebab-case
+- Skills are **instructions**, not code — describe the steps, constraints, and patterns
+- Reference the skill by filename when asking Claude: _"Follow `.agent/skills/migration-pattern.md`"_
+- Keep skills DRY: if a rule already lives in CLAUDE.md, the skill links to it rather than duplicating it
+- Skills complement CLAUDE.md — CLAUDE.md holds global invariants, skills hold task-specific procedures
