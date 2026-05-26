@@ -253,6 +253,18 @@ const STARTUP_MIGRATIONS = [
 
   // ── v34.0.0 — MIR: planned_delivery_date from Dolibarr PO ────────────────
   'v34_0_mir_planned_delivery_date.sql',
+
+  // ── v35.0.0 — Integrity Reports table ────────────────────────────────────
+  'v35_0_integrity_reports.sql',
+
+  // ── v36.0.0 — INV: Warehouse, Location, Item, Stock Balance, Ledger, MIR-Out, Return, Adjustment ──
+  'v36_0_inv_warehouse_management.sql',
+
+  // ── v36.1 — Material Master Enrichment (dolibarr_products columns) ────────
+  'v36_1_material_master_enrichment.sql',
+
+  // ── v37.0.0 — INV MIR-Out: handedToId column ─────────────────────────────
+  'v37_0_inv_handed_to.sql',
 ];
 
 /**

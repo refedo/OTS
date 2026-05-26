@@ -66,7 +66,8 @@ export function middleware(req: NextRequest) {
                           pathname.startsWith('/supply-chain') ||
                           pathname.startsWith('/hr') ||
                           pathname.startsWith('/workflow') ||
-                          pathname.startsWith('/financial');
+                          pathname.startsWith('/financial') ||
+                          pathname.startsWith('/inv');
   const isProtectedApi = pathname.startsWith('/api') && !pathname.startsWith('/api/auth');
 
   if (isProtectedPage || isProtectedApi) {
