@@ -339,8 +339,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Stock Levels',    href: '/inv/stock',     icon: Package,         newSince: '2026-05-24' },
       { name: 'Material Issues', href: '/inv/mir-out',   icon: ArrowRightLeft,  newSince: '2026-05-24' },
       { name: 'Returns',         href: '/inv/returns',   icon: Undo2,           newSince: '2026-05-24' },
-      { name: 'Ledger',          href: '/inv/ledger',    icon: BookOpen,        newSince: '2026-05-24' },
-      { name: 'Settings',        href: '/inv/settings',  icon: Settings,        newSince: '2026-05-24' },
+      { name: 'Ledger',           href: '/inv/ledger',            icon: BookOpen,  newSince: '2026-05-24' },
+      { name: 'Material Master',  href: '/inv/material-master',   icon: Database,  newSince: '2026-05-25' },
+      { name: 'Settings',         href: '/inv/settings',          icon: Settings,  newSince: '2026-05-24' },
     ],
   },
   {
