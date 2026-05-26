@@ -23,10 +23,44 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '24.1.0',
+    date: 'May 26, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'INV UI Polish + Material Master Enrichment Engine',
+    highlights: [
+      'Fixed deployment failure: "Too many connections" — app stops before migrations to free DB connections, then restarts cleanly.',
+      'Sidebar navigation added to all /inv pages — full app sidebar now visible across every inventory screen.',
+      'All INV pages completely redesigned: gradient hero banners, colour-coded KPI cards, polished tables with hover states and category badges.',
+      'Material Master Enrichment System: AI-powered product classification and enrichment pipeline for ~5,000 Dolibarr products.',
+      '40+ new columns on dolibarr_products: classification, section properties, fastener, welding, unit conversions, web enrichment metadata.',
+      'New item_class column with 5 classification tiers for improved Material Master queries and search.',
+    ],
+    changes: {
+      added: [
+        'Material Master Enrichment: AI pipeline classifies and enriches Dolibarr products with section properties, fastener specs, welding specs, and unit conversions.',
+        'Material Master: 40+ new schema columns on dolibarr_products (v36_1 migration).',
+        'Material Master: new item_class column — STRUCTURAL_SECTION, PLATE_SHEET, PIPE_TUBE, FASTENER, CONSUMABLE.',
+        'INV layout.tsx: sidebar now appears on all /inv pages (Dashboard, Stock, MIR-OUT, Returns, Ledger, Settings).',
+      ],
+      fixed: [
+        'Deployment: "Extract and restart application" step failing with "Schema engine error: Too many connections". The PM2 process is now stopped before migrations, then restarted after — resolves connection exhaustion.',
+      ],
+      changed: [
+        'INV Dashboard (/inv): gradient hero banner (blue→indigo), colour-coded KPI cards with links, 4-tile quick-action strip, improved warehouse chart.',
+        'INV Stock Levels (/inv/stock): slate gradient hero, 9-category colour pill badges, new alert-filter dropdown (All / Low Stock / Normal), redesigned slide-over drawer.',
+        'INV Stock Ledger (/inv/ledger): violet gradient hero, filter panel Card with Clear All, colour-coded movement pills, two-row date/time cells, page counter.',
+        'INV Material Issues (/inv/mir-out): amber-orange gradient hero, 7-state pill badges, type pills, line-count bubbles, empty-state CTA.',
+        'INV Returns (/inv/returns): teal-cyan gradient hero, pill status and type badges, empty-state CTA.',
+        'INV Settings (/inv/settings): slate gradient hero, icon-labelled tabs, active/inactive chip counters, colour-coded pills, improved CRUD dialogs.',
+      ],
+    },
+  },
+  {
     version: '24.0.0',
     date: 'May 24, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Inventory & Warehouse Management Module',
     highlights: [
       'New INV module: complete end-to-end inventory and warehouse management for Factory 001 and Factory 003.',

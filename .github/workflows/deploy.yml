@@ -106,7 +106,16 @@ jobs:
               echo "Prisma schema unchanged — skipping prisma generate"
             fi
 
-            # ── 5. Run Prisma migrations ─────────────────────────────────────
+            # ── 5. Stop the app to free DB connections before running migrations ──
+            # Prisma's schema engine opens its own connection. If the running app
+            # already holds the full pool, migrate deploy hits "Too many connections".
+            # Stopping first guarantees headroom; the app restarts at the end.
+            echo "Stopping application to free DB connections for migrations..."
+            pm2 stop hexa-steel-ots 2>/dev/null || true
+            # Give the server a moment to release connections
+            sleep 3
+
+            # ── 5a. Run Prisma migrations ────────────────────────────────────
             echo "Running Prisma migrations..."
             npx prisma migrate deploy
 
@@ -144,9 +153,9 @@ jobs:
             # Clean up credentials file
             rm -f "$MYSQL_CONF"
 
-            # ── 6. Reload app (zero-downtime hot reload) ─────────────────────
-            echo "Reloading application..."
-            pm2 reload hexa-steel-ots --update-env || pm2 start ecosystem.config.js
+            # ── 6. Start / reload the app ────────────────────────────────────
+            echo "Starting application..."
+            pm2 start ecosystem.config.js --update-env 2>/dev/null || pm2 reload hexa-steel-ots --update-env
 
             echo "Deployment complete!"
             pm2 status

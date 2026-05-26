@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [24.1.0] - 2026-05-26 — **INV UI Polish + Material Master Enrichment Engine**
+
+### Fixed
+- **Deployment: "Too many connections" crash on restart** — The "Extract and restart application" CI step was failing with `Schema engine error: Too many connections`. Root cause: Prisma's schema engine opens its own DB connection while the PM2 app process still holds the full connection pool. Fix: the deploy workflow now runs `pm2 stop hexa-steel-ots` before `prisma migrate deploy`, then starts the app again after all migrations complete. A 3-second sleep gives MySQL time to reclaim idle connections before the schema engine connects.
+
+### Added
+- **Inventory sidebar** (`/inv/layout.tsx`): all INV pages (Dashboard, Stock, Material Issues, Returns, Ledger, Settings) now include the full app sidebar with navigation, exactly like every other module.
+- **Material Master Enrichment System** (`/inv/material-master`): AI-powered product classification and enrichment pipeline for ~5,000 Dolibarr products. Adds classification, structural section properties (weight, area, Ix/Iy/Wx/Wy), fastener specs, welding specs, unit conversion factors, and web enrichment metadata.
+- **SQL migration v36_1**: 40+ new columns on `dolibarr_products` — `item_class` enum (STRUCTURAL_SECTION, PLATE_SHEET, PIPE_TUBE, FASTENER, CONSUMABLE), section properties, fastener and welding specs, unit conversion factors, enrichment metadata. Five new indexes.
+
+### Changed
+- **INV Dashboard** (`/inv`): gradient hero banner (blue→indigo), colour-coded KPI cards with border accents and direct hyperlinks, quick-action 4-tile strip, improved warehouse bar chart.
+- **INV Stock Levels** (`/inv/stock`): slate gradient hero, 9-category colour pill badges, alert-filter dropdown (All / Low Stock Only / Normal Only), redesigned slide-over drawer.
+- **INV Stock Ledger** (`/inv/ledger`): violet gradient hero, filter panel Card with Clear All, colour-coded movement type pills, two-row date/time cells, page counter pagination.
+- **INV Material Issues** (`/inv/mir-out`): amber-orange gradient hero, 7-state pill status badges, type pills, line-count bubble badges, empty-state CTA.
+- **INV Returns** (`/inv/returns`): teal-cyan gradient hero, pill status and type badges, empty-state CTA.
+- **INV Settings** (`/inv/settings`): slate gradient hero, icon-labelled tabs, active/inactive chip counters, colour-coded category and warehouse-type pills, improved CRUD dialogs.
+
+---
+
 ## [24.0.0] - 2026-05-24 — **Inventory & Warehouse Management Module**
 
 ### Added

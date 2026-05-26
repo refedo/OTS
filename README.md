@@ -1,8 +1,15 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 24.0.0 | **Release Date:** May 24, 2026
+**Version:** 24.1.0 | **Release Date:** May 26, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
+
+### What's New in 24.1.0 — INV UI Polish + Material Master Enrichment Engine *(Minor)*
+- **Fixed:** Deployment "Too many connections" crash — PM2 now stops before `prisma migrate deploy` to free DB pool connections, then restarts cleanly.
+- **Sidebar on all INV pages** — `layout.tsx` added; full app sidebar is now visible across every inventory screen.
+- **INV UI complete redesign** — all six pages (Dashboard, Stock, MIR-OUT, Returns, Ledger, Settings) rewritten with gradient hero banners, colour-coded KPI cards, pill badges, polished tables, and hover states.
+- **Material Master Enrichment System** — AI-powered classification pipeline for ~5,000 Dolibarr products. Adds 40+ new columns: classification, section properties, fastener/welding specs, unit conversion factors.
+- **SQL migration v36_1** — `item_class` enum (STRUCTURAL_SECTION, PLATE_SHEET, PIPE_TUBE, FASTENER, CONSUMABLE) and 5 new indexes on `dolibarr_products`.
 
 ### What's New in 24.0.0 — Inventory & Warehouse Management Module *(Major)*
 - **INV Module:** complete end-to-end inventory and warehouse management for Factory 001 and Factory 003.

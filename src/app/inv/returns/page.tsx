@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus } from 'lucide-react';
+import { Plus, Undo2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 interface ReturnRow {
@@ -24,11 +23,18 @@ interface ReturnRow {
   location: { name: string };
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  RECEIVED: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-red-100 text-red-800',
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  PENDING:  { label: 'Pending',  cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400' },
+  RECEIVED: { label: 'Received', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400' },
+  REJECTED: { label: 'Rejected', cls: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' },
 };
+
+const TYPE_META: Record<string, { label: string; cls: string }> = {
+  UNUSED_STOCK: { label: 'Unused Stock', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  OFFCUT:       { label: 'Off-cut',      cls: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400' },
+};
+
+const PAGE_SIZE = 20;
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<ReturnRow[]>([]);
@@ -41,7 +47,7 @@ export default function ReturnsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: '20' });
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
       if (typeFilter !== 'ALL') params.set('returnType', typeFilter);
 
@@ -58,103 +64,149 @@ export default function ReturnsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Material Returns</h1>
-          <p className="text-muted-foreground text-sm mt-1">HEXA-FRM-030 — {total} total returns</p>
-        </div>
-        <Button asChild>
-          <Link href="/inv/returns/new">
-            <Plus className="h-4 w-4 mr-2" /> New Return
-          </Link>
-        </Button>
-      </div>
-
-      <div className="flex gap-3">
-        <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Statuses</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="RECEIVED">Received</SelectItem>
-            <SelectItem value="REJECTED">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={v => { setTypeFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Types</SelectItem>
-            <SelectItem value="UNUSED_STOCK">Unused Stock</SelectItem>
-            <SelectItem value="OFFCUT">Off-cut</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Number</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Warehouse</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead>From Location</TableHead>
-                <TableHead>Requested By</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : returns.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No returns found</TableCell></TableRow>
-              ) : (
-                returns.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono text-sm font-medium">{r.returnNumber}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {r.returnType === 'UNUSED_STOCK' ? 'Unused Stock' : 'Off-cut'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">{r.item.code}</div>
-                      <div className="text-xs text-muted-foreground">{r.item.name}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">{r.warehouse.code}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">{r.quantity} {r.item.unit}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{r.location?.name}</TableCell>
-                    <TableCell className="text-sm">{r.requestedBy?.name}</TableCell>
-                    <TableCell>
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {r.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(r.createdAt).toLocaleDateString('en-SA-u-ca-gregory', { month: 'short', day: 'numeric' })}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {total > 20 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}>Next</Button>
+    <div className="min-h-screen bg-background">
+      {/* Hero */}
+      <div className="border-b bg-gradient-to-r from-teal-600 via-cyan-700 to-blue-700 text-white">
+        <div className="px-6 py-7">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Undo2 className="h-5 w-5 opacity-70" />
+                <span className="text-cyan-200 text-xs font-medium uppercase tracking-wider">Inventory › Material Returns</span>
+              </div>
+              <h1 className="text-2xl font-bold">Material Returns</h1>
+              <p className="text-cyan-200 text-sm mt-1">HEXA-FRM-030 — {loading ? '…' : `${total} total returns`}</p>
+            </div>
+            <Button asChild className="bg-white text-teal-700 hover:bg-teal-50">
+              <Link href="/inv/returns/new">
+                <Plus className="h-4 w-4 mr-2" />
+                New Return
+              </Link>
+            </Button>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="p-6 space-y-5">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3">
+          <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="RECEIVED">Received</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={v => { setTypeFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Return Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="UNUSED_STOCK">Unused Stock</SelectItem>
+              <SelectItem value="OFFCUT">Off-cut</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Table */}
+        <Card className="overflow-hidden shadow-sm">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Return Number</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Type</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Item</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Warehouse</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">Quantity</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">From Location</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Requested By</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <RefreshCw className="h-5 w-5 animate-spin opacity-50" />
+                        <span className="text-sm">Loading returns…</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : returns.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                      <Undo2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No material returns found</p>
+                      <Button asChild variant="outline" size="sm" className="mt-3">
+                        <Link href="/inv/returns/new"><Plus className="h-4 w-4 mr-1" /> Create Return</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  returns.map(r => (
+                    <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{r.returnNumber}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_META[r.returnType]?.cls || 'bg-gray-100 text-gray-700'}`}>
+                          {TYPE_META[r.returnType]?.label || r.returnType}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-semibold">{r.item.code}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[140px]">{r.item.name}</div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium">{r.warehouse.code}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-mono text-sm font-bold">{r.quantity}</span>
+                        <span className="text-xs text-muted-foreground ml-1">{r.item.unit}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">{r.location?.name}</TableCell>
+                      <TableCell className="text-sm">{r.requestedBy?.name?.split(' ').slice(0, 2).join(' ')}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_META[r.status]?.cls || 'bg-gray-100 text-gray-700'}`}>
+                          {STATUS_META[r.status]?.label || r.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(r.createdAt).toLocaleDateString('en-SA-u-ca-gregory', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Pagination */}
+        {total > PAGE_SIZE && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-medium">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)}</span> of <span className="font-medium">{total}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="gap-1">
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">Page {page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="gap-1">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
