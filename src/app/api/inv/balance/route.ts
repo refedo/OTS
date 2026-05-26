@@ -20,10 +20,14 @@ export async function GET(req: Request) {
     const itemId = searchParams.get('itemId');
     const siteId = searchParams.get('siteId');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      warehouse: { deletedAt: null },
+      item:      { deletedAt: null },
+    };
 
     if (warehouseId) {
       where.warehouseId = warehouseId;
+      where.warehouse = { deletedAt: null };
     } else if (siteId) {
       where.warehouse = { siteId, deletedAt: null };
     }
