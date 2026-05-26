@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [24.1.1] - 2026-05-26 — **Inventory Module Refactor: Material Disburse, Sortable Tables & Stock Management**
+
+### Added
+- **Material Disburse** (renamed from Material Issue Request, HEXA-FRM-029): renamed throughout the module to distinguish it from the QC Material Inspection Receipt (MIR)
+- **Searchable Item Combobox**: all item dropdowns in Material Disburse and Material Return forms now use a fast searchable combobox (type ≥ 2 chars) backed by the InvItem master list
+- **"Handed To / Received By" employee DDL** on Material Disburse form (Step 1) — selects from all active users
+- **Stock Correction dialog** (HEXA-FRM-028): record physical vs system quantity discrepancy directly from the Stock Levels page; shows system balance and variance before applying
+- **Opening Balance / Direct Stock Addition** (HEXA-FRM-027): new "Add Stock" dialog on Stock Levels page for importing stock from Dolibarr or entering opening balances without going through the MIR workflow
+- **`POST /api/inv/stock-direct`**: new API endpoint for direct stock addition; creates a STOCK_IN ledger entry with reference type DIRECT
+- **`handedToId` field** on `inv_mir_outs` table (migration v37_0): links Material Disburse to the employee who received the materials
+- **Forms directory** updated: HEXA-FRM-027 through HEXA-FRM-030 now listed (30 total)
+- **EmployeeSelect component** (`/components/inv/employee-select.tsx`): reusable employee dropdown fetching active users from `/api/users?forAssignment=true`
+- **ItemCombobox component** (`/components/inv/item-combobox.tsx`): reusable searchable item combobox with local-filter and API-search modes
+
+### Fixed
+- **Material Master KPI tiles**: Classified, Needs Review, and Avg Confidence tiles now reflect global counts across all products, not just the current page
+
+### Changed
+- All table headers in `/inv` pages are now **sortable** (click to sort, click again to reverse): Stock Levels, Material Disburse, Material Returns, Ledger
+- Dashboard "New Issue Request" button renamed to "New Disburse Request"
+- Material Disburse list page breadcrumb updated to "Inventory › Material Disburse"
+- `dolibarr/products` API: global stats (`classifiedCount`, `needsReviewCount`, `avgConfidence`) now returned on every request regardless of active filters
+
+---
+
 ## [24.1.0] - 2026-05-26 — **INV UI Polish + Material Master Enrichment Engine**
 
 ### Fixed

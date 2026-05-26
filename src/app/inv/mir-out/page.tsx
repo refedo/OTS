@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, ArrowRightLeft, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ArrowRightLeft, RefreshCw, ChevronLeft, ChevronRight, ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 
 interface MirOut {
@@ -36,6 +36,9 @@ const TYPE_META: Record<string, { label: string; cls: string }> = {
   CONSUMABLE:   { label: 'Consumable',   cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' },
 };
 
+type SortKey = 'mirOutNumber' | 'materialType' | 'siteId' | 'status' | 'createdAt' | '';
+type SortDir = 'asc' | 'desc';
+
 const PAGE_SIZE = 20;
 
 export default function MirOutListPage() {
@@ -47,6 +50,8 @@ export default function MirOutListPage() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [siteFilter, setSiteFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -72,6 +77,44 @@ export default function MirOutListPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sorted = [...mirOuts].sort((a, b) => {
+    if (!sortKey) return 0;
+    let av: string = '';
+    let bv: string = '';
+    if (sortKey === 'mirOutNumber') { av = a.mirOutNumber; bv = b.mirOutNumber; }
+    else if (sortKey === 'materialType') { av = a.materialType; bv = b.materialType; }
+    else if (sortKey === 'siteId') { av = a.siteId; bv = b.siteId; }
+    else if (sortKey === 'status') { av = a.status; bv = b.status; }
+    else if (sortKey === 'createdAt') { av = a.createdAt; bv = b.createdAt; }
+    const cmp = av.localeCompare(bv);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ChevronsUpDown className="h-3 w-3 opacity-30 ml-1 shrink-0" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 text-primary shrink-0" />
+      : <ArrowDown className="h-3 w-3 ml-1 text-primary shrink-0" />;
+  };
+
+  const SortHead = ({ col, label, className }: { col: SortKey; label: string; className?: string }) => (
+    <TableHead
+      className={`text-xs font-semibold uppercase tracking-wide cursor-pointer select-none hover:bg-muted/60 transition-colors ${className ?? ''}`}
+      onClick={() => toggleSort(col)}
+    >
+      <span className="flex items-center gap-0.5">{label}<SortIcon col={col} /></span>
+    </TableHead>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -81,15 +124,15 @@ export default function MirOutListPage() {
             <div>
               <div className="flex items-center gap-2 mb-1.5">
                 <ArrowRightLeft className="h-5 w-5 opacity-70" />
-                <span className="text-orange-200 text-xs font-medium uppercase tracking-wider">Inventory › Material Issues</span>
+                <span className="text-orange-200 text-xs font-medium uppercase tracking-wider">Inventory › Material Disburse</span>
               </div>
-              <h1 className="text-2xl font-bold">Material Issue Requests</h1>
+              <h1 className="text-2xl font-bold">Material Disburse</h1>
               <p className="text-orange-200 text-sm mt-1">HEXA-FRM-029 — {loading ? '…' : `${total} total requests`}</p>
             </div>
             <Button asChild className="bg-white text-orange-700 hover:bg-orange-50">
               <Link href="/inv/mir-out/new">
                 <Plus className="h-4 w-4 mr-2" />
-                New MIR-OUT
+                New Disburse
               </Link>
             </Button>
           </div>
@@ -145,14 +188,14 @@ export default function MirOutListPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">MIR Number</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Type</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Factory</TableHead>
+                  <SortHead col="mirOutNumber" label="MIR Number" />
+                  <SortHead col="materialType" label="Type" />
+                  <SortHead col="siteId" label="Factory" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Location</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Requested By</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide text-center">Lines</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Status</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Date</TableHead>
+                  <SortHead col="status" label="Status" />
+                  <SortHead col="createdAt" label="Date" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,18 +208,18 @@ export default function MirOutListPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : mirOuts.length === 0 ? (
+                ) : sorted.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                       <ArrowRightLeft className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">No material issue requests found</p>
+                      <p className="text-sm">No material disburse requests found</p>
                       <Button asChild variant="outline" size="sm" className="mt-3">
-                        <Link href="/inv/mir-out/new"><Plus className="h-4 w-4 mr-1" /> Create First MIR</Link>
+                        <Link href="/inv/mir-out/new"><Plus className="h-4 w-4 mr-1" /> Create First Request</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  mirOuts.map(m => (
+                  sorted.map(m => (
                     <TableRow key={m.id} className="hover:bg-muted/30 transition-colors cursor-pointer">
                       <TableCell>
                         <Link

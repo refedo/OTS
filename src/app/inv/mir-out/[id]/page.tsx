@@ -159,7 +159,7 @@ export default function MirOutDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <Link href="/inv/mir-out" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2">
-            <ArrowLeft className="h-4 w-4" /> Material Issues
+            <ArrowLeft className="h-4 w-4" /> Material Disburse
           </Link>
           <h1 className="text-2xl font-bold font-mono">{mirOut.mirOutNumber}</h1>
           <div className="flex items-center gap-3 mt-1">

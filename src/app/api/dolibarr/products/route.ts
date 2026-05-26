@@ -102,6 +102,23 @@ export async function GET(req: Request) {
     const countResult: unknown[] = await prisma.$queryRawUnsafe(countQuery, ...params);
     const total = Number((countResult[0] as Record<string, unknown>)?.total) || 0;
 
+    // Global stats always computed over the active product set (ignores filters)
+    const globalStatsResult: unknown[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        COUNT(*) total,
+        SUM(CASE WHEN classification_conf > 0 THEN 1 ELSE 0 END) classified,
+        SUM(CASE WHEN review_required = 1 THEN 1 ELSE 0 END) needs_review,
+        AVG(NULLIF(classification_conf, 0)) avg_conf
+      FROM dolibarr_products
+      WHERE is_active = 1
+    `);
+    const gs = (globalStatsResult[0] as Record<string, unknown>) ?? {};
+    const globalStats = {
+      classifiedCount: Number(gs.classified) || 0,
+      needsReviewCount: Number(gs.needs_review) || 0,
+      avgConfidence: gs.avg_conf != null ? Number(gs.avg_conf) : null,
+    };
+
     // Fetch products with LEFT JOIN to steel specs + enrichment columns
     const dataQuery = `
       SELECT
@@ -250,10 +267,10 @@ export async function GET(req: Request) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      stats: globalStats,
     });
   } catch (error: unknown) {
     const err = error as Error;
-    console.error('[Dolibarr Products API] Error:', err);
     return NextResponse.json({ error: err.message || 'Failed to fetch products' }, { status: 500 });
   }
 }

@@ -134,9 +134,16 @@ interface Pagination {
   totalPages: number;
 }
 
+interface GlobalStats {
+  classifiedCount: number;
+  needsReviewCount: number;
+  avgConfidence: number | null;
+}
+
 interface ApiResponse {
   products: Product[];
   pagination: Pagination;
+  stats?: GlobalStats;
 }
 
 type ClassifyPass = 'rule' | 'ai' | 'enrichment' | 'all';
@@ -1047,6 +1054,7 @@ export default function MaterialMasterPage() {
   // ── Data ──
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 0, limit: 50, total: 0, totalPages: 0 });
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   // ── Detail panel ──
@@ -1093,6 +1101,7 @@ export default function MaterialMasterPage() {
       const data: ApiResponse = await res.json();
       setProducts(data.products ?? []);
       setPagination(data.pagination ?? { page: 0, limit: pageSize, total: 0, totalPages: 0 });
+      if (data.stats) setGlobalStats(data.stats);
     } catch {
       setProducts([]);
     } finally {
@@ -1134,14 +1143,11 @@ export default function MaterialMasterPage() {
     [classifyStatus.running, fetchProducts, toast],
   );
 
-  // ── KPIs (computed from current page + total) ──
+  // ── KPIs (global stats from API — not filtered by current page) ──
   const totalProducts = pagination.total;
-  const classifiedCount = products.filter(p => p.enrichment.classification_conf > 0).length;
-  const needsReviewCount = products.filter(p => p.enrichment.review_required).length;
-  const avgConf =
-    products.length > 0
-      ? products.reduce((acc, p) => acc + p.enrichment.classification_conf, 0) / products.length
-      : null;
+  const classifiedCount = globalStats?.classifiedCount ?? 0;
+  const needsReviewCount = globalStats?.needsReviewCount ?? 0;
+  const avgConf = globalStats?.avgConfidence ?? null;
 
   // ── Detail panel handlers ──
   function openProduct(p: Product) {

@@ -184,6 +184,11 @@ When a new page/route is developed, **always** do both:
    — if the route has no permission requirement, set it to `null`  
    — if omitted, `hasAccessToRoute()` returns `false` and the item will be **invisible to all users**
 
+### Table & Dashboard Rules
+- All table views MUST have sortable/clickable column headers (client-side sort for paginated lists)
+- All dashboard KPI tiles MUST be clickable links navigating to the relevant filtered view
+- For any new page with a data table, add `SortableHeader` pattern (see existing /inv pages)
+
 ---
 
 ## Hard Rules

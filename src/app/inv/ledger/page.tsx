@@ -41,11 +41,15 @@ const MOVEMENT_COLORS: Record<string, string> = {
   ADJUSTMENT: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400',
 };
 
+type SortDir = 'asc' | 'desc' | null;
+interface SortState { key: string; dir: SortDir }
+
 export default function LedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>({ key: '', dir: null });
 
   const [movementType, setMovementType] = useState('ALL');
   const [direction, setDirection] = useState('ALL');
@@ -77,10 +81,45 @@ export default function LedgerPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filteredEntries = entries.filter(e => {
-    if (!warehouseSearch) return true;
-    return e.warehouse.code.toLowerCase().includes(warehouseSearch.toLowerCase());
-  });
+  const toggleSort = (key: string) => {
+    setSort(prev => ({
+      key,
+      dir: prev.key === key ? (prev.dir === 'asc' ? 'desc' : prev.dir === 'desc' ? null : 'asc') : 'asc',
+    }));
+  };
+
+  const filteredEntries = entries
+    .filter(e => {
+      if (!warehouseSearch) return true;
+      return e.warehouse.code.toLowerCase().includes(warehouseSearch.toLowerCase());
+    })
+    .sort((a, b) => {
+      if (!sort.key || !sort.dir) return 0;
+      let av: string | number = '';
+      let bv: string | number = '';
+      if (sort.key === 'createdAt') { av = a.createdAt; bv = b.createdAt; }
+      if (sort.key === 'movementType') { av = a.movementType; bv = b.movementType; }
+      if (sort.key === 'quantity') { av = a.quantity; bv = b.quantity; }
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sort.dir === 'asc' ? av - bv : bv - av;
+      }
+      return 0;
+    });
+
+  const SortableHeader = ({ col, label, className }: { col: string; label: string; className?: string }) => (
+    <TableHead
+      className={`text-xs font-semibold uppercase tracking-wide cursor-pointer select-none hover:bg-muted/60 ${className ?? ''}`}
+      onClick={() => toggleSort(col)}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        {sort.key === col ? (sort.dir === 'asc' ? '↑' : sort.dir === 'desc' ? '↓' : '') : <span className="opacity-30">↕</span>}
+      </span>
+    </TableHead>
+  );
 
   const exportToExcel = () => {
     const rows = filteredEntries.map(e => ({
@@ -217,13 +256,13 @@ export default function LedgerPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Date & Time</TableHead>
+                  <SortableHeader col="createdAt" label="Date & Time" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Reference</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Item</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Warehouse</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Movement</TableHead>
+                  <SortableHeader col="movementType" label="Movement" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">Dir</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">Quantity</TableHead>
+                  <SortableHeader col="quantity" label="Quantity" className="text-right" />
                   <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">Balance After</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide">By</TableHead>
                 </TableRow>

@@ -45,6 +45,10 @@ const FORMS: FormEntry[] = [
   { code: 'HEXA-FRM-024', name: 'OFI & Observation Register', isp: 'ISP-004', href: '/ims/ofi-register', isoClause: 'ISO 9001 §9.2, §10.3', module: 'IMS', otsRef: 'IMS Module — Audit Tracker — OFI Register' },
   { code: 'HEXA-FRM-025', name: 'Corrective Action & Verification Record', isp: 'ISP-005', href: '/ims/car', isoClause: 'ISO 9001 §10.2', module: 'IMS', otsRef: 'IMS Module — CAPA Tracker — Corrective Actions' },
   { code: 'HEXA-FRM-026', name: 'Audit Checklist Library', isp: 'ISP-004', href: '/ims/checklist-library', isoClause: 'ISO 9001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker — Checklist Library (master question bank)' },
+  { code: 'HEXA-FRM-027', name: 'Opening Balance / Stock Migration Entry', isp: 'ISP-INV', href: '/inv/stock', isoClause: 'ISO 9001 §7.1.3', module: 'Inventory', otsRef: 'Inventory Module — Direct Stock Addition (opening balance)' },
+  { code: 'HEXA-FRM-028', name: 'Stock Correction Record', isp: 'ISP-INV', href: '/inv/stock', isoClause: 'ISO 9001 §7.1.3', module: 'Inventory', otsRef: 'Inventory Module — Stock Correction with Approval' },
+  { code: 'HEXA-FRM-029', name: 'Material Disburse Request', isp: 'ISP-INV', href: '/inv/mir-out', isoClause: 'ISO 9001 §8.5.1', module: 'Inventory', otsRef: 'Inventory Module — Material Disburse (HEXA-FRM-029)' },
+  { code: 'HEXA-FRM-030', name: 'Material Return', isp: 'ISP-INV', href: '/inv/returns', isoClause: 'ISO 9001 §8.5.1', module: 'Inventory', otsRef: 'Inventory Module — Material Return (HEXA-FRM-030)' },
 ];
 
 const RECORDS: FormEntry[] = [
@@ -62,6 +66,7 @@ const MODULE_COLORS: Record<string, string> = {
   Projects: 'bg-cyan-100 text-cyan-700',
   Safety: 'bg-orange-100 text-orange-700',
   'Business Planning': 'bg-purple-100 text-purple-700',
+  Inventory: 'bg-emerald-100 text-emerald-700',
 };
 
 const ALL_MODULES = Array.from(new Set([...FORMS, ...RECORDS].map(f => f.module))).sort();
@@ -89,7 +94,7 @@ export function FormsDirectoryClient() {
       <div>
         <div className="flex items-center gap-2 mb-1 flex-wrap">
           <FileText className="h-6 w-6 text-[#2c3e50]" />
-          <h1 className="text-2xl font-bold text-[#2c3e50]">OTS™ Data Entry Forms — HEXA-FRM (26 forms)</h1>
+          <h1 className="text-2xl font-bold text-[#2c3e50]">OTS™ Data Entry Forms — HEXA-FRM (30 forms)</h1>
         </div>
         <p className="text-sm text-slate-500">
           Per <strong>Hexa-ISM-001 Rev.01</strong> — all 26 HEXA-FRM data-entry forms and 4 HEXA-REC system-generated records. Click any row to open the module.

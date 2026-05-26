@@ -87,7 +87,7 @@ const KPI_CONFIG = [
 
 const QUICK_LINKS = [
   { label: 'Stock Levels', href: '/inv/stock', icon: Package, desc: 'View warehouse balances' },
-  { label: 'New Material Issue', href: '/inv/mir-out/new', icon: ArrowRightLeft, desc: 'HEXA-FRM-029' },
+  { label: 'New Material Disburse', href: '/inv/mir-out/new', icon: ArrowRightLeft, desc: 'HEXA-FRM-029' },
   { label: 'New Return', href: '/inv/returns/new', icon: TrendingUp, desc: 'HEXA-FRM-030' },
   { label: 'Full Ledger', href: '/inv/ledger', icon: Activity, desc: 'All movements history' },
 ];
@@ -191,7 +191,7 @@ export default function InvDashboardPage() {
               <Button asChild size="sm" className="bg-white text-blue-700 hover:bg-blue-50">
                 <Link href="/inv/mir-out/new">
                   <ArrowRightLeft className="h-4 w-4 mr-2" />
-                  New Issue Request
+                  New Disburse
                 </Link>
               </Button>
             </div>
