@@ -46,7 +46,17 @@ import {
   Wand2,
   Sparkles,
   Eye,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Download,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -147,6 +157,21 @@ interface ApiResponse {
 }
 
 type ClassifyPass = 'rule' | 'ai' | 'enrichment' | 'all';
+
+interface ClassifyReport {
+  pass: string;
+  rule: { processed: number; errors: number };
+  ai: { processed: number; errors: number };
+  enrichment: { processed: number; errors: number };
+  duration_ms: number;
+}
+
+interface SyncReport {
+  created: number;
+  skipped: number;
+  errors: number;
+  total: number;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1061,12 +1086,35 @@ export default function MaterialMasterPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
 
+  // ── Sort ──
+  const [sortBy, setSortBy] = useState('ref');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (col: string) => {
+    if (sortBy === col) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
+
   // ── Classification running state ──
   const [classifyStatus, setClassifyStatus] = useState<{
     running: boolean;
     pass: ClassifyPass | null;
     result: string | null;
-  }>({ running: false, pass: null, result: null });
+    report: ClassifyReport | null;
+  }>({ running: false, pass: null, result: null, report: null });
+  const [showReport, setShowReport] = useState(false);
+
+  // ── Sync state ──
+  const [syncStatus, setSyncStatus] = useState<{
+    running: boolean;
+    report: SyncReport | null;
+  }>({ running: false, report: null });
+  const [showSyncReport, setShowSyncReport] = useState(false);
 
   // ── Debounce search ──
   useEffect(() => {
@@ -1077,10 +1125,10 @@ export default function MaterialMasterPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // ── Reset page on filter change ──
+  // ── Reset page on filter / sort change ──
   useEffect(() => {
     setPage(0);
-  }, [itemClass, category, profileType, needsReview, enrichedOnly, pageSize]);
+  }, [itemClass, category, profileType, needsReview, enrichedOnly, pageSize, sortBy, sortDir]);
 
   // ── Fetch products ──
   const fetchProducts = useCallback(async () => {
@@ -1095,6 +1143,8 @@ export default function MaterialMasterPage() {
         enrichment_profile_type: profileType === 'ALL' ? '' : profileType,
         review_required: needsReview ? 'true' : '',
         enriched: enrichedOnly ? 'true' : '',
+        sort_by: sortBy,
+        sort_dir: sortDir,
       });
       const res = await fetch(`/api/dolibarr/products?${params.toString()}`);
       if (!res.ok) throw new Error('Fetch failed');
@@ -1107,7 +1157,7 @@ export default function MaterialMasterPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, itemClass, category, profileType, needsReview, enrichedOnly]);
+  }, [page, pageSize, debouncedSearch, itemClass, category, profileType, needsReview, enrichedOnly, sortBy, sortDir]);
 
   useEffect(() => {
     fetchProducts();
@@ -1117,7 +1167,7 @@ export default function MaterialMasterPage() {
   const runClassify = useCallback(
     async (pass: ClassifyPass, label: string) => {
       if (classifyStatus.running) return;
-      setClassifyStatus({ running: true, pass, result: null });
+      setClassifyStatus({ running: true, pass, result: null, report: null });
       try {
         const res = await fetch('/api/admin/material-master/classify', {
           method: 'POST',
@@ -1125,23 +1175,38 @@ export default function MaterialMasterPage() {
           body: JSON.stringify({ pass }),
         });
         if (!res.ok) throw new Error('Classify failed');
-        const data = await res.json();
-        const resultText =
-          data?.message ??
-          (data?.classified !== undefined
-            ? `${data.classified} classified, ${data.pending ?? 0} pending`
-            : `${label} completed`);
-        setClassifyStatus({ running: false, pass: null, result: resultText });
+        const data: ClassifyReport = await res.json();
+        const total = data.rule.processed + data.ai.processed + data.enrichment.processed;
+        const resultText = `${label}: ${total} processed in ${(data.duration_ms / 1000).toFixed(1)}s`;
+        setClassifyStatus({ running: false, pass: null, result: resultText, report: data });
+        setShowReport(true);
         await fetchProducts();
-        // Clear result after 8s
-        setTimeout(() => setClassifyStatus(s => ({ ...s, result: null })), 8000);
+        setTimeout(() => setClassifyStatus(s => ({ ...s, result: null })), 30000);
       } catch {
-        setClassifyStatus({ running: false, pass: null, result: null });
+        setClassifyStatus({ running: false, pass: null, result: null, report: null });
         toast({ title: 'Classification failed', description: 'Could not run classifier.', variant: 'destructive' });
       }
     },
     [classifyStatus.running, fetchProducts, toast],
   );
+
+  // ── Sync runner ──
+  const runSync = useCallback(async () => {
+    if (syncStatus.running) return;
+    setSyncStatus({ running: true, report: null });
+    try {
+      const res = await fetch('/api/admin/material-master/sync-items', {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Sync failed');
+      const data: SyncReport = await res.json();
+      setSyncStatus({ running: false, report: data });
+      setShowSyncReport(true);
+    } catch {
+      setSyncStatus({ running: false, report: null });
+      toast({ title: 'Sync failed', description: 'Could not sync items to inventory.', variant: 'destructive' });
+    }
+  }, [syncStatus.running, toast]);
 
   // ── KPIs (global stats from API — not filtered by current page) ──
   const totalProducts = pagination.total;
@@ -1195,7 +1260,7 @@ export default function MaterialMasterPage() {
                   key={btn.pass}
                   variant="outline"
                   size="sm"
-                  disabled={classifyStatus.running}
+                  disabled={classifyStatus.running || syncStatus.running}
                   onClick={() => runClassify(btn.pass, btn.label)}
                   className="active:scale-[0.97] transition-transform gap-1.5 text-xs"
                 >
@@ -1215,11 +1280,34 @@ export default function MaterialMasterPage() {
                   )}
                 </Button>
               ))}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={classifyStatus.running || syncStatus.running}
+                onClick={runSync}
+                className="active:scale-[0.97] transition-transform gap-1.5 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                {syncStatus.running ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Syncing…
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    Sync to Inventory
+                  </>
+                )}
+              </Button>
             </div>
             {classifyStatus.result && (
-              <p className="text-xs text-slate-500">
-                <span className="text-emerald-600 font-medium">Last run:</span> {classifyStatus.result}
-              </p>
+              <button
+                onClick={() => setShowReport(true)}
+                className="text-xs text-slate-500 hover:text-emerald-700 transition-colors text-right"
+              >
+                <span className="text-emerald-600 font-medium">Last run:</span> {classifyStatus.result}{' '}
+                <span className="underline">View report</span>
+              </button>
             )}
             {classifyStatus.running && (
               <p className="text-xs text-slate-500 flex items-center gap-1">
@@ -1397,12 +1485,29 @@ export default function MaterialMasterPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="text-xs font-semibold text-slate-600 w-32">REF</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Label</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 w-36">Category</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 w-24">Grade</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 w-28">Classified By</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 w-12 text-center">Conf</TableHead>
+                  {([
+                    { key: 'ref', label: 'REF', className: 'w-32' },
+                    { key: 'label', label: 'Label', className: '' },
+                    { key: 'material_category', label: 'Category', className: 'w-36' },
+                    { key: 'grade', label: 'Grade', className: 'w-24' },
+                    { key: 'classified_by', label: 'Classified By', className: 'w-28' },
+                    { key: 'classification_conf', label: 'Conf', className: 'w-12 text-center' },
+                  ] as { key: string; label: string; className: string }[]).map(col => (
+                    <TableHead
+                      key={col.key}
+                      className={`text-xs font-semibold text-slate-600 cursor-pointer select-none hover:text-slate-900 ${col.className}`}
+                      onClick={() => toggleSort(col.key)}
+                    >
+                      <span className="flex items-center gap-1">
+                        {col.label}
+                        {sortBy === col.key ? (
+                          sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-30" />
+                        )}
+                      </span>
+                    </TableHead>
+                  ))}
                   <TableHead className="text-xs font-semibold text-slate-600 w-44">Key Dims</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600 w-44">Conversions</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600 w-16 text-right">Actions</TableHead>
@@ -1543,6 +1648,84 @@ export default function MaterialMasterPage() {
         isAdmin={isAdmin}
         onReviewSuccess={handleReviewSuccess}
       />
+
+      {/* ── Classify Report Dialog ─────────────────────────────────────────── */}
+      <Dialog open={showReport} onOpenChange={setShowReport}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Classification Report</DialogTitle>
+          </DialogHeader>
+          {classifyStatus.report && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-3 gap-3">
+                {(classifyStatus.report.pass === 'rule' || classifyStatus.report.pass === 'all') && (
+                  <div className="rounded-lg border border-slate-200 p-3 text-center">
+                    <p className="text-xs text-slate-500 mb-1">Rule Engine</p>
+                    <p className="text-2xl font-semibold text-slate-800">{classifyStatus.report.rule.processed}</p>
+                    <p className="text-xs text-slate-400">processed</p>
+                    {classifyStatus.report.rule.errors > 0 && (
+                      <p className="text-xs text-red-500 mt-1">{classifyStatus.report.rule.errors} errors</p>
+                    )}
+                  </div>
+                )}
+                {(classifyStatus.report.pass === 'ai' || classifyStatus.report.pass === 'all') && (
+                  <div className="rounded-lg border border-slate-200 p-3 text-center">
+                    <p className="text-xs text-slate-500 mb-1">AI Classifier</p>
+                    <p className="text-2xl font-semibold text-slate-800">{classifyStatus.report.ai.processed}</p>
+                    <p className="text-xs text-slate-400">processed</p>
+                    {classifyStatus.report.ai.errors > 0 && (
+                      <p className="text-xs text-red-500 mt-1">{classifyStatus.report.ai.errors} errors</p>
+                    )}
+                  </div>
+                )}
+                {(classifyStatus.report.pass === 'enrichment' || classifyStatus.report.pass === 'all') && (
+                  <div className="rounded-lg border border-slate-200 p-3 text-center">
+                    <p className="text-xs text-slate-500 mb-1">Enrichment</p>
+                    <p className="text-2xl font-semibold text-slate-800">{classifyStatus.report.enrichment.processed}</p>
+                    <p className="text-xs text-slate-400">processed</p>
+                    {classifyStatus.report.enrichment.errors > 0 && (
+                      <p className="text-xs text-red-500 mt-1">{classifyStatus.report.enrichment.errors} errors</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 text-center">
+                Completed in {(classifyStatus.report.duration_ms / 1000).toFixed(1)}s
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Sync Report Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={showSyncReport} onOpenChange={setShowSyncReport}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sync to Inventory — Report</DialogTitle>
+          </DialogHeader>
+          {syncStatus.report && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
+                  <p className="text-xs text-emerald-700 mb-1">Created</p>
+                  <p className="text-2xl font-semibold text-emerald-800">{syncStatus.report.created}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Skipped</p>
+                  <p className="text-2xl font-semibold text-slate-800">{syncStatus.report.skipped}</p>
+                </div>
+                <div className={`rounded-lg border p-3 text-center ${syncStatus.report.errors > 0 ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}>
+                  <p className="text-xs text-slate-500 mb-1">Errors</p>
+                  <p className={`text-2xl font-semibold ${syncStatus.report.errors > 0 ? 'text-red-700' : 'text-slate-800'}`}>{syncStatus.report.errors}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 text-center">
+                {syncStatus.report.created} new items added to inventory out of {syncStatus.report.total} master products
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

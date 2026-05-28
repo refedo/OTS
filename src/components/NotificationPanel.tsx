@@ -99,6 +99,7 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
         rfi: (id) => `/qc/rfi?id=${id}`,
         ncr: (id) => `/qc/ncr?id=${id}`,
         document: (id) => `/documents?id=${id}`,
+        backlog: (id) => `/backlog/${id}`,
         // task-linked conversation → open conversations page at that task
         conversation_task: (id) => `/conversations?taskId=${id}`,
         // standalone conversation → open conversations page with conversationId

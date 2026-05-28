@@ -35,6 +35,21 @@ export async function GET(req: Request) {
     const reviewRequired = searchParams.get('review_required');
     const enrichedOnly = searchParams.get('enriched') === '1';
 
+    // Sort
+    const sortAllowed: Record<string, string> = {
+      ref: 'p.ref',
+      label: 'p.label',
+      item_class: 'p.item_class',
+      material_category: 'p.material_category',
+      grade: 'p.grade',
+      classified_by: 'p.classified_by',
+      classification_conf: 'p.classification_conf',
+      review_required: 'p.review_required',
+    }
+    const sortByRaw = searchParams.get('sort_by') || 'ref'
+    const sortBy = sortAllowed[sortByRaw] ?? 'p.ref'
+    const sortDir = searchParams.get('sort_dir') === 'desc' ? 'DESC' : 'ASC'
+
     // Build WHERE conditions
     const conditions: string[] = ['p.is_active = 1'];
     const params: unknown[] = [];
@@ -149,7 +164,7 @@ export async function GET(req: Request) {
       FROM dolibarr_products p
       LEFT JOIN steel_product_specs s ON s.dolibarr_product_id = p.dolibarr_id
       ${whereClause}
-      ORDER BY p.ref ASC
+      ORDER BY ${sortBy} ${sortDir}
       LIMIT ? OFFSET ?
     `;
     const products: unknown[] = await prisma.$queryRawUnsafe(dataQuery, ...params, limit, offset);

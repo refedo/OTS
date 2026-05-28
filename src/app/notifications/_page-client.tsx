@@ -473,6 +473,7 @@ export default function NotificationsPage() {
         rfi: (id) => `/qc/rfi?id=${id}`,
         ncr: (id) => `/qc/ncr?id=${id}`,
         document: (id) => `/documents?id=${id}`,
+        backlog: (id) => `/backlog/${id}`,
         hr_letter: (_id) => `/hr/letters`,
         contract: (_id) => `/hr/contracts`,
         announcement: (_id) => `/notifications/announcements`,

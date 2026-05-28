@@ -7881,6 +7881,7 @@ model InvItem {
   defaultWhType InvWarehouseType
   minStockLevel Float           @default(0)
   isActive      Boolean         @default(true)
+  dolibarrId    Int?            @map("dolibarr_id")
 
   createdById String   @db.Char(36)
   createdBy   User     @relation("InvItemCreatedBy", fields: [createdById], references: [id])
@@ -7897,6 +7898,7 @@ model InvItem {
   @@index([category])
   @@index([defaultWhType])
   @@index([isActive])
+  @@index([dolibarrId])
   @@map("inv_items")
 }
 
