@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import OpenAI from 'openai'
 import { logger } from '@/lib/logger'
-
-const client = new Anthropic() // reads ANTHROPIC_API_KEY from environment
 
 export interface AIClassificationInput {
   dolibarr_id: number
@@ -46,6 +46,121 @@ Rules:
 Respond ONLY with a valid JSON array. No markdown, no explanation. Format:
 [{"dolibarr_id": N, "item_class": "...", "material_nature": "...", "material_category": "...", "grade": null, "profile_type": null, "profile_designation": null, "unit_of_measure": "...", "aws_class": null, "fastener_thread": null, "fastener_grade": null, "manufacturer": null, "confidence": 0.9, "notes": null}]`
 
+// ── Provider priority ────────────────────────────────────────────────────────
+
+function getProviderPriority(): string[] {
+  const raw = process.env.AI_PROVIDER_PRIORITY ?? 'anthropic'
+  return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+}
+
+// ── Per-provider classify implementations ───────────────────────────────────
+
+async function classifyWithAnthropic(userContent: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set')
+  const client = new Anthropic({ apiKey })
+  const model = process.env.AI_DEFAULT_MODEL_ANTHROPIC ?? 'claude-haiku-4-5-20251001'
+  const response = await client.messages.create({
+    model,
+    max_tokens: 8192,
+    messages: [{ role: 'user', content: `Classify these products:\n${userContent}` }],
+    system: SYSTEM_PROMPT,
+  })
+  return response.content
+    .filter(b => b.type === 'text')
+    .map(b => (b as Anthropic.TextBlock).text)
+    .join('')
+}
+
+async function classifyWithGoogle(userContent: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_AI_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY not set')
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const modelName = process.env.AI_DEFAULT_MODEL_GOOGLE ?? 'gemini-2.0-flash'
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: SYSTEM_PROMPT,
+  })
+  const result = await model.generateContent(`Classify these products:\n${userContent}`)
+  return result.response.text()
+}
+
+async function classifyWithOpenAICompatible(
+  userContent: string,
+  provider: string
+): Promise<string> {
+  let apiKey: string | undefined
+  let baseURL: string | undefined
+  let model: string
+
+  switch (provider) {
+    case 'openai':
+      apiKey = process.env.OPENAI_API_KEY
+      model = process.env.AI_DEFAULT_MODEL_OPENAI ?? 'gpt-4o-mini'
+      break
+    case 'deepseek':
+      apiKey = process.env.DEEPSEEK_API_KEY
+      baseURL = 'https://api.deepseek.com/v1'
+      model = process.env.AI_DEFAULT_MODEL_DEEPSEEK ?? 'deepseek-chat'
+      break
+    case 'groq':
+      apiKey = process.env.GROQ_API_KEY
+      baseURL = 'https://api.groq.com/openai/v1'
+      model = process.env.AI_DEFAULT_MODEL_GROQ ?? 'llama-3.3-70b-versatile'
+      break
+    case 'qwen':
+      apiKey = process.env.QWEN_API_KEY
+      baseURL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+      model = process.env.AI_DEFAULT_MODEL_QWEN ?? 'qwen-plus'
+      break
+    default:
+      throw new Error(`Unknown OpenAI-compatible provider: ${provider}`)
+  }
+
+  if (!apiKey) throw new Error(`${provider.toUpperCase()}_API_KEY not set or empty`)
+
+  const client = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
+  const response = await client.chat.completions.create({
+    model,
+    max_tokens: 8192,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: `Classify these products:\n${userContent}` },
+    ],
+  })
+  return response.choices[0]?.message?.content ?? ''
+}
+
+// ── Main classify with fallback ──────────────────────────────────────────────
+
+async function classifyWithFallback(userContent: string): Promise<string> {
+  const providers = getProviderPriority()
+  const errors: string[] = []
+
+  for (const provider of providers) {
+    try {
+      let result: string
+      if (provider === 'anthropic') {
+        result = await classifyWithAnthropic(userContent)
+      } else if (provider === 'google') {
+        result = await classifyWithGoogle(userContent)
+      } else {
+        result = await classifyWithOpenAICompatible(userContent, provider)
+      }
+      logger.info({ provider }, 'AI classification succeeded')
+      return result
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      errors.push(`${provider}: ${msg}`)
+      logger.warn({ provider, err: msg }, 'AI provider failed, trying next')
+    }
+  }
+
+  throw new Error(`All AI providers failed: ${errors.join('; ')}`)
+}
+
+// ── Public API ───────────────────────────────────────────────────────────────
+
 export async function classifyBatch(
   products: AIClassificationInput[]
 ): Promise<AIClassificationOutput[]> {
@@ -53,20 +168,7 @@ export async function classifyBatch(
     `{"id": ${p.dolibarr_id}, "ref": "${p.ref}", "label": "${p.label}"}`
   ).join('\n')
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
-    messages: [
-      { role: 'user', content: `Classify these products:\n${userContent}` }
-    ],
-    system: SYSTEM_PROMPT,
-  })
-
-  const text = response.content
-    .filter(b => b.type === 'text')
-    .map(b => (b as Anthropic.TextBlock).text)
-    .join('')
-
+  const text = await classifyWithFallback(userContent)
   const clean = text.replace(/```json|```/g, '').trim()
   const parsed: AIClassificationOutput[] = JSON.parse(clean)
   return parsed
