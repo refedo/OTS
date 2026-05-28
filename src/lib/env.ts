@@ -24,6 +24,17 @@ interface EnvConfig {
   OPENAI_API_KEY: string | undefined;
   ANTHROPIC_API_KEY: string | undefined;
   GEMINI_API_KEY: string | undefined;
+  GOOGLE_AI_API_KEY: string | undefined;
+  DEEPSEEK_API_KEY: string | undefined;
+  GROQ_API_KEY: string | undefined;
+  QWEN_API_KEY: string | undefined;
+  AI_PROVIDER_PRIORITY: string | undefined;
+  AI_DEFAULT_MODEL_ANTHROPIC: string | undefined;
+  AI_DEFAULT_MODEL_OPENAI: string | undefined;
+  AI_DEFAULT_MODEL_GOOGLE: string | undefined;
+  AI_DEFAULT_MODEL_DEEPSEEK: string | undefined;
+  AI_DEFAULT_MODEL_QWEN: string | undefined;
+  AI_DEFAULT_MODEL_GROQ: string | undefined;
   XAI_API_KEY: string | undefined;
   DOLIBARR_API_URL: string | undefined;
   DOLIBARR_API_KEY: string | undefined;
@@ -109,6 +120,17 @@ function validateEnv(): EnvConfig {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
+    DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    QWEN_API_KEY: process.env.QWEN_API_KEY,
+    AI_PROVIDER_PRIORITY: process.env.AI_PROVIDER_PRIORITY,
+    AI_DEFAULT_MODEL_ANTHROPIC: process.env.AI_DEFAULT_MODEL_ANTHROPIC,
+    AI_DEFAULT_MODEL_OPENAI: process.env.AI_DEFAULT_MODEL_OPENAI,
+    AI_DEFAULT_MODEL_GOOGLE: process.env.AI_DEFAULT_MODEL_GOOGLE,
+    AI_DEFAULT_MODEL_DEEPSEEK: process.env.AI_DEFAULT_MODEL_DEEPSEEK,
+    AI_DEFAULT_MODEL_QWEN: process.env.AI_DEFAULT_MODEL_QWEN,
+    AI_DEFAULT_MODEL_GROQ: process.env.AI_DEFAULT_MODEL_GROQ,
     XAI_API_KEY: process.env.XAI_API_KEY,
     DOLIBARR_API_URL: process.env.DOLIBARR_API_URL,
     DOLIBARR_API_KEY: process.env.DOLIBARR_API_KEY,
