@@ -337,11 +337,12 @@ function splitStatements(sql: string): string[] {
   return statements;
 }
 
+const TRACKING_TABLE = '_startup_migrations';
+
 /**
- * Execute a single migration file via mysql2 (not Prisma) so stored
- * procedures, DELIMITER changes, and other DDL work correctly.
+ * Execute a single migration file using an existing mysql2 connection.
  */
-async function runMigrationFile(filename: string): Promise<void> {
+async function runMigrationFile(filename: string, conn: mysql.Connection): Promise<void> {
   const filePath = join(MIGRATIONS_DIR, filename);
   let sql: string;
 
@@ -352,36 +353,56 @@ async function runMigrationFile(filename: string): Promise<void> {
     return;
   }
 
-  const statements = splitStatements(sql);
-  const conn = await mysql.createConnection(parseMysqlUrl(env.DATABASE_URL));
+  for (const stmt of splitStatements(sql)) {
+    const normalized = stmt.replace(/;$/, '').trim();
+    if (!normalized) continue;
 
-  try {
-    for (const stmt of statements) {
-      const normalized = stmt.replace(/;$/, '').trim();
-      if (!normalized) continue;
-
-      try {
-        await conn.query(normalized);
-      } catch (error) {
-        logger.warn(
-          { filename, error, statement: normalized.slice(0, 120) },
-          '[startup-migration] Statement failed (non-fatal)'
-        );
-      }
+    try {
+      await conn.query(normalized);
+    } catch (error) {
+      logger.warn(
+        { filename, error, statement: normalized.slice(0, 120) },
+        '[startup-migration] Statement failed (non-fatal)'
+      );
     }
-  } finally {
-    await conn.end();
   }
 }
 
 export async function runStartupMigrations(): Promise<void> {
-  for (const filename of STARTUP_MIGRATIONS) {
-    try {
-      logger.info({ filename }, '[startup-migration] Running migration');
-      await runMigrationFile(filename);
-      logger.info({ filename }, '[startup-migration] Migration complete');
-    } catch (error) {
-      logger.warn({ filename, error }, '[startup-migration] Migration failed (non-fatal)');
+  const conn = await mysql.createConnection(parseMysqlUrl(env.DATABASE_URL));
+
+  try {
+    // Ensure the tracking table exists so we can skip already-applied migrations.
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`${TRACKING_TABLE}\` (
+        \`filename\` VARCHAR(255) NOT NULL,
+        \`applied_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`filename\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    for (const filename of STARTUP_MIGRATIONS) {
+      try {
+        // Skip migrations that have already been applied.
+        const [rows] = await conn.query(
+          `SELECT 1 FROM \`${TRACKING_TABLE}\` WHERE filename = ? LIMIT 1`,
+          [filename]
+        );
+        if ((rows as unknown[]).length > 0) continue;
+
+        logger.info({ filename }, '[startup-migration] Running migration');
+        await runMigrationFile(filename, conn);
+
+        await conn.query(
+          `INSERT IGNORE INTO \`${TRACKING_TABLE}\` (filename) VALUES (?)`,
+          [filename]
+        );
+        logger.info({ filename }, '[startup-migration] Migration complete');
+      } catch (error) {
+        logger.warn({ filename, error }, '[startup-migration] Migration failed (non-fatal)');
+      }
     }
+  } finally {
+    await conn.end();
   }
 }

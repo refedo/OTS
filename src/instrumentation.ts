@@ -26,6 +26,11 @@ export async function register() {
     // Run idempotent SQL migrations (18.11.0+)
     await runStartupMigrations();
 
+    // Warm up the Prisma engine so the first HTTP requests don't race against
+    // engine startup and get "Engine is not yet connected" errors.
+    const { db } = await import('@/lib/middleware/db-connection-pool');
+    await db.$connect();
+
     // Initialize the Early Warning Engine scheduler
     EarlyWarningScheduler.initialize();
 
