@@ -49,11 +49,18 @@ function toSessionData(payload: SessionPayload | null): SessionData | null {
 /**
  * Wrap an API handler with session verification and request context
  */
+const SLOW_REQUEST_WARN_MS = 5_000;
+const SLOW_REQUEST_ERROR_MS = 10_000;
+
 export function withApiContext<T = any>(
   handler: ApiHandler<T>,
   options: ApiHandlerOptions = { requireAuth: true }
 ): (request: NextRequest, context?: { params: Record<string, string> }) => Promise<NextResponse> {
   return async (request: NextRequest, context?: { params: Record<string, string> }) => {
+    const startMs = Date.now();
+    const method = request.method;
+    const url = request.nextUrl.pathname;
+
     try {
       const cookieStore = await cookies();
       const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -70,18 +77,32 @@ export function withApiContext<T = any>(
         payload ? { userId: payload.sub, name: payload.name, role: payload.role } : null,
         'API'
       );
-      
+
       // Next.js 15: context.params is a Promise — resolve before passing to handler
       let resolvedContext = context;
       if (context?.params && typeof (context.params as unknown as Promise<Record<string, string>>).then === 'function') {
         resolvedContext = { params: await (context.params as unknown as Promise<Record<string, string>>) };
       }
 
-      return await runWithContextAsync(requestContext, async () => {
+      const response = await runWithContextAsync(requestContext, async () => {
         return handler(request, session, resolvedContext);
       });
+
+      const durationMs = Date.now() - startMs;
+      if (durationMs >= SLOW_REQUEST_ERROR_MS) {
+        const mem = process.memoryUsage();
+        logger.error(
+          { method, url, durationMs, heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024) },
+          '[API] Very slow request — likely 502 source'
+        );
+      } else if (durationMs >= SLOW_REQUEST_WARN_MS) {
+        logger.warn({ method, url, durationMs }, '[API] Slow request');
+      }
+
+      return response;
     } catch (error) {
-      logger.error({ error }, '[API] Unhandled error in route handler');
+      const durationMs = Date.now() - startMs;
+      logger.error({ error, method, url, durationMs }, '[API] Unhandled error in route handler');
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
