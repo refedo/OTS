@@ -12,7 +12,8 @@
  * (3 connections) and interactive MySQL sessions.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 // ── Global guard (survives Next.js hot-reloads in dev) ────────────────────────
 declare global {
@@ -24,13 +25,32 @@ declare global {
 
 // ── Singleton factory ─────────────────────────────────────────────────────────
 
+const SLOW_QUERY_WARN_MS = 1_000;
+const SLOW_QUERY_ERROR_MS = 3_000;
+
 function createClient(): PrismaClient {
-  return new PrismaClient({
-    log: ['error'],
-    // connection_limit should be set in DATABASE_URL query string.
-    // The datasources block is intentionally omitted here so Prisma reads
-    // directly from DATABASE_URL (which can include ?connection_limit=10).
+  const client = new PrismaClient({
+    log: [
+      { emit: 'event', level: 'query' },
+      { emit: 'stdout', level: 'error' },
+    ],
   });
+
+  client.$on('query', (e: Prisma.QueryEvent) => {
+    if (e.duration >= SLOW_QUERY_ERROR_MS) {
+      logger.error(
+        { durationMs: e.duration, query: e.query.slice(0, 400), params: e.params.slice(0, 200) },
+        '[DB] Very slow query'
+      );
+    } else if (e.duration >= SLOW_QUERY_WARN_MS) {
+      logger.warn(
+        { durationMs: e.duration, query: e.query.slice(0, 400) },
+        '[DB] Slow query'
+      );
+    }
+  });
+
+  return client;
 }
 
 /**
