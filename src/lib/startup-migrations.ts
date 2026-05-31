@@ -268,6 +268,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v38.0.0 — Material Master fixes: reviewed_by type fix + dolibarr_id on inv_items ──
   'v38_0_material_master_fixes.sql',
+
+  // ── v39.0.0 — Re-ensure dolibarr_id on inv_items (v38 may have been tracked but not applied) ──
+  'v39_0_ensure_inv_items_dolibarr_id.sql',
 ];
 
 /**

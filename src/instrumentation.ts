@@ -88,11 +88,14 @@ export async function register() {
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();
 
-    // Retroactive MIR stock-in: sync any received MIRs that were never posted to inventory
+    // Retroactive MIR stock-in: sync any received MIRs that were never posted to inventory.
+    // Deferred 3 s to ensure the Prisma query engine is fully ready after $connect().
     const { backfillMirStockIn } = await import('@/lib/services/qc/mir-stock-sync.service');
-    backfillMirStockIn().catch(err =>
-      logger.error({ err }, '[Startup] MIR stock backfill failed'),
-    );
+    setTimeout(() => {
+      backfillMirStockIn().catch(err =>
+        logger.error({ err }, '[Startup] MIR stock backfill failed'),
+      );
+    }, 3000);
 
     logger.info({ durationMs: Date.now() - startupStart }, '[Startup] Server initialization complete');
   }
