@@ -280,7 +280,7 @@ function WarehousesTab() {
     setSaving(true); setError('');
     try {
       const res = editing
-        ? await fetch(`/api/inv/warehouses/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, siteName: form.siteName }) })
+        ? await fetch(`/api/inv/warehouses/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, siteId: form.siteId }) })
         : await fetch('/api/inv/warehouses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to save'); return; }
@@ -365,27 +365,25 @@ function WarehousesTab() {
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Code *</Label>
                   <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="RM-WH-F004" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</Label>
-                    <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{WH_TYPES.map(t => <SelectItem key={t} value={t}>{labelify(t)}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Factory</Label>
-                    <Select value={form.siteId} onValueChange={v => setForm(f => ({ ...f, siteId: v, siteName: sites.find(s => s.code === v)?.name || v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select factory" /></SelectTrigger>
-                      <SelectContent>{sites.map(s => <SelectItem key={s.code} value={s.code}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</Label>
+                  <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{WH_TYPES.map(t => <SelectItem key={t} value={t}>{labelify(t)}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
               </>
             )}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Raw Material Warehouse — Factory 004" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Factory</Label>
+              <Select value={form.siteId} onValueChange={v => setForm(f => ({ ...f, siteId: v, siteName: sites.find(s => s.code === v)?.name || v }))}>
+                <SelectTrigger><SelectValue placeholder="Select factory" /></SelectTrigger>
+                <SelectContent>{sites.map(s => <SelectItem key={s.code} value={s.code}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
           </div>
           {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded">{error}</p>}
