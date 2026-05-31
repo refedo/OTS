@@ -78,6 +78,9 @@ export default function StockPage() {
   const { permissions } = usePermissions();
   const { toast } = useToast();
   const canAdjust = permissions.includes('inv.adjust') || permissions.includes('inv.admin');
+  const isInvAdmin = permissions.includes('inv.admin');
+
+  const [syncing, setSyncing] = useState(false);
 
   const [balances, setBalances] = useState<BalanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +130,27 @@ export default function StockPage() {
   }, [siteFilter]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
+
+  const runBackfill = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/inv/internal/backfill', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: 'Sync failed', description: data.error || 'Unknown error', variant: 'destructive' });
+      } else {
+        toast({
+          title: 'MIR sync complete',
+          description: `${data.posted} stock entries posted, ${data.skipped} skipped.`,
+        });
+        fetchBalances();
+      }
+    } catch {
+      toast({ title: 'Sync failed', description: 'Network error.', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Fetch warehouses for dialogs
   useEffect(() => {
@@ -308,6 +332,18 @@ export default function StockPage() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap justify-end">
+              {isInvAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  onClick={runBackfill}
+                  disabled={syncing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing…' : 'Sync from MIR'}
+                </Button>
+              )}
               {canAdjust && (
                 <>
                   <Button
