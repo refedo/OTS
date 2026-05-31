@@ -462,35 +462,36 @@ class PointsService {
     thisWeekPoints: number;
     thisMonthPoints: number;
   }> {
+    // ensureUserPoints may INSERT a row, so resolve it first before running rank/badge queries
     const userPoints = await this.ensureUserPoints(userId);
-    const rank = await this.getUserRank(userId);
-    const badges = await this.getUserBadges(userId);
-    
-    // Get this week's points
+
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
-    
-    const weekPoints = await prisma.$queryRaw<[{ total: number | null }]>`
-      SELECT COALESCE(SUM(points), 0) as total
-      FROM point_transactions
-      WHERE user_id = ${userId} 
-        AND transaction_type IN ('EARN', 'BONUS')
-        AND created_at >= ${weekStart}
-    `;
-    
-    // Get this month's points
+
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    
-    const monthPoints = await prisma.$queryRaw<[{ total: number | null }]>`
-      SELECT COALESCE(SUM(points), 0) as total
-      FROM point_transactions
-      WHERE user_id = ${userId}
-        AND transaction_type IN ('EARN', 'BONUS')
-        AND created_at >= ${monthStart}
-    `;
+
+    // Run all remaining queries in parallel — avoids holding connections sequentially
+    const [rank, badges, weekPoints, monthPoints] = await Promise.all([
+      this.getUserRank(userId),
+      this.getUserBadges(userId),
+      prisma.$queryRaw<[{ total: number | null }]>`
+        SELECT COALESCE(SUM(points), 0) as total
+        FROM point_transactions
+        WHERE user_id = ${userId}
+          AND transaction_type IN ('EARN', 'BONUS')
+          AND created_at >= ${weekStart}
+      `,
+      prisma.$queryRaw<[{ total: number | null }]>`
+        SELECT COALESCE(SUM(points), 0) as total
+        FROM point_transactions
+        WHERE user_id = ${userId}
+          AND transaction_type IN ('EARN', 'BONUS')
+          AND created_at >= ${monthStart}
+      `,
+    ]);
 
     return {
       totalPoints: userPoints.total_points,
@@ -500,7 +501,7 @@ class PointsService {
       rank,
       badgeCount: badges.length,
       thisWeekPoints: Number(weekPoints[0].total) || 0,
-      thisMonthPoints: Number(monthPoints[0].total) || 0
+      thisMonthPoints: Number(monthPoints[0].total) || 0,
     };
   }
 
