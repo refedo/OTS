@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Settings, Package, Warehouse, MapPin, CheckCircle2, XCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Pencil, Settings, Package, Warehouse, MapPin, CheckCircle2, XCircle, Factory } from 'lucide-react';
 
 interface InvItem {
   id: string; code: string; name: string; unit: string; category: string;
@@ -22,10 +23,12 @@ interface InvWarehouse {
 interface InvLocation {
   id: string; code: string; name: string; siteId: string; isActive: boolean;
 }
+interface InvSite {
+  id: string; code: string; name: string; description: string | null; isActive: boolean;
+}
 
 const CATEGORIES = ['STRUCTURAL_STEEL','PLATE','PIPE','CONSUMABLE','FASTENER','PAINT','ELECTRICAL','OFFCUT','OTHER'];
 const WH_TYPES = ['RAW_MATERIAL','CONSUMABLE','OFFCUT'];
-const SITES = [{ id: 'F001', label: 'Factory 001' }, { id: 'F003', label: 'Factory 003' }];
 
 function labelify(s: string) {
   return s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -235,23 +238,36 @@ function ItemsTab() {
 // ─── Warehouses Tab ───────────────────────────────────────────────────────────
 function WarehousesTab() {
   const [warehouses, setWarehouses] = useState<InvWarehouse[]>([]);
+  const [sites, setSites] = useState<InvSite[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InvWarehouse | null>(null);
-  const [form, setForm] = useState({ code: '', name: '', type: 'RAW_MATERIAL', siteId: 'F001', siteName: 'Factory 001' });
+  const [form, setForm] = useState({ code: '', name: '', type: 'RAW_MATERIAL', siteId: '', siteName: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/inv/warehouses?activeOnly=false');
-    const data = await res.json();
-    setWarehouses(Array.isArray(data) ? data : []);
+    const [whRes, siteRes] = await Promise.all([
+      fetch('/api/inv/warehouses?activeOnly=false'),
+      fetch('/api/inv/sites?activeOnly=true'),
+    ]);
+    const whData = await whRes.json();
+    const siteData = await siteRes.json();
+    setWarehouses(Array.isArray(whData) ? whData : []);
+    const loadedSites: InvSite[] = Array.isArray(siteData) ? siteData : [];
+    setSites(loadedSites);
+    setForm(f => ({
+      ...f,
+      siteId: f.siteId || loadedSites[0]?.code || '',
+      siteName: f.siteName || loadedSites[0]?.name || '',
+    }));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const openNew = () => {
+    const firstSite = sites[0];
     setEditing(null);
-    setForm({ code: '', name: '', type: 'RAW_MATERIAL', siteId: 'F001', siteName: 'Factory 001' });
+    setForm({ code: '', name: '', type: 'RAW_MATERIAL', siteId: firstSite?.code || '', siteName: firstSite?.name || '' });
     setError(''); setOpen(true);
   };
   const openEdit = (wh: InvWarehouse) => {
@@ -359,9 +375,9 @@ function WarehousesTab() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Factory</Label>
-                    <Select value={form.siteId} onValueChange={v => setForm(f => ({ ...f, siteId: v, siteName: SITES.find(s => s.id === v)?.label || v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{SITES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}</SelectContent>
+                    <Select value={form.siteId} onValueChange={v => setForm(f => ({ ...f, siteId: v, siteName: sites.find(s => s.code === v)?.name || v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select factory" /></SelectTrigger>
+                      <SelectContent>{sites.map(s => <SelectItem key={s.code} value={s.code}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -386,21 +402,27 @@ function WarehousesTab() {
 // ─── Locations Tab ────────────────────────────────────────────────────────────
 function LocationsTab() {
   const [locations, setLocations] = useState<InvLocation[]>([]);
+  const [sites, setSites] = useState<InvSite[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InvLocation | null>(null);
-  const [form, setForm] = useState({ code: '', name: '', siteId: 'F001' });
+  const [form, setForm] = useState({ code: '', name: '', siteId: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/inv/locations?activeOnly=false');
-    const data = await res.json();
-    setLocations(Array.isArray(data) ? data : []);
+    const [locRes, siteRes] = await Promise.all([
+      fetch('/api/inv/locations?activeOnly=false'),
+      fetch('/api/inv/sites?activeOnly=true'),
+    ]);
+    const locData = await locRes.json();
+    const siteData = await siteRes.json();
+    setLocations(Array.isArray(locData) ? locData : []);
+    setSites(Array.isArray(siteData) ? siteData : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const openNew = () => { setEditing(null); setForm({ code: '', name: '', siteId: 'F001' }); setError(''); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ code: '', name: '', siteId: sites[0]?.code || '' }); setError(''); setOpen(true); };
   const openEdit = (loc: InvLocation) => { setEditing(loc); setForm({ code: loc.code, name: loc.name, siteId: loc.siteId }); setError(''); setOpen(true); };
 
   const handleSave = async () => {
@@ -420,7 +442,7 @@ function LocationsTab() {
     load();
   };
 
-  const siteLabel = (id: string) => SITES.find(s => s.id === id)?.label ?? id;
+  const siteLabel = (id: string) => sites.find(s => s.code === id)?.name ?? id;
 
   return (
     <div className="space-y-4">
@@ -493,8 +515,8 @@ function LocationsTab() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Factory</Label>
                   <Select value={form.siteId} onValueChange={v => setForm(f => ({ ...f, siteId: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{SITES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}</SelectContent>
+                    <SelectTrigger><SelectValue placeholder="Select factory" /></SelectTrigger>
+                    <SelectContent>{sites.map(s => <SelectItem key={s.code} value={s.code}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </>
@@ -515,6 +537,121 @@ function LocationsTab() {
   );
 }
 
+// ─── Sites Tab ────────────────────────────────────────────────────────────────
+function SitesTab() {
+  const [sites, setSites] = useState<InvSite[]>([]);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<InvSite | null>(null);
+  const [form, setForm] = useState({ code: '', name: '', description: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    const res = await fetch('/api/inv/sites?activeOnly=false');
+    const data = await res.json();
+    setSites(Array.isArray(data) ? data : []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openNew = () => { setEditing(null); setForm({ code: '', name: '', description: '' }); setError(''); setOpen(true); };
+  const openEdit = (s: InvSite) => { setEditing(s); setForm({ code: s.code, name: s.name, description: s.description || '' }); setError(''); setOpen(true); };
+
+  const handleSave = async () => {
+    setSaving(true); setError('');
+    try {
+      const res = editing
+        ? await fetch(`/api/inv/sites/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, description: form.description || null }) })
+        : await fetch('/api/inv/sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to save'); return; }
+      setOpen(false); load();
+    } finally { setSaving(false); }
+  };
+
+  const toggleActive = async (s: InvSite) => {
+    await fetch(`/api/inv/sites/${s.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: !s.isActive }) });
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">{sites.filter(s => s.isActive).length} active sites / factories</span>
+        <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Add Site</Button>
+      </div>
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="text-xs font-semibold uppercase">Code</TableHead>
+              <TableHead className="text-xs font-semibold uppercase">Name</TableHead>
+              <TableHead className="text-xs font-semibold uppercase">Description</TableHead>
+              <TableHead className="text-xs font-semibold uppercase">Status</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sites.length === 0 ? (
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">No sites configured</TableCell></TableRow>
+            ) : sites.map(s => (
+              <TableRow key={s.id} className={`hover:bg-muted/30 transition-colors ${!s.isActive ? 'opacity-50' : ''}`}>
+                <TableCell><span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{s.code}</span></TableCell>
+                <TableCell className="text-sm font-medium">{s.name}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{s.description || '—'}</TableCell>
+                <TableCell>
+                  {s.isActive
+                    ? <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Active</span>
+                    : <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><XCircle className="h-3.5 w-3.5" /> Inactive</span>}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1 justify-end">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="sm" className={`h-7 text-xs px-2 ${s.isActive ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`} onClick={() => toggleActive(s)}>
+                      {s.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Factory className="h-5 w-5 text-blue-600" />
+              {editing ? 'Edit Site / Factory' : 'New Site / Factory'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!editing && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Code * (max 10 chars)</Label>
+                <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="F001" maxLength={10} />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name *</Label>
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Factory 001" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</Label>
+              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description…" className="resize-none h-20 text-sm" />
+            </div>
+          </div>
+          {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save Site'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function InvSettingsPage() {
   return (
@@ -527,13 +664,16 @@ export default function InvSettingsPage() {
             <span className="text-slate-300 text-xs font-medium uppercase tracking-wider">Inventory › Settings</span>
           </div>
           <h1 className="text-2xl font-bold">Inventory Settings</h1>
-          <p className="text-slate-300 text-sm mt-1">Manage stock items, warehouses, and production locations</p>
+          <p className="text-slate-300 text-sm mt-1">Manage sites, stock items, warehouses, and production locations</p>
         </div>
       </div>
 
       <div className="p-6">
-        <Tabs defaultValue="items">
+        <Tabs defaultValue="sites">
           <TabsList className="mb-5">
+            <TabsTrigger value="sites" className="gap-1.5">
+              <Factory className="h-4 w-4" /> Sites
+            </TabsTrigger>
             <TabsTrigger value="items" className="gap-1.5">
               <Package className="h-4 w-4" /> Items
             </TabsTrigger>
@@ -544,6 +684,7 @@ export default function InvSettingsPage() {
               <MapPin className="h-4 w-4" /> Locations
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="sites"><SitesTab /></TabsContent>
           <TabsContent value="items"><ItemsTab /></TabsContent>
           <TabsContent value="warehouses"><WarehousesTab /></TabsContent>
           <TabsContent value="locations"><LocationsTab /></TabsContent>
