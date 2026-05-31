@@ -148,6 +148,7 @@ type ReceiptItem = {
   receivedQty: number;
   acceptedQty: number;
   rejectedQty: number;
+  quarantineQty: number;
   unit: string;
   qualityStatus: string;
   surfaceCondition?: string;
@@ -369,6 +370,7 @@ export default function MaterialInspectionReceiptPage() {
         specification: '',
         orderedQty: Number(line.qty),
         unit: 'pcs',
+        unitPrice: line.subprice != null ? Number(line.subprice) : null,
       }));
 
       const response = await fetch('/api/qc/material-receipts', {
@@ -411,6 +413,7 @@ export default function MaterialInspectionReceiptPage() {
       receivedQty: item.receivedQty || '',
       acceptedQty: item.acceptedQty || '',
       rejectedQty: item.rejectedQty || '',
+      quarantineQty: item.quarantineQty || '',
       surfaceCondition: item.surfaceCondition || '',
       surfaceNotes: item.surfaceNotes || '',
       dimensionStatus: item.dimensionStatus || '',
@@ -481,6 +484,52 @@ export default function MaterialInspectionReceiptPage() {
       console.error('Error saving item inspection:', error);
     } finally {
       setSavingItem(false);
+    }
+  };
+
+  const [bulkActioning, setBulkActioning] = useState(false);
+
+  const handleReceiveAll = async () => {
+    if (!selectedReceipt) return;
+    const pendingItems = selectedReceipt.items.filter(i => i.receivedQty <= 0);
+    if (pendingItems.length === 0) return;
+    setBulkActioning(true);
+    try {
+      await Promise.all(pendingItems.map(item =>
+        fetch('/api/qc/material-receipts/items', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: item.id, receivedQty: item.orderedQty }),
+        })
+      ));
+      const res = await fetch(`/api/qc/material-receipts?id=${selectedReceipt.id}`);
+      if (res.ok) setSelectedReceipt(await res.json());
+    } catch { /* non-fatal */ } finally {
+      setBulkActioning(false);
+    }
+  };
+
+  const handleAcceptAll = async () => {
+    if (!selectedReceipt) return;
+    const receivedItems = selectedReceipt.items.filter(i => i.receivedQty > 0 && i.inspectionResult !== 'Accepted');
+    if (receivedItems.length === 0) return;
+    setBulkActioning(true);
+    try {
+      await Promise.all(receivedItems.map(item =>
+        fetch('/api/qc/material-receipts/items', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            itemId: item.id,
+            acceptedQty: item.receivedQty,
+            inspectionResult: 'Accepted',
+          }),
+        })
+      ));
+      const res = await fetch(`/api/qc/material-receipts?id=${selectedReceipt.id}`);
+      if (res.ok) setSelectedReceipt(await res.json());
+    } catch { /* non-fatal */ } finally {
+      setBulkActioning(false);
     }
   };
 
@@ -1497,7 +1546,31 @@ export default function MaterialInspectionReceiptPage() {
               )}
 
               <div>
-                <h3 className="font-semibold mb-3">Items ({selectedReceipt.items.length})</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">Items ({selectedReceipt.items.length})</h3>
+                  {(!selectedReceipt.workflowStatus || selectedReceipt.workflowStatus === 'Draft') && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReceiveAll}
+                        disabled={bulkActioning}
+                        className="h-7 text-xs gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        Receive All
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAcceptAll}
+                        disabled={bulkActioning}
+                        className="h-7 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                      >
+                        Accept All
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <div className="border rounded-lg overflow-x-auto">
                   <table className="w-full text-sm min-w-[800px]">
                     <thead>
@@ -1779,7 +1852,7 @@ export default function MaterialInspectionReceiptPage() {
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {/* Quantities */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="receivedQty" className="text-sm font-semibold">
                     Received Qty *
@@ -1811,6 +1884,23 @@ export default function MaterialInspectionReceiptPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <Label htmlFor="quarantineQty" className="text-sm flex items-center gap-1">
+                    Quarantine Qty
+                    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-amber-100 text-amber-700 text-[10px] cursor-default" title="This quantity needs further inspection">?</span>
+                  </Label>
+                  <Input
+                    id="quarantineQty"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0"
+                    value={itemFormData.quarantineQty as string}
+                    className="border-amber-200 focus-visible:ring-amber-400"
+                    onChange={(e) => setItemFormData({ ...itemFormData, quarantineQty: e.target.value })}
+                  />
+                  <p className="text-xs text-amber-600">This quantity needs further inspection</p>
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="rejectedQty" className="text-sm">Rejected Qty</Label>
                   <Input
                     id="rejectedQty"
@@ -1822,9 +1912,9 @@ export default function MaterialInspectionReceiptPage() {
                   />
                 </div>
               </div>
-              {itemFormData.receivedQty && (Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)) > Number(itemFormData.receivedQty) && (
+              {itemFormData.receivedQty && (Number(itemFormData.acceptedQty) + Number(itemFormData.quarantineQty ?? 0) + Number(itemFormData.rejectedQty)) > Number(itemFormData.receivedQty) && (
                 <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-md -mt-2">
-                  Accepted + Rejected ({Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)}) exceeds Received ({itemFormData.receivedQty as string})
+                  Accepted + Quarantine + Rejected ({Number(itemFormData.acceptedQty) + Number(itemFormData.quarantineQty ?? 0) + Number(itemFormData.rejectedQty)}) exceeds Received ({itemFormData.receivedQty as string})
                 </p>
               )}
 

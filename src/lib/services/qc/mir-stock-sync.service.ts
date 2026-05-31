@@ -19,7 +19,7 @@ import { stockIn } from '@/lib/services/inv/inv-stock.service';
 
 type ResolvedItem = { id: string; defaultWhType: InvWarehouseType };
 
-function mapMaterialCategory(cat: string | null | undefined): InvItemCategory {
+export function mapMaterialCategory(cat: string | null | undefined): InvItemCategory {
   switch (cat) {
     case 'SHEET':
     case 'PLATE':
@@ -130,7 +130,7 @@ export async function syncMirStockIn(
       dolibarrPoRef: true,
       targetSiteId: true,
       items: {
-        select: { dolibarrProductId: true, acceptedQty: true },
+        select: { dolibarrProductId: true, acceptedQty: true, unitPrice: true },
       },
     },
   });
@@ -238,6 +238,7 @@ export async function syncMirStockIn(
           referenceId: mirId,
           referenceNo: receipt.receiptNumber,
           performedById,
+          unitCost: item.unitPrice ? Number(item.unitPrice) : undefined,
         });
       });
       posted++;

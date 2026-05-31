@@ -1712,11 +1712,15 @@ model MaterialInspectionReceiptItem {
   specification   String?
 
   // Quantities
-  orderedQty  Float  @map("ordered_qty")
-  receivedQty Float  @default(0) @map("received_qty")
-  acceptedQty Float  @default(0) @map("accepted_qty")
-  rejectedQty Float  @default(0) @map("rejected_qty")
-  unit        String @default("pcs")
+  orderedQty    Float  @map("ordered_qty")
+  receivedQty   Float  @default(0) @map("received_qty")
+  acceptedQty   Float  @default(0) @map("accepted_qty")
+  rejectedQty   Float  @default(0) @map("rejected_qty")
+  quarantineQty Float  @default(0) @map("quarantine_qty")
+  unit          String @default("pcs")
+
+  // Pricing (from PO line)
+  unitPrice Decimal? @db.Decimal(12, 4) @map("unit_price")
 
   // Quality inspection per item
   qualityStatus String @default("Pending") @map("quality_status")
@@ -7950,6 +7954,8 @@ model InvStockLedger {
   referenceType String?              @db.VarChar(30)
   referenceId   String?              @db.Char(36)
   referenceNo   String?              @db.VarChar(50)
+  unitCost      Decimal?             @db.Decimal(12, 4) @map("unit_cost")
+  totalCost     Decimal?             @db.Decimal(12, 2) @map("total_cost")
   projectId     String?              @db.Char(36)
   locationId    String?              @db.Char(36)
   location      InvLocation?         @relation(fields: [locationId], references: [id])

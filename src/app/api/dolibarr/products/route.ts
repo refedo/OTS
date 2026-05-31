@@ -26,8 +26,10 @@ export async function GET(req: Request) {
     const withSpecs = searchParams.get('with_specs') === '1';
     const isExport = searchParams.get('export') === '1';
     const page = Math.max(0, parseInt(searchParams.get('page') || '0', 10));
-    const limit = isExport ? 999999 : Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
-    const offset = isExport ? 0 : page * limit;
+    const limitParam = searchParams.get('limit') || '50';
+    const limitAll = limitParam === 'all' || isExport;
+    const limit = limitAll ? 999999 : Math.min(9999, Math.max(1, parseInt(limitParam, 10)));
+    const offset = limitAll ? 0 : page * limit;
 
     // Enrichment filters
     const itemClass = searchParams.get('item_class') || '';

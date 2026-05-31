@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [24.2.0] - 2026-05-31 — **Inventory & MIR: Pricing, Quarantine, Category Fix, Purchases History & Pagination**
+
+### Added
+- **Material pricing in stock**: unit price is now captured from the PO line at MIR receipt creation and flows through to `inv_stock_ledger` as `unit_cost` / `total_cost` for weighted average cost calculation
+- **Purchases tab** in Material Master detail panel: shows all stock-in movements for a product with date, MIR ref, supplier, qty, unit cost, total cost, weighted average price, and avg price per tonne
+- **Quarantine Qty** field in MIR item inspection form: quantity requiring further inspection (auto-computes `rejected = received − accepted − quarantine`)
+- **Receive All / Accept All** bulk action buttons in MIR receipt detail view (Draft workflow only)
+- **Expanded page sizes** in Material Master: 25 / 50 / 100 / 250 / 500 / 1000 / 5000 / All
+- **First/Last page navigation** (double-arrow `«»`) in Material Master and Stock Level pagination
+- **Stock Level pagination**: client-side paging with 50 / 100 / 250 / 500 / All rows per page
+
+### Changed
+- **Category fix**: `sync-items` now uses `material_category` (via `mapMaterialCategory`) instead of `item_class` — HEA / IPE / HEB profiles now correctly show as Structural Steel in Stock Levels. Existing items with stale category are updated on every sync run.
+- **Ledger API**: extended to accept `dolibarrId` for product lookup; returns `unitCost`, `totalCost`, and `supplierName` per MIR entry
+- **Sidebar active state**: `/inv` Dashboard, `/hr`, and `/backlog/dashboard` no longer remain highlighted when sub-pages are open
+
+### Fixed
+- Stock Levels page showed "Other" category for structural steel items (HEA, IPE, HEB profiles); fixed by correcting the category mapping logic during inventory sync
+
+---
+
 ## [24.1.1] - 2026-05-26 — **Inventory Module Refactor: Material Disburse, Sortable Tables & Stock Management**
 
 ### Added

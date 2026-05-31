@@ -4,6 +4,7 @@ import { checkPermission } from '@/lib/permission-checker'
 import { logger } from '@/lib/logger'
 import prisma from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
+import { mapMaterialCategory } from '@/lib/services/qc/mir-stock-sync.service'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,21 +15,8 @@ type DolibarrProduct = {
   unit_of_measure: string | null
   item_class: string | null
   material_nature: string | null
+  material_category: string | null
   default_wh_type: string | null
-}
-
-// Map dolibarr item_class to InvItemCategory
-function mapCategory(itemClass: string | null): string {
-  switch (itemClass) {
-    case 'STRUCTURAL_STEEL': return 'STRUCTURAL_STEEL'
-    case 'PLATE':            return 'SHEET'
-    case 'PIPE':             return 'PIPE'
-    case 'CONSUMABLE':       return 'CONSUMABLE'
-    case 'FASTENER':         return 'FASTENER'
-    case 'PAINT':            return 'PAINT'
-    case 'ELECTRICAL':       return 'ELECTRICAL'
-    default:                 return 'OTHER'
-  }
 }
 
 // Map item_class / material_nature to InvWarehouseType
@@ -39,6 +27,7 @@ function mapWhType(itemClass: string | null, materialNature: string | null): str
 
 // POST /api/admin/material-master/sync-items
 // Imports active dolibarr_products into inv_items (skips existing by code or dolibarr_id)
+// Also updates category on existing items when it was previously OTHER or has changed.
 export const POST = withApiContext(async (
   _req: NextRequest,
   session
@@ -49,39 +38,51 @@ export const POST = withApiContext(async (
 
   try {
     const products = (await prisma.$queryRawUnsafe(
-      `SELECT dolibarr_id, ref, label, unit_of_measure, item_class, material_nature, default_wh_type
+      `SELECT dolibarr_id, ref, label, unit_of_measure, item_class, material_nature, material_category, default_wh_type
        FROM dolibarr_products
        WHERE is_active = 1
        ORDER BY ref ASC`
     )) as DolibarrProduct[]
 
     let created = 0
+    let updated = 0
     let skipped = 0
     let errors = 0
 
     for (const p of products) {
       try {
-        // Skip if already linked by dolibarr_id or same code
+        const category = mapMaterialCategory(p.material_category)
+
+        // Check if already linked by dolibarr_id or same code
         const existing = (await prisma.$queryRawUnsafe(
-          `SELECT id FROM inv_items
+          `SELECT id, category FROM inv_items
            WHERE (dolibarr_id = ? OR code = ?)
            AND deleted_at IS NULL
            LIMIT 1`,
           p.dolibarr_id, p.ref
-        )) as Array<{ id: string }>
+        )) as Array<{ id: string; category: string }>
 
         if (existing.length > 0) {
-          // Update the dolibarr_id link if missing
-          await prisma.$executeRawUnsafe(
-            `UPDATE inv_items SET dolibarr_id = ? WHERE id = ? AND dolibarr_id IS NULL`,
-            p.dolibarr_id, existing[0].id
-          )
-          skipped++
+          const item = existing[0]
+          // Always link dolibarr_id if missing; also update category when it has changed
+          const categoryChanged = item.category !== category
+          if (categoryChanged) {
+            await prisma.$executeRawUnsafe(
+              `UPDATE inv_items SET dolibarr_id = COALESCE(dolibarr_id, ?), category = ?, updated_at = NOW() WHERE id = ?`,
+              p.dolibarr_id, category, item.id
+            )
+            updated++
+          } else {
+            await prisma.$executeRawUnsafe(
+              `UPDATE inv_items SET dolibarr_id = ? WHERE id = ? AND dolibarr_id IS NULL`,
+              p.dolibarr_id, item.id
+            )
+            skipped++
+          }
           continue
         }
 
         const unit = p.unit_of_measure ?? 'PC'
-        const category = mapCategory(p.item_class)
         const defaultWhType = p.default_wh_type ?? mapWhType(p.item_class, p.material_nature)
         const id = uuidv4()
 
@@ -100,8 +101,8 @@ export const POST = withApiContext(async (
       }
     }
 
-    logger.info({ created, skipped, errors, userId: session!.userId }, 'Material master sync-items complete')
-    return NextResponse.json({ created, skipped, errors, total: products.length })
+    logger.info({ created, updated, skipped, errors, userId: session!.userId }, 'Material master sync-items complete')
+    return NextResponse.json({ created, updated, skipped, errors, total: products.length })
   } catch (err) {
     logger.error({ err }, 'sync-items: fatal error')
     return NextResponse.json({ error: 'Sync failed' }, { status: 500 })

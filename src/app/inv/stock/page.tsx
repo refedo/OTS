@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, Search, ArrowUpCircle, ArrowDownCircle, Package, AlertTriangle, TrendingDown, RefreshCw, SlidersHorizontal, Plus } from 'lucide-react';
+import { Download, Search, ArrowUpCircle, ArrowDownCircle, Package, AlertTriangle, TrendingDown, RefreshCw, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ItemCombobox } from '@/components/inv/item-combobox';
 import type { InvItem } from '@/components/inv/item-combobox';
@@ -88,6 +88,8 @@ export default function StockPage() {
   const [itemLedger, setItemLedger] = useState<LedgerEntry[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [sort, setSort] = useState<SortState>({ key: '', dir: null });
+  const [stockPage, setStockPage] = useState(0);
+  const [stockPageSize, setStockPageSize] = useState(100);
 
   // Warehouse list (for dialogs)
   const [warehouses, setWarehouses] = useState<InvWarehouse[]>([]);
@@ -164,6 +166,7 @@ export default function StockPage() {
   };
 
   const toggleSort = (key: string) => {
+    setStockPage(0);
     setSort(prev => ({
       key,
       dir: prev.key === key ? (prev.dir === 'asc' ? 'desc' : prev.dir === 'desc' ? null : 'asc') : 'asc',
@@ -195,6 +198,11 @@ export default function StockPage() {
     }
     return 0;
   });
+
+  const stockTotalPages = stockPageSize >= 999999 ? 1 : Math.ceil(sortedFiltered.length / stockPageSize);
+  const pagedRows = stockPageSize >= 999999
+    ? sortedFiltered
+    : sortedFiltered.slice(stockPage * stockPageSize, (stockPage + 1) * stockPageSize);
 
   const SortableHeader = ({ col, label, className }: { col: string; label: string; className?: string }) => (
     <TableHead
@@ -377,7 +385,7 @@ export default function StockPage() {
         {/* Stats summary */}
         {!loading && (
           <div className="flex gap-4 text-sm">
-            <span className="text-muted-foreground">{sortedFiltered.length} items shown</span>
+            <span className="text-muted-foreground">{sortedFiltered.length} items total</span>
             {lowStockCount > 0 && (
               <span className="text-red-600 font-medium flex items-center gap-1">
                 <TrendingDown className="h-4 w-4" /> {lowStockCount} below minimum
@@ -420,7 +428,7 @@ export default function StockPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedFiltered.map(row => (
+                  pagedRows.map(row => (
                     <TableRow
                       key={`${row.warehouseId}-${row.itemId}`}
                       className={`cursor-pointer transition-colors hover:bg-muted/40 ${row.isLowStock ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}
@@ -468,6 +476,46 @@ export default function StockPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Stock pagination */}
+        {!loading && (
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Rows per page:</span>
+              <Select value={stockPageSize >= 999999 ? 'all' : String(stockPageSize)} onValueChange={v => { setStockPageSize(v === 'all' ? 999999 : Number(v)); setStockPage(0); }}>
+                <SelectTrigger className="h-8 w-20 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="250">250</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {stockTotalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={stockPage === 0} onClick={() => setStockPage(0)} className="px-2 h-8">
+                  <ChevronsLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={stockPage === 0} onClick={() => setStockPage(p => p - 1)} className="px-2 h-8">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">
+                  Page {stockPage + 1} of {stockTotalPages}
+                </span>
+                <Button variant="outline" size="sm" disabled={stockPage >= stockTotalPages - 1} onClick={() => setStockPage(p => p + 1)} className="px-2 h-8">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={stockPage >= stockTotalPages - 1} onClick={() => setStockPage(stockTotalPages - 1)} className="px-2 h-8">
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Ledger Slide-over */}
