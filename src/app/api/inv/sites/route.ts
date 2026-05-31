@@ -10,6 +10,7 @@ const CreateSchema = z.object({
   code: z.string().min(1).max(10),
   name: z.string().min(1).max(100),
   description: z.string().max(255).optional(),
+  sourceCodes: z.string().max(500).optional(),
 });
 
 async function getSession() {
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
     const sites = await prisma.invSite.findMany({
       where: { deletedAt: null, ...(activeOnly ? { isActive: true } : {}) },
       orderBy: { code: 'asc' },
-      select: { id: true, code: true, name: true, description: true, isActive: true, createdAt: true },
+      select: { id: true, code: true, name: true, description: true, sourceCodes: true, isActive: true, createdAt: true },
     });
 
     return NextResponse.json(sites);
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { code, name, description } = parsed.data;
+    const { code, name, description, sourceCodes } = parsed.data;
 
     const existing = await prisma.invSite.findFirst({ where: { code, deletedAt: null }, select: { id: true } });
     if (existing) {
@@ -62,8 +63,8 @@ export async function POST(req: Request) {
     }
 
     const site = await prisma.invSite.create({
-      data: { id: uuidv4(), code, name, description: description || null, isActive: true, createdById: session.sub },
-      select: { id: true, code: true, name: true, description: true, isActive: true, createdAt: true },
+      data: { id: uuidv4(), code, name, description: description || null, sourceCodes: sourceCodes || null, isActive: true, createdById: session.sub },
+      select: { id: true, code: true, name: true, description: true, sourceCodes: true, isActive: true, createdAt: true },
     });
 
     logger.info({ code, createdBy: session.sub }, '[INV] Site created');

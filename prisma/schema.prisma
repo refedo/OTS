@@ -7856,6 +7856,7 @@ model InvSite {
   code        String    @unique @db.VarChar(10)
   name        String    @db.VarChar(100)
   description String?   @db.VarChar(255)
+  sourceCodes String?   @db.VarChar(500)
   isActive    Boolean   @default(true)
 
   createdById String    @db.Char(36)

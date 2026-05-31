@@ -8,6 +8,7 @@ import { z } from 'zod';
 const UpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(255).nullable().optional(),
+  sourceCodes: z.string().max(500).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -36,7 +37,7 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     const site = await prisma.invSite.update({
       where: { id },
       data: parsed.data,
-      select: { id: true, code: true, name: true, description: true, isActive: true },
+      select: { id: true, code: true, name: true, description: true, sourceCodes: true, isActive: true },
     });
 
     logger.info({ id, updatedBy: session.sub }, '[INV] Site updated');

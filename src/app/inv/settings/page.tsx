@@ -24,7 +24,7 @@ interface InvLocation {
   id: string; code: string; name: string; siteId: string; isActive: boolean;
 }
 interface InvSite {
-  id: string; code: string; name: string; description: string | null; isActive: boolean;
+  id: string; code: string; name: string; description: string | null; sourceCodes: string | null; isActive: boolean;
 }
 
 const CATEGORIES = ['STRUCTURAL_STEEL','PLATE','PIPE','CONSUMABLE','FASTENER','PAINT','ELECTRICAL','OFFCUT','OTHER'];
@@ -542,7 +542,7 @@ function SitesTab() {
   const [sites, setSites] = useState<InvSite[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InvSite | null>(null);
-  const [form, setForm] = useState({ code: '', name: '', description: '' });
+  const [form, setForm] = useState({ code: '', name: '', description: '', sourceCodes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -554,15 +554,18 @@ function SitesTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openNew = () => { setEditing(null); setForm({ code: '', name: '', description: '' }); setError(''); setOpen(true); };
-  const openEdit = (s: InvSite) => { setEditing(s); setForm({ code: s.code, name: s.name, description: s.description || '' }); setError(''); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ code: '', name: '', description: '', sourceCodes: '' }); setError(''); setOpen(true); };
+  const openEdit = (s: InvSite) => { setEditing(s); setForm({ code: s.code, name: s.name, description: s.description || '', sourceCodes: s.sourceCodes || '' }); setError(''); setOpen(true); };
 
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
+      const normalizedSourceCodes = form.sourceCodes.trim()
+        ? form.sourceCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean).join(',')
+        : null;
       const res = editing
-        ? await fetch(`/api/inv/sites/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, description: form.description || null }) })
-        : await fetch('/api/inv/sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+        ? await fetch(`/api/inv/sites/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, description: form.description || null, sourceCodes: normalizedSourceCodes }) })
+        : await fetch('/api/inv/sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, sourceCodes: normalizedSourceCodes }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to save'); return; }
       setOpen(false); load();
@@ -587,18 +590,24 @@ function SitesTab() {
               <TableHead className="text-xs font-semibold uppercase">Code</TableHead>
               <TableHead className="text-xs font-semibold uppercase">Name</TableHead>
               <TableHead className="text-xs font-semibold uppercase">Description</TableHead>
+              <TableHead className="text-xs font-semibold uppercase">Import Codes</TableHead>
               <TableHead className="text-xs font-semibold uppercase">Status</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sites.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">No sites configured</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">No sites configured</TableCell></TableRow>
             ) : sites.map(s => (
               <TableRow key={s.id} className={`hover:bg-muted/30 transition-colors ${!s.isActive ? 'opacity-50' : ''}`}>
                 <TableCell><span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{s.code}</span></TableCell>
                 <TableCell className="text-sm font-medium">{s.name}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{s.description || '—'}</TableCell>
+                <TableCell>
+                  {s.sourceCodes
+                    ? <div className="flex flex-wrap gap-1">{s.sourceCodes.split(',').map(c => <span key={c} className="font-mono text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{c.trim()}</span>)}</div>
+                    : <span className="text-xs text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell>
                   {s.isActive
                     ? <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Active</span>
@@ -639,6 +648,10 @@ function SitesTab() {
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</Label>
               <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description…" className="resize-none h-20 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Import Codes <span className="normal-case font-normal text-muted-foreground">(comma-separated PO prefixes that map here, e.g. HU)</span></Label>
+              <Input value={form.sourceCodes} onChange={e => setForm(f => ({ ...f, sourceCodes: e.target.value.toUpperCase() }))} placeholder="HU, F001, OLD" />
             </div>
           </div>
           {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded">{error}</p>}
