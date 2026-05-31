@@ -265,6 +265,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v37.0.0 — INV MIR-Out: handedToId column ─────────────────────────────
   'v37_0_inv_handed_to.sql',
+
+  // ── v38.0.0 — Material Master fixes: reviewed_by type fix + dolibarr_id on inv_items ──
+  'v38_0_material_master_fixes.sql',
 ];
 
 /**
