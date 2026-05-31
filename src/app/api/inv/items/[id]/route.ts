@@ -10,7 +10,7 @@ const UpdateSchema = z.object({
   name: z.string().min(1).max(150).optional(),
   description: z.string().optional().nullable(),
   unit: z.string().min(1).max(20).optional(),
-  category: z.enum(['STRUCTURAL_STEEL', 'PLATE', 'PIPE', 'CONSUMABLE', 'FASTENER', 'PAINT', 'ELECTRICAL', 'OFFCUT', 'OTHER']).optional(),
+  category: z.enum(['STRUCTURAL_STEEL', 'SHEET', 'PIPE', 'CONSUMABLE', 'FASTENER', 'PAINT', 'ELECTRICAL', 'OFFCUT', 'OTHER']).optional(),
   defaultWhType: z.enum(['RAW_MATERIAL', 'CONSUMABLE', 'OFFCUT']).optional(),
   minStockLevel: z.number().min(0).optional(),
   isActive: z.boolean().optional(),

@@ -7774,7 +7774,7 @@ enum InvMaterialType {
 
 enum InvItemCategory {
   STRUCTURAL_STEEL
-  PLATE
+  SHEET
   PIPE
   CONSUMABLE
   FASTENER

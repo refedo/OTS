@@ -27,7 +27,7 @@ interface InvSite {
   id: string; code: string; name: string; description: string | null; sourceCodes: string | null; isActive: boolean;
 }
 
-const CATEGORIES = ['STRUCTURAL_STEEL','PLATE','PIPE','CONSUMABLE','FASTENER','PAINT','ELECTRICAL','OFFCUT','OTHER'];
+const CATEGORIES = ['STRUCTURAL_STEEL','SHEET','PIPE','CONSUMABLE','FASTENER','PAINT','ELECTRICAL','OFFCUT','OTHER'];
 const WH_TYPES = ['RAW_MATERIAL','CONSUMABLE','OFFCUT'];
 
 function labelify(s: string) {
@@ -36,7 +36,7 @@ function labelify(s: string) {
 
 const CATEGORY_COLORS: Record<string, string> = {
   STRUCTURAL_STEEL: 'bg-slate-100 text-slate-700',
-  PLATE: 'bg-blue-100 text-blue-700',
+  SHEET: 'bg-blue-100 text-blue-700',
   PIPE: 'bg-indigo-100 text-indigo-700',
   CONSUMABLE: 'bg-orange-100 text-orange-700',
   FASTENER: 'bg-yellow-100 text-yellow-700',
