@@ -8,7 +8,7 @@ import { logActivity } from '@/lib/api-utils';
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  siteName: z.string().min(1).max(50).optional(),
+  siteId: z.string().min(1).max(10).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -39,10 +39,23 @@ export async function PUT(
     });
     if (!warehouse) return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
 
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+    if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
+    if (parsed.data.siteId !== undefined) {
+      const site = await prisma.invSite.findFirst({
+        where: { code: parsed.data.siteId, deletedAt: null },
+        select: { code: true, name: true },
+      });
+      if (!site) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+      updateData.siteId = site.code;
+      updateData.siteName = site.name;
+    }
+
     const updated = await prisma.invWarehouse.update({
       where: { id },
-      data: { ...parsed.data, updatedAt: new Date() },
-      select: { id: true, code: true, name: true, isActive: true },
+      data: updateData,
+      select: { id: true, code: true, name: true, siteId: true, siteName: true, isActive: true },
     });
 
     await logActivity({
