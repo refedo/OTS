@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { syncMirStockIn } from '@/lib/services/qc/mir-stock-sync.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,12 @@ export async function PATCH(request: NextRequest) {
         }),
       },
     });
+
+    if (shouldAutoAdvance) {
+      syncMirStockIn(item.receiptId, session.sub).catch(err =>
+        logger.error({ err, mirId: item.receiptId }, '[MIR StockSync] Auto-advance stock-in failed'),
+      );
+    }
 
     return NextResponse.json({ ...item, _receiptAutoAdvanced: shouldAutoAdvance });
   } catch (error) {

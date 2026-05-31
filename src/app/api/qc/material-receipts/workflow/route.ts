@@ -19,6 +19,7 @@ import { withApiContext } from '@/lib/api-utils';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { NotificationService } from '@/lib/services/notification.service';
+import { syncMirStockIn } from '@/lib/services/qc/mir-stock-sync.service';
 import {
   resolvePermissionsFromData,
   parseCustomPermissions,
@@ -138,6 +139,11 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     logger.info(
       { receiptId, receiptNumber: receipt.receiptNumber, action, userId },
       '[MIR Workflow] Receipt submitted for inspection review',
+    );
+
+    // Post accepted quantities into inventory stock
+    syncMirStockIn(receiptId, userId).catch(err =>
+      logger.error({ err, receiptId }, '[MIR StockSync] Submit stock-in failed'),
     );
 
     // Notify all users with quality.mir.review permission
