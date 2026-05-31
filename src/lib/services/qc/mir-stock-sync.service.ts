@@ -155,24 +155,44 @@ export async function syncMirStockIn(
       continue;
     }
 
-    const warehouse = await prisma.invWarehouse.findFirst({
-      where: { siteId, type: invItem.defaultWhType, isActive: true, deletedAt: null },
+    let resolvedSiteId = siteId;
+    let warehouse = await prisma.invWarehouse.findFirst({
+      where: { siteId: resolvedSiteId, type: invItem.defaultWhType, isActive: true, deletedAt: null },
       select: { id: true },
     });
 
     if (!warehouse) {
+      // Try to resolve siteId via site sourceCodes aliases
+      const allSites = await prisma.invSite.findMany({
+        where: { isActive: true, deletedAt: null },
+        select: { code: true, sourceCodes: true },
+      });
+      const mappedSite = allSites.find(s =>
+        s.sourceCodes?.split(',').map(c => c.trim()).includes(siteId)
+      );
+      if (mappedSite) {
+        resolvedSiteId = mappedSite.code;
+        warehouse = await prisma.invWarehouse.findFirst({
+          where: { siteId: resolvedSiteId, type: invItem.defaultWhType, isActive: true, deletedAt: null },
+          select: { id: true },
+        });
+      }
+    }
+
+    if (!warehouse) {
       logger.warn(
-        { mirId, siteId, whType: invItem.defaultWhType },
+        { mirId, siteId, resolvedSiteId, whType: invItem.defaultWhType },
         '[MIR StockSync] No matching warehouse, skipping',
       );
       skipped++;
       continue;
     }
 
+    const warehouseId = warehouse.id;
     try {
       await prisma.$transaction(async (tx: Parameters<typeof stockIn>[0]) => {
         await stockIn(tx, {
-          warehouseId: warehouse.id,
+          warehouseId,
           itemId: invItem!.id,
           qty: item.acceptedQty,
           referenceType: 'MIR',
