@@ -36,7 +36,7 @@ DELIMITER $$
 CREATE PROCEDURE _v41_inv_sites_seed()
 BEGIN
   DECLARE v_creator CHAR(36);
-  SELECT id INTO v_creator FROM users ORDER BY createdAt ASC LIMIT 1;
+  SELECT id INTO v_creator FROM User ORDER BY createdAt ASC LIMIT 1;
 
   INSERT IGNORE INTO inv_sites (id, code, name, isActive, createdById, createdAt, updatedAt)
   SELECT UUID(), w.siteId, w.siteName, 1, v_creator, NOW(3), NOW(3)
