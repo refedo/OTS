@@ -271,6 +271,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── v39.0.0 — Re-ensure dolibarr_id on inv_items (v38 may have been tracked but not applied) ──
   'v39_0_ensure_inv_items_dolibarr_id.sql',
+
+  // ── v40.0.0 — MIR target_site_id + dolibarr_products default_wh_type ────────
+  'v40_0_mir_target_site_and_wh_type.sql',
+
+  // ── v41.0.0 — INV: Sites table (factory/site canonical source) ───────────────
+  'v41_0_inv_sites.sql',
 ];
 
 /**
