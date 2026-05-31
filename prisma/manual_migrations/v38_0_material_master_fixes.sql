@@ -34,7 +34,7 @@ BEGIN
       AND COLUMN_NAME  = 'dolibarr_id'
   ) THEN
     ALTER TABLE inv_items
-      ADD COLUMN dolibarr_id INT NULL AFTER is_active;
+      ADD COLUMN dolibarr_id INT NULL;
   END IF;
 END$$
 DELIMITER ;
