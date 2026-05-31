@@ -26,7 +26,7 @@ export const PATCH = withApiContext(async (
 
   // Allowed fields for manual override
   const allowed = [
-    'item_class', 'material_nature', 'material_category', 'grade', 'finish',
+    'item_class', 'material_nature', 'material_category', 'default_wh_type', 'grade', 'finish',
     'unit_of_measure', 'profile_type', 'profile_designation', 'section_standard',
     'fastener_standard', 'fastener_thread', 'fastener_grade', 'fastener_surface',
     'aws_class', 'weld_process', 'weld_base_material', 'disburse_unit',

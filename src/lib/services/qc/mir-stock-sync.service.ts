@@ -89,6 +89,7 @@ export async function syncMirStockIn(
       id: true,
       receiptNumber: true,
       dolibarrPoRef: true,
+      targetSiteId: true,
       items: {
         select: { dolibarrProductId: true, acceptedQty: true },
       },
@@ -100,8 +101,9 @@ export async function syncMirStockIn(
     return { posted: 0, skipped: 0 };
   }
 
-  // Extract siteId from PO ref: "HU-PO-2605-1753" → "HU"
-  const siteId = receipt.dolibarrPoRef.split('-PO-')[0];
+  // Use explicit targetSiteId if set; otherwise extract from PO ref: "HU-PO-2605-1753" → "HU"
+  const extractedSiteId = receipt.dolibarrPoRef.split('-PO-')[0];
+  const siteId = receipt.targetSiteId || extractedSiteId;
   if (!siteId) {
     logger.warn({ mirId, dolibarrPoRef: receipt.dolibarrPoRef }, '[MIR StockSync] Cannot extract siteId from PO ref');
     return { posted: 0, skipped: 0 };

@@ -50,7 +50,12 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  Upload,
+  FileDown,
+  CheckSquare,
+  X,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -102,6 +107,7 @@ interface Enrichment {
   item_class: string;
   material_nature: string;
   material_category: string;
+  default_wh_type: string | null;
   grade: string | null;
   finish: string | null;
   unit_of_measure: string;
@@ -295,33 +301,28 @@ function getConversions(p: Product): string {
   const cat = e.material_category;
 
   if (cat === 'SHEET' || cat === 'PLATE') {
-    const kgm2 = e.kg_per_m2;
+    const kgm2 = e.kg_per_m2 !== null && e.kg_per_m2 !== undefined ? Number(e.kg_per_m2) : 0;
     if (!kgm2 || kgm2 <= 0) return '—';
-    const m2PerTon = (1000 / kgm2).toFixed(1);
-    return `${kgm2} kg/m² | ${m2PerTon} m²/t`;
+    return `${kgm2} kg/m² | ${(1000 / kgm2).toFixed(1)} m²/t`;
   }
   if (
-    cat === 'PROFILE_H' ||
-    cat === 'PROFILE_I' ||
-    cat === 'PROFILE_HEA' ||
-    cat === 'PROFILE_HEB' ||
-    cat === 'PROFILE_IPE' ||
-    cat === 'FLAT_BAR' ||
-    cat === 'ROUND_BAR' ||
-    cat === 'PROFILE_C' ||
-    cat === 'PROFILE_ANGLE'
+    cat === 'PROFILE_H' || cat === 'PROFILE_I' || cat === 'PROFILE_HEA' ||
+    cat === 'PROFILE_HEB' || cat === 'PROFILE_IPE' || cat === 'FLAT_BAR' ||
+    cat === 'ROUND_BAR' || cat === 'PROFILE_C' || cat === 'PROFILE_ANGLE'
   ) {
-    const kgLm = e.kg_per_lm ?? e.section_props.weight_kg_per_m;
+    const raw = e.kg_per_lm ?? e.section_props.weight_kg_per_m;
+    const kgLm = raw !== null && raw !== undefined ? Number(raw) : 0;
     if (!kgLm || kgLm <= 0) return '—';
-    const lmPerTon = (1000 / kgLm).toFixed(1);
-    return `${kgLm} kg/m | ${lmPerTon} m/t`;
+    return `${kgLm} kg/m | ${(1000 / kgLm).toFixed(1)} m/t`;
   }
   return '—';
 }
 
-function fmt(n: number | null | undefined, decimals = 2): string {
-  if (n === null || n === undefined) return '—';
-  return n.toFixed(decimals);
+function fmt(n: number | string | null | undefined, decimals = 2): string {
+  if (n === null || n === undefined || n === '') return '—';
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(num)) return '—';
+  return num.toFixed(decimals);
 }
 
 // ─── Conversion Widget ────────────────────────────────────────────────────────
@@ -500,10 +501,15 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
     item_class: e.item_class,
     material_nature: e.material_nature ?? '',
     material_category: e.material_category,
+    default_wh_type: e.default_wh_type ?? '',
     grade: e.grade ?? '',
     unit_of_measure: e.unit_of_measure ?? '',
     manufacturer: e.manufacturer ?? '',
   });
+
+  function deriveWhType(itemClass: string): string {
+    return itemClass === 'CONSUMABLE' ? 'CONSUMABLE' : 'RAW_MATERIAL';
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -557,7 +563,11 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
         {field(
           'Item Class',
           'item_class',
-          <Select value={form.item_class} onValueChange={v => setForm(f => ({ ...f, item_class: v }))}>
+          <Select value={form.item_class} onValueChange={v => setForm(f => ({
+            ...f,
+            item_class: v,
+            default_wh_type: f.default_wh_type || deriveWhType(v),
+          }))}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -590,6 +600,20 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
                   {v.replace(/_/g, ' ')}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>,
+        )}
+        {field(
+          'Default Warehouse Type',
+          'default_wh_type',
+          <Select value={form.default_wh_type} onValueChange={v => setForm(f => ({ ...f, default_wh_type: v }))}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Select warehouse type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="RAW_MATERIAL" className="text-sm">Raw Material</SelectItem>
+              <SelectItem value="CONSUMABLE" className="text-sm">Consumable</SelectItem>
+              <SelectItem value="OFFCUT" className="text-sm">Offcut</SelectItem>
             </SelectContent>
           </Select>,
         )}
@@ -745,6 +769,7 @@ function DetailPanel({ product, open, onClose, isAdmin, onReviewSuccess }: Detai
                   <OverviewRow label="Item Class" value={getItemClassLabel(e.item_class)} />
                   <OverviewRow label="Material Nature" value={e.material_nature} />
                   <OverviewRow label="Category" value={e.material_category?.replace(/_/g, ' ')} />
+                  <OverviewRow label="Default Warehouse" value={e.default_wh_type?.replace(/_/g, ' ') ?? null} />
                   <OverviewRow label="Grade" value={e.grade} />
                   <OverviewRow label="Finish" value={e.finish} />
                   <OverviewRow label="Unit of Measure" value={e.unit_of_measure} />
@@ -1086,6 +1111,15 @@ export default function MaterialMasterPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
 
+  // ── Bulk selection ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkField, setBulkField] = useState('');
+  const [bulkValue, setBulkValue] = useState('');
+  const [applyingBulk, setApplyingBulk] = useState(false);
+
+  // ── Import ──
+  const [importingXlsx, setImportingXlsx] = useState(false);
+
   // ── Sort ──
   const [sortBy, setSortBy] = useState('ref');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -1128,6 +1162,7 @@ export default function MaterialMasterPage() {
   // ── Reset page on filter / sort change ──
   useEffect(() => {
     setPage(0);
+    setSelectedIds(new Set());
   }, [itemClass, category, profileType, needsReview, enrichedOnly, pageSize, sortBy, sortDir]);
 
   // ── Fetch products ──
@@ -1224,6 +1259,92 @@ export default function MaterialMasterPage() {
     setProducts(prev => prev.map(p => (p.dolibarr_id === updated.dolibarr_id ? updated : p)));
     if (selectedProduct?.dolibarr_id === updated.dolibarr_id) {
       setSelectedProduct(updated);
+    }
+  }
+
+  // ── Bulk selection helpers ──
+  const allPageIds = products.map(p => p.dolibarr_id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(prev => { const next = new Set(prev); allPageIds.forEach(id => next.delete(id)); return next; });
+    } else {
+      setSelectedIds(prev => new Set([...prev, ...allPageIds]));
+    }
+  }
+
+  function toggleSelectOne(id: number) {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+
+  async function applyBulk() {
+    if (!bulkField || !bulkValue || selectedIds.size === 0) return;
+    setApplyingBulk(true);
+    try {
+      const res = await fetch('/api/admin/material-master/bulk-update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dolibarr_ids: [...selectedIds], updates: { [bulkField]: bulkValue } }),
+      });
+      if (!res.ok) throw new Error('Bulk update failed');
+      toast({ title: `Applied to ${selectedIds.size} items`, description: `${bulkField.replace(/_/g, ' ')}: ${bulkValue}` });
+      setSelectedIds(new Set());
+      setBulkField('');
+      setBulkValue('');
+      await fetchProducts();
+    } catch {
+      toast({ title: 'Bulk update failed', variant: 'destructive' });
+    } finally {
+      setApplyingBulk(false);
+    }
+  }
+
+  async function exportXlsx() {
+    const XLSX = await import('xlsx');
+    const rows = products.map(p => ({
+      dolibarr_id: p.dolibarr_id,
+      ref: p.ref,
+      label: p.label,
+      item_class: p.enrichment.item_class,
+      material_nature: p.enrichment.material_nature,
+      material_category: p.enrichment.material_category,
+      default_wh_type: p.enrichment.default_wh_type ?? '',
+      grade: p.enrichment.grade ?? '',
+      unit_of_measure: p.enrichment.unit_of_measure,
+      manufacturer: p.enrichment.manufacturer ?? '',
+      classified_by: p.enrichment.classified_by,
+      classification_conf: p.enrichment.classification_conf,
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Material Master');
+    XLSX.writeFile(wb, `OTS_MaterialMaster_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  async function handleImportFile(file: File) {
+    setImportingXlsx(true);
+    try {
+      const XLSX = await import('xlsx');
+      const ab = await file.arrayBuffer();
+      const wb = XLSX.read(ab, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
+
+      const res = await fetch('/api/admin/material-master/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      toast({ title: `Import complete`, description: `Updated: ${data.updated}, Skipped: ${data.skipped}${data.errors?.length ? `, ${data.errors.length} errors` : ''}` });
+      await fetchProducts();
+    } catch (err) {
+      toast({ title: 'Import failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setImportingXlsx(false);
     }
   }
 
@@ -1452,6 +1573,29 @@ export default function MaterialMasterPage() {
               </SelectContent>
             </Select>
 
+            {/* Export */}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportXlsx}
+                disabled={loading || products.length === 0}
+                className="h-9 gap-1.5 text-xs active:scale-[0.97] transition-transform border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Export
+              </Button>
+            )}
+
+            {/* Import */}
+            {isAdmin && (
+              <label className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-md border text-xs font-medium cursor-pointer transition-transform active:scale-[0.97] ${importingXlsx ? 'opacity-60 pointer-events-none' : 'border-sky-200 text-sky-700 hover:bg-sky-50 bg-white'}`}>
+                {importingXlsx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Import
+                <input type="file" accept=".xlsx,.xls" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) { handleImportFile(f); e.target.value = ''; } }} />
+              </label>
+            )}
+
             {/* Refresh */}
             <Button
               variant="ghost"
@@ -1466,6 +1610,67 @@ export default function MaterialMasterPage() {
         </CardContent>
       </Card>
 
+      {/* ── BULK ACTION BAR ──────────────────────────────────────────────── */}
+      {selectedIds.size > 0 && isAdmin && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-slate-900 text-white text-sm shadow-lg">
+          <CheckSquare className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span className="font-medium text-slate-200">{selectedIds.size} item{selectedIds.size > 1 ? 's' : ''} selected</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-slate-400 text-xs">Set:</span>
+          <select
+            value={bulkField}
+            onChange={e => { setBulkField(e.target.value); setBulkValue(''); }}
+            className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 focus:outline-none"
+          >
+            <option value="">— choose field —</option>
+            <option value="item_class">Item Class</option>
+            <option value="material_category">Material Category</option>
+            <option value="default_wh_type">Default Warehouse Type</option>
+            <option value="grade">Grade</option>
+            <option value="material_nature">Material Nature</option>
+          </select>
+
+          {bulkField === 'item_class' && (
+            <select value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 focus:outline-none">
+              <option value="">— select —</option>
+              {['RAW_MATERIAL','CONSUMABLE','SERVICE','TOOL','SPARE_PART','UNKNOWN'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+            </select>
+          )}
+          {bulkField === 'material_category' && (
+            <select value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 focus:outline-none">
+              <option value="">— select —</option>
+              {['SHEET','PLATE','PROFILE_H','PROFILE_I','PROFILE_C','PROFILE_ANGLE','FLAT_BAR','ROUND_BAR','BOLT','NUT','WELDING_ELECTRODE','WELDING_WIRE_FLUX','WELDING_PPE','PAINT','GAS_CYLINDER','OTHER'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+            </select>
+          )}
+          {bulkField === 'default_wh_type' && (
+            <select value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 focus:outline-none">
+              <option value="">— select —</option>
+              {['RAW_MATERIAL','CONSUMABLE','OFFCUT'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+            </select>
+          )}
+          {(bulkField === 'grade' || bulkField === 'material_nature') && (
+            <input
+              value={bulkValue}
+              onChange={e => setBulkValue(e.target.value)}
+              placeholder="Enter value…"
+              className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 w-36 focus:outline-none"
+            />
+          )}
+
+          <button
+            onClick={applyBulk}
+            disabled={!bulkField || !bulkValue || applyingBulk}
+            className="h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-xs font-medium transition-colors"
+          >
+            {applyingBulk ? 'Applying…' : 'Apply'}
+          </button>
+
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto h-7 w-7 flex items-center justify-center rounded hover:bg-slate-700 transition-colors">
+            <X className="h-4 w-4 text-slate-400" />
+          </button>
+        </div>
+      )}
+
       {/* ── SECTION 4: PRODUCT TABLE ──────────────────────────────────────── */}
       <Card className="border-slate-200">
         <CardHeader className="py-3 px-4 border-b border-slate-100">
@@ -1477,6 +1682,11 @@ export default function MaterialMasterPage() {
                   {pagination.total.toLocaleString('en-SA-u-ca-gregory')} total
                 </span>
               )}
+              {selectedIds.size > 0 && (
+                <span className="ml-2 text-xs font-medium text-emerald-600">
+                  · {selectedIds.size} selected
+                </span>
+              )}
             </CardTitle>
           </div>
         </CardHeader>
@@ -1485,11 +1695,21 @@ export default function MaterialMasterPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 hover:bg-slate-50">
+                  {isAdmin && (
+                    <TableHead className="w-9 pl-3">
+                      <Checkbox
+                        checked={allSelected || (someSelected ? 'indeterminate' : false)}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all on page"
+                      />
+                    </TableHead>
+                  )}
                   {([
                     { key: 'ref', label: 'REF', className: 'w-32' },
                     { key: 'label', label: 'Label', className: '' },
                     { key: 'material_category', label: 'Category', className: 'w-36' },
                     { key: 'grade', label: 'Grade', className: 'w-24' },
+                    { key: 'default_wh_type', label: 'WH Type', className: 'w-28' },
                     { key: 'classified_by', label: 'Classified By', className: 'w-28' },
                     { key: 'classification_conf', label: 'Conf', className: 'w-12 text-center' },
                   ] as { key: string; label: string; className: string }[]).map(col => (
@@ -1517,7 +1737,7 @@ export default function MaterialMasterPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {Array.from({ length: isAdmin ? 10 : 9 }).map((_, j) => (
                         <TableCell key={j} className="py-3">
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -1526,7 +1746,7 @@ export default function MaterialMasterPage() {
                   ))
                 ) : products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-16 text-center text-slate-400 text-sm">
+                    <TableCell colSpan={isAdmin ? 10 : 9} className="py-16 text-center text-slate-400 text-sm">
                       No products found — adjust filters
                     </TableCell>
                   </TableRow>
@@ -1535,8 +1755,18 @@ export default function MaterialMasterPage() {
                     <TableRow
                       key={product.dolibarr_id}
                       onClick={() => openProduct(product)}
-                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${selectedIds.has(product.dolibarr_id) ? 'bg-emerald-50/60' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
                     >
+                      {/* Checkbox */}
+                      {isAdmin && (
+                        <TableCell className="pl-3 py-2.5" onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.has(product.dolibarr_id)}
+                            onCheckedChange={() => toggleSelectOne(product.dolibarr_id)}
+                            aria-label={`Select ${product.ref}`}
+                          />
+                        </TableCell>
+                      )}
                       {/* REF */}
                       <TableCell className="py-2.5">
                         <span className="font-mono text-xs font-medium text-slate-800 hover:text-emerald-700 transition-colors">
@@ -1565,6 +1795,21 @@ export default function MaterialMasterPage() {
                         <span className="text-xs text-slate-500 font-mono">
                           {product.enrichment.grade || '—'}
                         </span>
+                      </TableCell>
+
+                      {/* WH Type */}
+                      <TableCell className="py-2.5">
+                        {product.enrichment.default_wh_type ? (
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                            product.enrichment.default_wh_type === 'CONSUMABLE' ? 'bg-orange-100 text-orange-700' :
+                            product.enrichment.default_wh_type === 'OFFCUT'     ? 'bg-teal-100 text-teal-700' :
+                                                                                   'bg-indigo-100 text-indigo-700'
+                          }`}>
+                            {product.enrichment.default_wh_type.replace(/_/g, ' ')}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
                       </TableCell>
 
                       {/* Classified By */}
