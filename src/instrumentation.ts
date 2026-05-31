@@ -88,6 +88,12 @@ export async function register() {
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();
 
+    // Retroactive MIR stock-in: sync any received MIRs that were never posted to inventory
+    const { backfillMirStockIn } = await import('@/lib/services/qc/mir-stock-sync.service');
+    backfillMirStockIn().catch(err =>
+      logger.error({ err }, '[Startup] MIR stock backfill failed'),
+    );
+
     logger.info({ durationMs: Date.now() - startupStart }, '[Startup] Server initialization complete');
   }
 }
