@@ -1,295 +1,243 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/jwt';
+import { withApiContext } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { cache } from '@/lib/cache';
 
-// Cache for assembly parts to avoid N+1 queries
-const assemblyPartsCache = new Map<string, any[]>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-// Calculate progress for each scope type
-async function calculateProgress(schedule: any): Promise<number> {
-  const { scopeType, buildingId } = schedule;
+type PartRow = {
+  id: string;
+  buildingId: string | null;
+  quantity: number | null;
+  productionLogs: Array<{ processType: string; processedQty: number | null }>;
+};
 
-  try {
-    // For fabrication: average of fit-up, welding, visualization
-    if (scopeType === 'fabrication') {
-      // Check cache first
-      let parts = assemblyPartsCache.get(buildingId);
-      if (!parts) {
-        parts = await prisma.assemblyPart.findMany({
-          where: { buildingId },
-          select: { 
-            id: true, 
-            quantity: true,
-            productionLogs: {
-              select: {
-                processType: true,
-                processedQty: true,
-              }
-            }
-          },
-        });
-        assemblyPartsCache.set(buildingId, parts);
-      }
+type SubmissionRow = {
+  buildingId: string | null;
+  documentType: string;
+  clientResponse: string | null;
+  revisions: Array<{ revision: string; clientResponse: string | null }>;
+};
 
-      if (parts.length === 0) return 0;
+type ScheduleRow = {
+  id: string;
+  buildingId: string;
+  scopeType: string;
+  scopeLabel: string;
+  startDate: Date;
+  endDate: Date;
+  project: { id: string; projectNumber: string; name: string } | null;
+  building: { id: string; name: string; designation: string | null } | null;
+};
 
-      const totalQuantity = parts.reduce((sum, p) => sum + (p.quantity || 0), 0);
-      if (totalQuantity === 0) return 0;
-
-      const processes = ['Fit-up', 'Welding', 'Visualization'];
-      const processProgress = processes.map(processType => {
-        const processedQty = parts.reduce((sum, part) => {
-          const logs = part.productionLogs.filter(log => log.processType === processType);
-          const partProcessed = logs.reduce((s, log) => s + (log.processedQty || 0), 0);
-          return sum + Math.min(partProcessed, part.quantity || 0);
-        }, 0);
-        return (processedQty / totalQuantity) * 100;
-      });
-
-      return processProgress.reduce((sum, p) => sum + p, 0) / processes.length;
-    }
-
-    // For painting
-    if (scopeType === 'painting') {
-      // Check cache first
-      let parts = assemblyPartsCache.get(buildingId);
-      if (!parts) {
-        parts = await prisma.assemblyPart.findMany({
-          where: { buildingId },
-          select: { 
-            id: true, 
-            quantity: true,
-            productionLogs: {
-              where: { processType: 'Painting' },
-              select: { processedQty: true }
-            }
-          },
-        });
-        assemblyPartsCache.set(buildingId, parts);
-      }
-
-      if (parts.length === 0) return 0;
-
-      const totalQuantity = parts.reduce((sum, p) => sum + (p.quantity || 0), 0);
-      if (totalQuantity === 0) return 0;
-
-      const processedQty = parts.reduce((sum, part) => {
-        const partProcessed = part.productionLogs.reduce((s, log) => s + (log.processedQty || 0), 0);
-        return sum + Math.min(partProcessed, part.quantity || 0);
+function computeProgress(
+  scopeType: string,
+  buildingId: string,
+  partsByBuilding: Map<string, PartRow[]>,
+  submissionsByKey: Map<string, SubmissionRow[]>
+): number {
+  if (scopeType === 'fabrication') {
+    const parts = partsByBuilding.get(buildingId) ?? [];
+    if (parts.length === 0) return 0;
+    const totalQty = parts.reduce((s, p) => s + (p.quantity ?? 0), 0);
+    if (totalQty === 0) return 0;
+    const processes = ['Fit-up', 'Welding', 'Visualization'];
+    const avg = processes.map(pt => {
+      const processed = parts.reduce((s, part) => {
+        const sum = part.productionLogs
+          .filter(l => l.processType === pt)
+          .reduce((a, l) => a + (l.processedQty ?? 0), 0);
+        return s + Math.min(sum, part.quantity ?? 0);
       }, 0);
-
-      return (processedQty / totalQuantity) * 100;
-    }
-
-    // For galvanization
-    if (scopeType === 'galvanization') {
-      // Check cache first
-      let parts = assemblyPartsCache.get(buildingId);
-      if (!parts) {
-        parts = await prisma.assemblyPart.findMany({
-          where: { buildingId },
-          select: { 
-            id: true, 
-            quantity: true,
-            productionLogs: {
-              where: { processType: 'Galvanization' },
-              select: { processedQty: true }
-            }
-          },
-        });
-        assemblyPartsCache.set(buildingId, parts);
-      }
-
-      if (parts.length === 0) return 0;
-
-      const totalQuantity = parts.reduce((sum, p) => sum + (p.quantity || 0), 0);
-      if (totalQuantity === 0) return 0;
-
-      const processedQty = parts.reduce((sum, part) => {
-        const partProcessed = part.productionLogs.reduce((s, log) => s + (log.processedQty || 0), 0);
-        return sum + Math.min(partProcessed, part.quantity || 0);
-      }, 0);
-
-      return (processedQty / totalQuantity) * 100;
-    }
-
-    // For design and shop drawing - use DocumentSubmission model which has buildingId
-    if (scopeType === 'design' || scopeType === 'shopDrawing') {
-      const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
-      
-      const submissions = await prisma.documentSubmission.findMany({
-        where: {
-          buildingId,
-          documentType,
-        },
-        include: {
-          revisions: {
-            orderBy: { revision: 'desc' },
-            take: 1,
-            select: {
-              revision: true,
-              clientResponse: true,
-            }
-          }
-        }
-      });
-
-      if (submissions.length === 0) return 0;
-
-      const approvedDocs = submissions.filter(doc => {
-        // Check latest revision or the submission's own clientResponse
-        const latestRevision = doc.revisions[0];
-        const response = latestRevision?.clientResponse || doc.clientResponse;
-        return response === 'Approved' || response === 'Approved with Comments';
-      });
-
-      return (approvedDocs.length / submissions.length) * 100;
-    }
-
-    return 0;
-  } catch (error) {
-    console.error(`Error calculating progress for ${scopeType}:`, error);
-    return 0;
+      return (processed / totalQty) * 100;
+    });
+    return avg.reduce((s, p) => s + p, 0) / processes.length;
   }
+
+  if (scopeType === 'painting' || scopeType === 'galvanization') {
+    const processType = scopeType === 'painting' ? 'Painting' : 'Galvanization';
+    const parts = partsByBuilding.get(buildingId) ?? [];
+    if (parts.length === 0) return 0;
+    const totalQty = parts.reduce((s, p) => s + (p.quantity ?? 0), 0);
+    if (totalQty === 0) return 0;
+    const processed = parts.reduce((s, part) => {
+      const sum = part.productionLogs
+        .filter(l => l.processType === processType)
+        .reduce((a, l) => a + (l.processedQty ?? 0), 0);
+      return s + Math.min(sum, part.quantity ?? 0);
+    }, 0);
+    return (processed / totalQty) * 100;
+  }
+
+  if (scopeType === 'design' || scopeType === 'shopDrawing') {
+    const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
+    const submissions = submissionsByKey.get(`${buildingId}:${documentType}`) ?? [];
+    if (submissions.length === 0) return 0;
+    const approved = submissions.filter(doc => {
+      const response = doc.revisions[0]?.clientResponse ?? doc.clientResponse;
+      return response === 'Approved' || response === 'Approved with Comments';
+    });
+    return (approved.length / submissions.length) * 100;
+  }
+
+  return 0;
 }
 
-export async function GET(req: Request) {
-  try {
-    const store = await cookies();
-    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-    const session = token ? verifySession(token) : null;
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = withApiContext(async (_req: NextRequest, session) => {
+  const cacheKey = `underperforming-schedules-${session!.userId}`;
+  const cached = cache.get(cacheKey, CACHE_TTL_MS);
+  if (cached) {
+    return NextResponse.json(cached);
+  }
 
-    // Permission-based filtering
-    const userPermissions = await getCurrentUserPermissions();
-    const isAdmin = userPermissions.includes('projects.view_all');
+  const userPermissions = await getCurrentUserPermissions();
+  const isAdmin = userPermissions.includes('projects.view_all');
+  const now = new Date();
 
-    // Check cache first (30 second TTL) - cache per user
-    const cacheKey = `underperforming-schedules-${session.sub}`;
-    const cached = cache.get(cacheKey, 30000);
-    if (cached) {
-      return NextResponse.json(cached);
-    }
-
-    const now = new Date();
-
-    // Build project filter: only projects the user is involved in
-    const projectFilter = isAdmin ? {} : {
-      project: {
-        OR: [
-          { projectManagerId: session.sub },
-          { assignments: { some: { userId: session.sub } } },
-        ],
-      },
-    };
-
-    // Get scope schedules filtered to user's projects
-    const scopeSchedules = await prisma.scopeSchedule.findMany({
-      where: {
-        ...projectFilter,
-      },
-      include: {
+  const projectFilter = isAdmin
+    ? {}
+    : {
         project: {
-          select: {
-            id: true,
-            projectNumber: true,
-            name: true,
-          },
+          OR: [
+            { projectManagerId: session!.userId },
+            { assignments: { some: { userId: session!.userId } } },
+          ],
         },
-        building: {
-          select: {
-            id: true,
-            name: true,
-            designation: true,
-          },
+      };
+
+  const scopeSchedules: ScheduleRow[] = await prisma.scopeSchedule.findMany({
+    where: { ...projectFilter },
+    select: {
+      id: true,
+      buildingId: true,
+      scopeType: true,
+      scopeLabel: true,
+      startDate: true,
+      endDate: true,
+      project: { select: { id: true, projectNumber: true, name: true } },
+      building: { select: { id: true, name: true, designation: true } },
+    },
+    orderBy: { endDate: 'asc' },
+  });
+
+  // Collect building IDs per category — avoids N+1 by batch-loading all data upfront
+  const fabricationTypes = new Set(['fabrication', 'painting', 'galvanization']);
+  const partBuildingIds = [
+    ...new Set(
+      scopeSchedules
+        .filter(s => fabricationTypes.has(s.scopeType))
+        .map(s => s.buildingId)
+    ),
+  ];
+  const docBuildingIds = [
+    ...new Set(
+      scopeSchedules
+        .filter(s => s.scopeType === 'design' || s.scopeType === 'shopDrawing')
+        .map(s => s.buildingId)
+    ),
+  ];
+
+  // Single batch query for all assembly parts across all relevant buildings
+  const partsByBuilding = new Map<string, PartRow[]>();
+  if (partBuildingIds.length > 0) {
+    const allParts = await prisma.assemblyPart.findMany({
+      where: { buildingId: { in: partBuildingIds }, deletedAt: null },
+      select: {
+        id: true,
+        buildingId: true,
+        quantity: true,
+        productionLogs: {
+          select: { processType: true, processedQty: true },
         },
-      },
-      orderBy: {
-        endDate: 'asc',
       },
     });
-
-    // Calculate progress and filter underperforming schedules
-    const underperformingSchedules = [];
-
-    // Clear the cache for this request
-    assemblyPartsCache.clear();
-
-    for (const schedule of scopeSchedules) {
-      const progress = await calculateProgress(schedule);
-      
-      const start = new Date(schedule.startDate);
-      const end = new Date(schedule.endDate);
-      
-      // Calculate time elapsed percentage
-      const totalDuration = end.getTime() - start.getTime();
-      const elapsed = now.getTime() - start.getTime();
-      const timeElapsedPercent = (elapsed / totalDuration) * 100;
-      
-      // Calculate expected progress
-      const progressGap = timeElapsedPercent - progress;
-      
-      let status: 'critical' | 'at-risk' | null = null;
-      
-      // If past deadline and not 100% complete
-      if (now > end && progress < 100) {
-        status = 'critical';
-      }
-      // If progress is significantly behind schedule (>20% gap)
-      else if (progressGap > 20) {
-        status = 'critical';
-      }
-      // If progress is moderately behind schedule (10-20% gap)
-      else if (progressGap > 10) {
-        status = 'at-risk';
-      }
-      
-      // Only include underperforming schedules
-      if (status) {
-        const daysOverdue = now > end ? Math.floor((now.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-        
-        underperformingSchedules.push({
-          id: schedule.id,
-          scopeType: schedule.scopeType,
-          scopeLabel: schedule.scopeLabel,
-          startDate: schedule.startDate,
-          endDate: schedule.endDate,
-          progress: Math.round(progress * 10) / 10,
-          expectedProgress: Math.round(Math.max(0, Math.min(100, timeElapsedPercent)) * 10) / 10,
-          progressGap: Math.round(progressGap * 10) / 10,
-          status,
-          daysOverdue,
-          project: schedule.project,
-          building: schedule.building,
-        });
-      }
+    for (const part of allParts) {
+      if (!part.buildingId) continue;
+      const list = partsByBuilding.get(part.buildingId);
+      if (list) list.push(part);
+      else partsByBuilding.set(part.buildingId, [part]);
     }
-
-    const result = {
-      schedules: underperformingSchedules,
-      total: underperformingSchedules.length,
-      critical: underperformingSchedules.filter(s => s.status === 'critical').length,
-      atRisk: underperformingSchedules.filter(s => s.status === 'at-risk').length,
-    };
-
-    // Cache the result
-    cache.set(cacheKey, result);
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error fetching underperforming schedules:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch underperforming schedules',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
   }
-}
+
+  // Single batch query for all document submissions across all relevant buildings
+  const submissionsByKey = new Map<string, SubmissionRow[]>();
+  if (docBuildingIds.length > 0) {
+    const allSubmissions = await prisma.documentSubmission.findMany({
+      where: {
+        buildingId: { in: docBuildingIds },
+        documentType: { in: ['Design', 'Shop Drawing'] },
+      },
+      select: {
+        buildingId: true,
+        documentType: true,
+        clientResponse: true,
+        revisions: {
+          orderBy: { revision: 'desc' },
+          take: 1,
+          select: { revision: true, clientResponse: true },
+        },
+      },
+    });
+    for (const sub of allSubmissions) {
+      const key = `${sub.buildingId}:${sub.documentType}`;
+      const list = submissionsByKey.get(key);
+      if (list) list.push(sub);
+      else submissionsByKey.set(key, [sub]);
+    }
+  }
+
+  // All progress calculations are now pure in-memory — no DB calls in this loop
+  const underperformingSchedules = [];
+  for (const schedule of scopeSchedules) {
+    const progress = computeProgress(
+      schedule.scopeType,
+      schedule.buildingId,
+      partsByBuilding,
+      submissionsByKey
+    );
+
+    const start = new Date(schedule.startDate);
+    const end = new Date(schedule.endDate);
+    const totalDuration = end.getTime() - start.getTime();
+    const elapsed = now.getTime() - start.getTime();
+    const timeElapsedPercent = totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0;
+    const progressGap = timeElapsedPercent - progress;
+
+    let status: 'critical' | 'at-risk' | null = null;
+    if (now > end && progress < 100) status = 'critical';
+    else if (progressGap > 20) status = 'critical';
+    else if (progressGap > 10) status = 'at-risk';
+
+    if (status) {
+      underperformingSchedules.push({
+        id: schedule.id,
+        scopeType: schedule.scopeType,
+        scopeLabel: schedule.scopeLabel,
+        startDate: schedule.startDate,
+        endDate: schedule.endDate,
+        progress: Math.round(progress * 10) / 10,
+        expectedProgress: Math.round(Math.max(0, Math.min(100, timeElapsedPercent)) * 10) / 10,
+        progressGap: Math.round(progressGap * 10) / 10,
+        status,
+        daysOverdue:
+          now > end
+            ? Math.floor((now.getTime() - end.getTime()) / (1000 * 60 * 60 * 24))
+            : 0,
+        project: schedule.project,
+        building: schedule.building,
+      });
+    }
+  }
+
+  const result = {
+    schedules: underperformingSchedules,
+    total: underperformingSchedules.length,
+    critical: underperformingSchedules.filter(s => s.status === 'critical').length,
+    atRisk: underperformingSchedules.filter(s => s.status === 'at-risk').length,
+  };
+
+  cache.set(cacheKey, result);
+  return NextResponse.json(result);
+}, { requireAuth: true });
