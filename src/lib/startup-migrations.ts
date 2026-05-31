@@ -277,6 +277,21 @@ const STARTUP_MIGRATIONS = [
 
   // ── v41.0.0 — INV: Sites table (factory/site canonical source) ───────────────
   'v41_0_inv_sites.sql',
+
+  // ── v42.0.0 — INV: Site source-code aliases for MIR routing ──────────────────
+  'v42_0_inv_site_source_codes.sql',
+
+  // ── v43.0.0 — INV: Rename PLATE→SHEET category; backfill from dolibarr_products ──
+  'v43_0_plate_to_sheet_and_category_fix.sql',
+
+  // ── v44.0.0 — MIR: quarantine_qty + unit_price on receipt items ──────────────
+  'v44_0_mir_quarantine_unit_price.sql',
+
+  // ── v44.1.0 — INV: reference_no on inv_stock_ledger ─────────────────────────
+  'v44_1_inv_ledger_reference_no.sql',
+
+  // ── v44.1.1 — INV: unit_cost + total_cost on inv_stock_ledger ────────────────
+  'v44_1_inv_ledger_cost.sql',
 ];
 
 /**
