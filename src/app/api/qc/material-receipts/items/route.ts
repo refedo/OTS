@@ -44,6 +44,7 @@ export async function PATCH(request: NextRequest) {
       receivedQty,
       acceptedQty,
       rejectedQty,
+      quarantineQty,
       qualityStatus,
       surfaceCondition,
       surfaceNotes,
@@ -76,16 +77,21 @@ export async function PATCH(request: NextRequest) {
 
     const parsedReceivedQty = receivedQty !== undefined ? parseFloat(receivedQty) : undefined;
     const parsedAcceptedQty = acceptedQty !== undefined ? parseFloat(acceptedQty) : undefined;
+    const parsedQuarantineQty = quarantineQty !== undefined && quarantineQty !== '' && !isNaN(parseFloat(quarantineQty))
+      ? Math.max(0, parseFloat(quarantineQty))
+      : undefined;
 
     if (parsedReceivedQty !== undefined && !isNaN(parsedReceivedQty)) updateData.receivedQty = parsedReceivedQty;
     if (parsedAcceptedQty !== undefined && !isNaN(parsedAcceptedQty)) updateData.acceptedQty = parsedAcceptedQty;
+    if (parsedQuarantineQty !== undefined) updateData.quarantineQty = parsedQuarantineQty;
 
-    // Auto-compute rejectedQty: if not provided or empty, derive from received - accepted
+    // Auto-compute rejectedQty: if not provided or empty, derive from received - accepted - quarantine
     if (rejectedQty !== undefined && rejectedQty !== '' && !isNaN(parseFloat(rejectedQty))) {
       updateData.rejectedQty = parseFloat(rejectedQty);
     } else if (parsedAcceptedQty !== undefined && !isNaN(parsedAcceptedQty)) {
       const rec = parsedReceivedQty ?? 0;
-      updateData.rejectedQty = Math.max(0, rec - parsedAcceptedQty);
+      const quar = parsedQuarantineQty ?? 0;
+      updateData.rejectedQty = Math.max(0, rec - parsedAcceptedQty - quar);
     }
 
     if (qualityStatus) updateData.qualityStatus = qualityStatus;

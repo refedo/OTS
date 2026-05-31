@@ -20,6 +20,7 @@ export interface StockInParams {
   referenceNo?: string;
   performedById: string;
   notes?: string;
+  unitCost?: number;
 }
 
 export interface IssueStockParams {
@@ -64,7 +65,7 @@ export async function stockIn(
   tx: Prisma.TransactionClient,
   params: StockInParams
 ): Promise<number> {
-  const { warehouseId, itemId, qty, referenceType, referenceId, referenceNo, performedById, notes } = params;
+  const { warehouseId, itemId, qty, referenceType, referenceId, referenceNo, performedById, notes, unitCost } = params;
 
   // Upsert the stock balance
   const existing = await tx.invStockBalance.findUnique({
@@ -105,6 +106,8 @@ export async function stockIn(
       referenceType: referenceType ?? null,
       referenceId: referenceId ?? null,
       referenceNo: referenceNo ?? null,
+      unitCost: unitCost ?? null,
+      totalCost: unitCost != null ? unitCost * qty : null,
       performedById,
       notes: notes ?? null,
     },

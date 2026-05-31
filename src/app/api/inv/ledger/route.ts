@@ -16,8 +16,18 @@ export async function GET(req: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const itemId = searchParams.get('itemId');
+    let itemId = searchParams.get('itemId');
+    const dolibarrId = searchParams.get('dolibarrId');
     const warehouseId = searchParams.get('warehouseId');
+
+    // Resolve itemId from dolibarrId if provided
+    if (!itemId && dolibarrId) {
+      const invItem = await prisma.invItem.findFirst({
+        where: { dolibarrId: parseInt(dolibarrId, 10), deletedAt: null },
+        select: { id: true },
+      });
+      if (invItem) itemId = invItem.id;
+    }
     const movementType = searchParams.get('movementType');
     const direction = searchParams.get('direction');
     const projectId = searchParams.get('projectId');
@@ -56,8 +66,31 @@ export async function GET(req: Request) {
       prisma.invStockLedger.count({ where }),
     ]);
 
+    // Enrich MIR entries with supplier name from receipt
+    const mirReferenceIds = entries
+      .filter(e => e.referenceType === 'MIR' && e.referenceId)
+      .map(e => e.referenceId as string);
+
+    const mirSupplierMap: Record<string, string> = {};
+    if (mirReferenceIds.length > 0) {
+      const mirReceipts = await prisma.materialInspectionReceipt.findMany({
+        where: { id: { in: mirReferenceIds } },
+        select: { id: true, supplierName: true },
+      });
+      for (const r of mirReceipts) {
+        if (r.supplierName) mirSupplierMap[r.id] = r.supplierName;
+      }
+    }
+
+    const enrichedEntries = entries.map(e => ({
+      ...e,
+      unitCost: e.unitCost ? Number(e.unitCost) : null,
+      totalCost: e.totalCost ? Number(e.totalCost) : null,
+      supplierName: e.referenceType === 'MIR' && e.referenceId ? (mirSupplierMap[e.referenceId] ?? null) : null,
+    }));
+
     return NextResponse.json({
-      entries,
+      entries: enrichedEntries,
       total,
       page,
       pageSize,

@@ -39,6 +39,8 @@ import {
   BarChart2,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ExternalLink,
   Loader2,
   RefreshCw,
@@ -685,9 +687,113 @@ interface DetailPanelProps {
   onReviewSuccess: (updated: Product) => void;
 }
 
+function PurchasesTab({ entries, loading, weightKgPerM }: {
+  entries: { id: string; createdAt: string; quantity: number; unitCost: number | null; totalCost: number | null; supplierName: string | null; referenceNo: string | null; warehouse: { code: string; siteId: string }; }[];
+  loading: boolean;
+  weightKgPerM: number | null;
+}) {
+
+  const totalQty = entries.reduce((s, e) => s + e.quantity, 0);
+  const totalCost = entries.reduce((s, e) => s + (e.totalCost ?? 0), 0);
+  const weightedAvg = totalQty > 0 && totalCost > 0 ? totalCost / totalQty : null;
+  const weightedAvgPerTonne = weightedAvg != null && weightKgPerM != null && weightKgPerM > 0
+    ? (weightedAvg / (weightKgPerM / 1000))
+    : null;
+
+  if (loading) return <div className="py-10 text-center text-sm text-slate-400">Loading purchase history…</div>;
+  if (entries.length === 0) return <div className="py-10 text-center text-sm text-slate-400">No stock-in movements found for this item.</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2.5">
+          <p className="text-xs text-slate-500 mb-0.5">Total Received</p>
+          <p className="text-base font-bold text-slate-800">{totalQty.toLocaleString('en-SA-u-ca-gregory', { maximumFractionDigits: 2 })}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2.5">
+          <p className="text-xs text-slate-500 mb-0.5">Weighted Avg Price</p>
+          <p className="text-base font-bold text-slate-800">
+            {weightedAvg != null ? weightedAvg.toLocaleString('en-SA-u-ca-gregory', { style: 'currency', currency: 'SAR', maximumFractionDigits: 2 }) : '—'}
+          </p>
+        </div>
+        <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2.5">
+          <p className="text-xs text-slate-500 mb-0.5">Avg Price / Tonne</p>
+          <p className="text-base font-bold text-slate-800">
+            {weightedAvgPerTonne != null ? weightedAvgPerTonne.toLocaleString('en-SA-u-ca-gregory', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }) : '—'}
+          </p>
+        </div>
+      </div>
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-slate-50 border-b">
+              <th className="text-left px-3 py-2 font-semibold text-slate-600">Date</th>
+              <th className="text-left px-3 py-2 font-semibold text-slate-600">MIR</th>
+              <th className="text-left px-3 py-2 font-semibold text-slate-600">Supplier</th>
+              <th className="text-left px-3 py-2 font-semibold text-slate-600">Warehouse</th>
+              <th className="text-right px-3 py-2 font-semibold text-slate-600">Qty</th>
+              <th className="text-right px-3 py-2 font-semibold text-slate-600">Unit Cost</th>
+              <th className="text-right px-3 py-2 font-semibold text-slate-600">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(entry => (
+              <tr key={entry.id} className="border-b last:border-0 hover:bg-slate-50/60">
+                <td className="px-3 py-2 text-slate-700">
+                  {new Date(entry.createdAt).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </td>
+                <td className="px-3 py-2 font-mono text-blue-700">{entry.referenceNo ?? '—'}</td>
+                <td className="px-3 py-2 text-slate-600">{entry.supplierName ?? '—'}</td>
+                <td className="px-3 py-2 text-slate-600">{entry.warehouse.code}</td>
+                <td className="px-3 py-2 text-right font-mono font-medium">{entry.quantity.toLocaleString('en-SA-u-ca-gregory', { maximumFractionDigits: 2 })}</td>
+                <td className="px-3 py-2 text-right font-mono">
+                  {entry.unitCost != null ? entry.unitCost.toLocaleString('en-SA-u-ca-gregory', { style: 'currency', currency: 'SAR', maximumFractionDigits: 2 }) : '—'}
+                </td>
+                <td className="px-3 py-2 text-right font-mono font-medium">
+                  {entry.totalCost != null ? entry.totalCost.toLocaleString('en-SA-u-ca-gregory', { style: 'currency', currency: 'SAR', maximumFractionDigits: 2 }) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+interface PurchaseLedgerEntry {
+  id: string;
+  createdAt: string;
+  direction: string;
+  movementType: string;
+  quantity: number;
+  balanceAfter: number;
+  referenceNo: string | null;
+  referenceType: string | null;
+  unitCost: number | null;
+  totalCost: number | null;
+  supplierName: string | null;
+  performedBy: { name: string };
+  warehouse: { code: string; siteId: string };
+}
+
 function DetailPanel({ product, open, onClose, isAdmin, onReviewSuccess }: DetailPanelProps) {
   if (!product) return null;
   const e = product.enrichment;
+
+  const [purchaseEntries, setPurchaseEntries] = useState<PurchaseLedgerEntry[]>([]);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchaseTab, setPurchaseTab] = useState(false);
+
+  useEffect(() => {
+    if (!purchaseTab || !product.dolibarr_id) return;
+    setPurchaseLoading(true);
+    fetch(`/api/inv/ledger?dolibarrId=${product.dolibarr_id}&movementType=STOCK_IN&pageSize=50`)
+      .then(r => r.ok ? r.json() : { entries: [] })
+      .then(data => setPurchaseEntries(data.entries ?? []))
+      .catch(() => setPurchaseEntries([]))
+      .finally(() => setPurchaseLoading(false));
+  }, [purchaseTab, product.dolibarr_id]);
 
   function OverviewRow({ label, value }: { label: string; value: string | number | null | undefined }) {
     if (!value && value !== 0) return null;
@@ -748,13 +854,14 @@ function DetailPanel({ product, open, onClose, isAdmin, onReviewSuccess }: Detai
 
         {/* Tabs */}
         <div className="flex-1 px-6 py-4">
-          <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-6 mb-4 transition-all duration-150">
+          <Tabs defaultValue="overview" onValueChange={v => { if (v === 'purchases') setPurchaseTab(true); }}>
+            <TabsList className="grid w-full grid-cols-7 mb-4 transition-all duration-150">
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
               <TabsTrigger value="dimensions" className="text-xs">Dims</TabsTrigger>
               <TabsTrigger value="section-props" className="text-xs">Section</TabsTrigger>
               <TabsTrigger value="conversions" className="text-xs">Convert</TabsTrigger>
               <TabsTrigger value="tds" className="text-xs">TDS</TabsTrigger>
+              <TabsTrigger value="purchases" className="text-xs">Purchases</TabsTrigger>
               {isAdmin && <TabsTrigger value="review" className="text-xs">Review</TabsTrigger>}
               {!isAdmin && <TabsTrigger value="review" className="text-xs" disabled>Review</TabsTrigger>}
             </TabsList>
@@ -1032,7 +1139,16 @@ function DetailPanel({ product, open, onClose, isAdmin, onReviewSuccess }: Detai
               )}
             </TabsContent>
 
-            {/* TAB 6: Review (admin only) */}
+            {/* TAB 6: Purchases */}
+            <TabsContent value="purchases" className="mt-0">
+              <PurchasesTab
+                entries={purchaseEntries}
+                loading={purchaseLoading}
+                weightKgPerM={e.section_props?.weight_kg_per_m ?? null}
+              />
+            </TabsContent>
+
+            {/* TAB 7: Review (admin only) */}
             <TabsContent value="review" className="mt-0">
               {isAdmin ? (
                 <ReviewForm product={product} onSuccess={onReviewSuccess} />
@@ -1171,7 +1287,7 @@ export default function MaterialMasterPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        limit: String(pageSize),
+        limit: pageSize >= 999999 ? 'all' : String(pageSize),
         page: String(page),
         search: debouncedSearch,
         item_class: itemClass === 'ALL' ? '' : itemClass,
@@ -1587,14 +1703,19 @@ export default function MaterialMasterPage() {
             <div className="flex-1" />
 
             {/* Page size */}
-            <Select value={String(pageSize)} onValueChange={v => setPageSize(Number(v))}>
-              <SelectTrigger className="h-9 w-20 text-sm">
+            <Select value={pageSize >= 999999 ? 'all' : String(pageSize)} onValueChange={v => { setPageSize(v === 'all' ? 999999 : Number(v)); setPage(0); }}>
+              <SelectTrigger className="h-9 w-24 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="25">25</SelectItem>
                 <SelectItem value="50">50</SelectItem>
                 <SelectItem value="100">100</SelectItem>
+                <SelectItem value="250">250</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+                <SelectItem value="1000">1000</SelectItem>
+                <SelectItem value="5000">5000</SelectItem>
+                <SelectItem value="all">All</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1883,7 +2004,17 @@ export default function MaterialMasterPage() {
 
       {/* ── SECTION 5: PAGINATION ─────────────────────────────────────────── */}
       {!loading && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage(0)}
+            className="px-2 active:scale-[0.97] transition-transform"
+            title="First page"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1894,7 +2025,7 @@ export default function MaterialMasterPage() {
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-          <span className="text-sm text-slate-600 font-medium px-2">
+          <span className="text-sm text-slate-600 font-medium px-3">
             Page {page + 1} of {pagination.totalPages}
           </span>
           <Button
@@ -1906,6 +2037,16 @@ export default function MaterialMasterPage() {
           >
             Next
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= pagination.totalPages - 1}
+            onClick={() => setPage(pagination.totalPages - 1)}
+            className="px-2 active:scale-[0.97] transition-transform"
+            title="Last page"
+          >
+            <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>
       )}

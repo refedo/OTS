@@ -507,7 +507,7 @@ export function AppSidebar() {
       }
       return true;
     }
-    if (href === '/qc' || href === '/production' || href === '/financial') return pathname === href;
+    if (href === '/qc' || href === '/production' || href === '/financial' || href === '/inv' || href === '/hr' || href === '/backlog/dashboard') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
 

@@ -228,7 +228,9 @@ export async function POST(request: NextRequest) {
         receivedQty: 0,
         acceptedQty: 0,
         rejectedQty: 0,
+        quarantineQty: 0,
         unit: item.unit || 'pcs',
+        unitPrice: item.unitPrice != null ? parseFloat(item.unitPrice) : null,
         qualityStatus: 'Pending',
         inspectionResult: 'Pending',
       }));
