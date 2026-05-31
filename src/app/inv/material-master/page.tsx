@@ -102,6 +102,7 @@ interface Enrichment {
   item_class: string;
   material_nature: string;
   material_category: string;
+  default_wh_type: string | null;
   grade: string | null;
   finish: string | null;
   unit_of_measure: string;
@@ -500,10 +501,15 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
     item_class: e.item_class,
     material_nature: e.material_nature ?? '',
     material_category: e.material_category,
+    default_wh_type: e.default_wh_type ?? '',
     grade: e.grade ?? '',
     unit_of_measure: e.unit_of_measure ?? '',
     manufacturer: e.manufacturer ?? '',
   });
+
+  function deriveWhType(itemClass: string): string {
+    return itemClass === 'CONSUMABLE' ? 'CONSUMABLE' : 'RAW_MATERIAL';
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -557,7 +563,11 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
         {field(
           'Item Class',
           'item_class',
-          <Select value={form.item_class} onValueChange={v => setForm(f => ({ ...f, item_class: v }))}>
+          <Select value={form.item_class} onValueChange={v => setForm(f => ({
+            ...f,
+            item_class: v,
+            default_wh_type: f.default_wh_type || deriveWhType(v),
+          }))}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -590,6 +600,20 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
                   {v.replace(/_/g, ' ')}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>,
+        )}
+        {field(
+          'Default Warehouse Type',
+          'default_wh_type',
+          <Select value={form.default_wh_type} onValueChange={v => setForm(f => ({ ...f, default_wh_type: v }))}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Select warehouse type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="RAW_MATERIAL" className="text-sm">Raw Material</SelectItem>
+              <SelectItem value="CONSUMABLE" className="text-sm">Consumable</SelectItem>
+              <SelectItem value="OFFCUT" className="text-sm">Offcut</SelectItem>
             </SelectContent>
           </Select>,
         )}
@@ -745,6 +769,7 @@ function DetailPanel({ product, open, onClose, isAdmin, onReviewSuccess }: Detai
                   <OverviewRow label="Item Class" value={getItemClassLabel(e.item_class)} />
                   <OverviewRow label="Material Nature" value={e.material_nature} />
                   <OverviewRow label="Category" value={e.material_category?.replace(/_/g, ' ')} />
+                  <OverviewRow label="Default Warehouse" value={e.default_wh_type?.replace(/_/g, ' ') ?? null} />
                   <OverviewRow label="Grade" value={e.grade} />
                   <OverviewRow label="Finish" value={e.finish} />
                   <OverviewRow label="Unit of Measure" value={e.unit_of_measure} />

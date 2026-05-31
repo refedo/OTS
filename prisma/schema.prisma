@@ -1647,6 +1647,7 @@ model MaterialInspectionReceipt {
   // Dolibarr PO linkage
   dolibarrPoId  String  @map("dolibarr_po_id")
   dolibarrPoRef String  @map("dolibarr_po_ref")
+  targetSiteId  String? @map("target_site_id") @db.VarChar(10)
   supplierName  String? @map("supplier_name")
   dolibarrSocId Int?    @map("dolibarr_soc_id")
   projectId     String? @map("project_id") @db.Char(36)

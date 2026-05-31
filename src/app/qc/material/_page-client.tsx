@@ -97,6 +97,11 @@ type Project = {
   status: string;
 };
 
+type WarehouseSite = {
+  siteId: string;
+  siteName: string;
+};
+
 type MaterialReceipt = {
   id: string;
   receiptNumber: string;
@@ -190,6 +195,8 @@ export default function MaterialInspectionReceiptPage() {
   const [showCreateReceipt, setShowCreateReceipt] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedProject, setSelectedProject] = useState('__none__');
+  const [availableSites, setAvailableSites] = useState<WarehouseSite[]>([]);
+  const [selectedTargetSiteId, setSelectedTargetSiteId] = useState('');
 
   // Receipt detail/inspection
   const [selectedReceipt, setSelectedReceipt] = useState<MaterialReceipt | null>(null);
@@ -309,6 +316,29 @@ export default function MaterialInspectionReceiptPage() {
     setShowPOLookup(false);
     setShowCreateReceipt(true);
 
+    // Extract siteId from PO ref (e.g. "HU-PO-2605-1753" → "HU") for pre-selection
+    const poSiteId = po.ref.split('-PO-')[0] ?? '';
+
+    // Load available factory/site options from warehouse list
+    try {
+      const whRes = await fetch('/api/inv/warehouses?activeOnly=true');
+      if (whRes.ok) {
+        const warehouses: { siteId: string; siteName: string }[] = await whRes.json();
+        const seen = new Set<string>();
+        const sites: WarehouseSite[] = [];
+        for (const wh of warehouses) {
+          if (!seen.has(wh.siteId)) {
+            seen.add(wh.siteId);
+            sites.push({ siteId: wh.siteId, siteName: wh.siteName });
+          }
+        }
+        setAvailableSites(sites);
+        // Pre-select the site that matches the PO ref; fall back to first available
+        const match = sites.find(s => s.siteId === poSiteId);
+        setSelectedTargetSiteId(match?.siteId ?? sites[0]?.siteId ?? '');
+      }
+    } catch { /* non-fatal */ }
+
     // Dolibarr's list endpoint returns date_livraison: 0 even when the date is
     // set in Dolibarr — only the detail endpoint returns the real value.
     // Fetch the full PO so the planned delivery date is correct on the MIR.
@@ -350,6 +380,7 @@ export default function MaterialInspectionReceiptPage() {
           supplierName: selectedPO.supplier_name,
           dolibarrSocId: selectedPO.socid ?? null,
           projectId: (selectedProject && selectedProject !== '__none__') ? selectedProject : null,
+          targetSiteId: selectedTargetSiteId || null,
           plannedDeliveryDate: (Number(selectedPO.date_livraison) > 0)
             ? new Date(Number(selectedPO.date_livraison) * 1000).toISOString()
             : null,
@@ -362,6 +393,8 @@ export default function MaterialInspectionReceiptPage() {
         setShowCreateReceipt(false);
         setSelectedPO(null);
         setSelectedProject('__none__');
+        setSelectedTargetSiteId('');
+        setAvailableSites([]);
         fetchReceipts();
         setSelectedReceipt(newReceipt);
       }
@@ -1079,6 +1112,30 @@ export default function MaterialInspectionReceiptPage() {
                       : 'Not set in Dolibarr'}
                   </p>
                 </div>
+              </div>
+
+              {/* Receiving Factory */}
+              <div className="space-y-2">
+                <Label htmlFor="siteSelect">Receiving Factory</Label>
+                <Select value={selectedTargetSiteId} onValueChange={setSelectedTargetSiteId}>
+                  <SelectTrigger id="siteSelect">
+                    <SelectValue placeholder="Select factory / site" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSites.length === 0 ? (
+                      <SelectItem value="__loading__" disabled>Loading sites…</SelectItem>
+                    ) : (
+                      availableSites.map((s) => (
+                        <SelectItem key={s.siteId} value={s.siteId}>
+                          {s.siteId} — {s.siteName}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Items will be received into the matching warehouse at this site. Pre-selected from PO reference.
+                </p>
               </div>
 
               {/* Project dropdown */}

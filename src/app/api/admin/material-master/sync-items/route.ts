@@ -14,6 +14,7 @@ type DolibarrProduct = {
   unit_of_measure: string | null
   item_class: string | null
   material_nature: string | null
+  default_wh_type: string | null
 }
 
 // Map dolibarr item_class to InvItemCategory
@@ -48,7 +49,7 @@ export const POST = withApiContext(async (
 
   try {
     const products = (await prisma.$queryRawUnsafe(
-      `SELECT dolibarr_id, ref, label, unit_of_measure, item_class, material_nature
+      `SELECT dolibarr_id, ref, label, unit_of_measure, item_class, material_nature, default_wh_type
        FROM dolibarr_products
        WHERE is_active = 1
        ORDER BY ref ASC`
@@ -81,7 +82,7 @@ export const POST = withApiContext(async (
 
         const unit = p.unit_of_measure ?? 'PC'
         const category = mapCategory(p.item_class)
-        const defaultWhType = mapWhType(p.item_class, p.material_nature)
+        const defaultWhType = p.default_wh_type ?? mapWhType(p.item_class, p.material_nature)
         const id = uuidv4()
 
         await prisma.$executeRawUnsafe(
