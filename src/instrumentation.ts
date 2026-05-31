@@ -13,14 +13,11 @@ export async function register() {
     const { logger } = await import('@/lib/logger');
     const startupStart = Date.now();
 
-    // Catch process-level crashes so we can see what's causing 502s
-    process.on('uncaughtException', (err: Error) => {
-      logger.error({ error: err, uptimeSec: Math.round(process.uptime()) }, '[Process] Uncaught exception');
-    });
-
-    process.on('unhandledRejection', (reason: unknown) => {
-      logger.error({ reason, uptimeSec: Math.round(process.uptime()) }, '[Process] Unhandled promise rejection');
-    });
+    // Initialize restart logger FIRST — it registers uncaughtException /
+    // unhandledRejection handlers and reads the previous shutdown reason from
+    // disk so we know why PM2 restarted.
+    const { initRestartLogger } = await import('@/lib/monitoring/restart-logger');
+    await initRestartLogger();
 
     // Log memory every 5 minutes to catch leaks / pressure leading to 502s
     const memTimer = setInterval(() => {

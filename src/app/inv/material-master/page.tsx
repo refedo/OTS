@@ -1117,8 +1117,9 @@ export default function MaterialMasterPage() {
   const [bulkValue, setBulkValue] = useState('');
   const [applyingBulk, setApplyingBulk] = useState(false);
 
-  // ── Import ──
+  // ── Import / Export ──
   const [importingXlsx, setImportingXlsx] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // ── Sort ──
   const [sortBy, setSortBy] = useState('ref');
@@ -1302,25 +1303,49 @@ export default function MaterialMasterPage() {
   }
 
   async function exportXlsx() {
-    const XLSX = await import('xlsx');
-    const rows = products.map(p => ({
-      dolibarr_id: p.dolibarr_id,
-      ref: p.ref,
-      label: p.label,
-      item_class: p.enrichment.item_class,
-      material_nature: p.enrichment.material_nature,
-      material_category: p.enrichment.material_category,
-      default_wh_type: p.enrichment.default_wh_type ?? '',
-      grade: p.enrichment.grade ?? '',
-      unit_of_measure: p.enrichment.unit_of_measure,
-      manufacturer: p.enrichment.manufacturer ?? '',
-      classified_by: p.enrichment.classified_by,
-      classification_conf: p.enrichment.classification_conf,
-    }));
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, 'Material Master');
-    XLSX.writeFile(wb, `OTS_MaterialMaster_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams({
+        export: '1',
+        search: debouncedSearch,
+        item_class: itemClass === 'ALL' ? '' : itemClass,
+        material_category: category === 'ALL' ? '' : category,
+        enrichment_profile_type: profileType === 'ALL' ? '' : profileType,
+        review_required: needsReview ? '1' : '',
+        enriched: enrichedOnly ? '1' : '',
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      });
+      const res = await fetch(`/api/dolibarr/products?${params.toString()}`);
+      if (!res.ok) throw new Error('Export fetch failed');
+      const data: ApiResponse = await res.json();
+      const allProducts = data.products ?? [];
+
+      const XLSX = await import('xlsx');
+      const rows = allProducts.map(p => ({
+        dolibarr_id: p.dolibarr_id,
+        ref: p.ref,
+        label: p.label,
+        item_class: p.enrichment.item_class,
+        material_nature: p.enrichment.material_nature,
+        material_category: p.enrichment.material_category,
+        default_wh_type: p.enrichment.default_wh_type ?? '',
+        grade: p.enrichment.grade ?? '',
+        unit_of_measure: p.enrichment.unit_of_measure,
+        manufacturer: p.enrichment.manufacturer ?? '',
+        classified_by: p.enrichment.classified_by,
+        classification_conf: p.enrichment.classification_conf,
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Material Master');
+      XLSX.writeFile(wb, `OTS_MaterialMaster_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast({ title: `Exported ${rows.length} items` });
+    } catch {
+      toast({ title: 'Export failed', variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   async function handleImportFile(file: File) {
@@ -1579,11 +1604,11 @@ export default function MaterialMasterPage() {
                 variant="outline"
                 size="sm"
                 onClick={exportXlsx}
-                disabled={loading || products.length === 0}
+                disabled={loading || isExporting || pagination.total === 0}
                 className="h-9 gap-1.5 text-xs active:scale-[0.97] transition-transform border-emerald-200 text-emerald-700 hover:bg-emerald-50"
               >
-                <FileDown className="h-3.5 w-3.5" />
-                Export
+                {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+                {isExporting ? 'Exporting…' : `Export (${pagination.total})`}
               </Button>
             )}
 
