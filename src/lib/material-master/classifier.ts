@@ -111,9 +111,9 @@ export function classifyProduct(ref: string, label: string): ClassificationResul
       return {
         ...EMPTY,
         item_class: 'RAW_MATERIAL', material_nature: nature,
-        material_category: t >= 6 ? 'PLATE' : 'SHEET',
+        material_category: 'SHEET',
         grade, finish: 'Black Steel', unit_of_measure: 'KG',
-        profile_type: t >= 6 ? 'PLATE' : 'SHEET',
+        profile_type: 'SHEET',
         dim_width_mm: w, dim_length_mm: len, dim_thickness_mm: t,
         density_kg_m3: density,
         kg_per_m2: sc.kg_per_m2, unit_area_m2: sc.unit_area_m2,
@@ -310,7 +310,7 @@ export function classifyProduct(ref: string, label: string): ClassificationResul
         return {
           ...EMPTY,
           item_class: 'RAW_MATERIAL', material_nature: 'STAINLESS_STEEL',
-          material_category: t >= 6 ? 'PLATE' : 'SHEET',
+          material_category: 'SHEET',
           grade: r.includes('304') ? '304SS' : r.includes('316') ? '316SS' : null,
           unit_of_measure: 'KG',
           dim_width_mm: w, dim_length_mm: len, dim_thickness_mm: t,

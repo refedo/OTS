@@ -21,7 +21,7 @@ type DolibarrProduct = {
 function mapCategory(itemClass: string | null): string {
   switch (itemClass) {
     case 'STRUCTURAL_STEEL': return 'STRUCTURAL_STEEL'
-    case 'PLATE':            return 'PLATE'
+    case 'PLATE':            return 'SHEET'
     case 'PIPE':             return 'PIPE'
     case 'CONSUMABLE':       return 'CONSUMABLE'
     case 'FASTENER':         return 'FASTENER'

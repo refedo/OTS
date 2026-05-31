@@ -12,7 +12,7 @@ const CreateSchema = z.object({
   name: z.string().min(1).max(150),
   description: z.string().optional().nullable(),
   unit: z.string().min(1).max(20),
-  category: z.enum(['STRUCTURAL_STEEL', 'PLATE', 'PIPE', 'CONSUMABLE', 'FASTENER', 'PAINT', 'ELECTRICAL', 'OFFCUT', 'OTHER']),
+  category: z.enum(['STRUCTURAL_STEEL', 'SHEET', 'PIPE', 'CONSUMABLE', 'FASTENER', 'PAINT', 'ELECTRICAL', 'OFFCUT', 'OTHER']),
   defaultWhType: z.enum(['RAW_MATERIAL', 'CONSUMABLE', 'OFFCUT']),
   minStockLevel: z.number().min(0).default(0),
 });

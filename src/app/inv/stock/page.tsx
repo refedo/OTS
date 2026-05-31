@@ -49,7 +49,7 @@ interface InvWarehouse {
 
 const CATEGORY_LABELS: Record<string, string> = {
   STRUCTURAL_STEEL: 'Structural Steel',
-  PLATE: 'Plate',
+  SHEET: 'Sheet',
   PIPE: 'Pipe',
   CONSUMABLE: 'Consumable',
   FASTENER: 'Fastener',
@@ -61,7 +61,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   STRUCTURAL_STEEL: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  PLATE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  SHEET: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   PIPE: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   CONSUMABLE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
   FASTENER: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
@@ -78,9 +78,6 @@ export default function StockPage() {
   const { permissions } = usePermissions();
   const { toast } = useToast();
   const canAdjust = permissions.includes('inv.adjust') || permissions.includes('inv.admin');
-  const isInvAdmin = permissions.includes('inv.admin');
-
-  const [syncing, setSyncing] = useState(false);
 
   const [balances, setBalances] = useState<BalanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,27 +127,6 @@ export default function StockPage() {
   }, [siteFilter]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
-
-  const runBackfill = async () => {
-    setSyncing(true);
-    try {
-      const res = await fetch('/api/inv/internal/backfill', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: 'Sync failed', description: data.error || 'Unknown error', variant: 'destructive' });
-      } else {
-        toast({
-          title: 'MIR sync complete',
-          description: `${data.posted} stock entries posted, ${data.skipped} skipped.`,
-        });
-        fetchBalances();
-      }
-    } catch {
-      toast({ title: 'Sync failed', description: 'Network error.', variant: 'destructive' });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   // Fetch warehouses for dialogs
   useEffect(() => {
@@ -332,18 +308,6 @@ export default function StockPage() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap justify-end">
-              {isInvAdmin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-                  onClick={runBackfill}
-                  disabled={syncing}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                  {syncing ? 'Syncing…' : 'Sync from MIR'}
-                </Button>
-              )}
               {canAdjust && (
                 <>
                   <Button
@@ -366,15 +330,6 @@ export default function StockPage() {
                   </Button>
                 </>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-                onClick={fetchBalances}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
               <Button
                 variant="outline"
                 size="sm"

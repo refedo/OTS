@@ -12,12 +12,44 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { InvWarehouseType } from '@prisma/client';
+import type { InvItemCategory, InvWarehouseType } from '@prisma/client';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { stockIn } from '@/lib/services/inv/inv-stock.service';
 
 type ResolvedItem = { id: string; defaultWhType: InvWarehouseType };
+
+function mapMaterialCategory(cat: string | null | undefined): InvItemCategory {
+  switch (cat) {
+    case 'SHEET':
+    case 'PLATE':
+      return 'SHEET';
+    case 'PIPE':
+      return 'PIPE';
+    case 'PROFILE_H':
+    case 'PROFILE_I':
+    case 'PROFILE_HEA':
+    case 'PROFILE_HEB':
+    case 'PROFILE_IPE':
+    case 'PROFILE_C':
+    case 'PROFILE_ANGLE':
+    case 'FLAT_BAR':
+    case 'ROUND_BAR':
+      return 'STRUCTURAL_STEEL';
+    case 'BOLT':
+    case 'NUT':
+      return 'FASTENER';
+    case 'WELDING_ELECTRODE':
+    case 'WELDING_WIRE_FLUX':
+    case 'WELDING_PPE':
+    case 'GAS_CYLINDER':
+      return 'CONSUMABLE';
+    case 'PAINT':
+      return 'PAINT';
+    default:
+      return 'OTHER';
+  }
+}
 
 /**
  * Look up the Dolibarr product mirror for a given dolibarrId and return a
@@ -29,23 +61,30 @@ async function resolveInvItemFromDolibarr(
   performedById: string,
 ): Promise<ResolvedItem | null> {
   try {
-    const rows = await prisma.$queryRaw<{ ref: string; label: string }[]>`
-      SELECT ref, label FROM dolibarr_products
+    const rows = await prisma.$queryRaw<{ ref: string; label: string; material_category: string | null; item_class: string | null }[]>`
+      SELECT ref, label, material_category, item_class FROM dolibarr_products
       WHERE dolibarr_id = ${dolibarrId} AND is_active = 1 LIMIT 1
     `;
     const product = rows[0];
     if (!product) return null;
 
+    const category = mapMaterialCategory(product.material_category);
+    const defaultWhType: InvWarehouseType =
+      product.item_class === 'CONSUMABLE' ? 'CONSUMABLE' : 'RAW_MATERIAL';
+
     // Link an existing InvItem whose code matches the Dolibarr product ref
     const existingByCode = await prisma.invItem.findFirst({
       where: { code: product.ref, deletedAt: null },
-      select: { id: true, defaultWhType: true },
+      select: { id: true, defaultWhType: true, category: true },
     });
 
     if (existingByCode) {
       await prisma.invItem.update({
         where: { id: existingByCode.id },
-        data: { dolibarrId },
+        data: {
+          dolibarrId,
+          ...(existingByCode.category === 'OTHER' && category !== 'OTHER' ? { category } : {}),
+        },
       });
       logger.info(
         { dolibarrId, invItemId: existingByCode.id, code: product.ref },
@@ -54,7 +93,7 @@ async function resolveInvItemFromDolibarr(
       return { id: existingByCode.id, defaultWhType: existingByCode.defaultWhType };
     }
 
-    // Create a new InvItem with safe defaults (category/whType can be updated later)
+    // Create a new InvItem with mapped category
     const id = uuidv4();
     await prisma.invItem.create({
       data: {
@@ -62,8 +101,8 @@ async function resolveInvItemFromDolibarr(
         code: product.ref,
         name: product.label.slice(0, 150),
         unit: 'PCS',
-        category: 'OTHER',
-        defaultWhType: 'RAW_MATERIAL',
+        category,
+        defaultWhType,
         dolibarrId,
         createdById: performedById,
       },

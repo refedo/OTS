@@ -269,7 +269,7 @@ function getKeyDims(p: Product): string {
   const d = e.dimensions;
   const sp = e.section_props;
 
-  if (cat === 'SHEET' || cat === 'PLATE') {
+  if (cat === 'SHEET') {
     if (d.thickness_mm) return `${d.thickness_mm}mm thick`;
   }
   if (
@@ -300,7 +300,7 @@ function getConversions(p: Product): string {
   const e = p.enrichment;
   const cat = e.material_category;
 
-  if (cat === 'SHEET' || cat === 'PLATE') {
+  if (cat === 'SHEET') {
     const kgm2 = e.kg_per_m2 !== null && e.kg_per_m2 !== undefined ? Number(e.kg_per_m2) : 0;
     if (!kgm2 || kgm2 <= 0) return '—';
     return `${kgm2} kg/m² | ${(1000 / kgm2).toFixed(1)} m²/t`;
@@ -335,7 +335,7 @@ function ConversionWidget({ product }: { product: Product }) {
   const [qty, setQty] = useState<string>('1');
   const [fromUnit, setFromUnit] = useState<ConvUnit>('TON');
 
-  const isSheet = cat === 'SHEET' || cat === 'PLATE';
+  const isSheet = cat === 'SHEET';
   const isProfile =
     cat === 'PROFILE_H' ||
     cat === 'PROFILE_I' ||
@@ -592,7 +592,7 @@ function ReviewForm({ product, onSuccess }: ReviewFormProps) {
             </SelectTrigger>
             <SelectContent>
               {[
-                'SHEET', 'PLATE', 'PROFILE_H', 'PROFILE_I', 'PROFILE_C', 'PROFILE_ANGLE',
+                'SHEET', 'PROFILE_H', 'PROFILE_I', 'PROFILE_C', 'PROFILE_ANGLE',
                 'FLAT_BAR', 'ROUND_BAR', 'BOLT', 'NUT', 'WELDING_ELECTRODE',
                 'WELDING_WIRE_FLUX', 'WELDING_PPE', 'PAINT', 'GAS_CYLINDER', 'OTHER',
               ].map(v => (
@@ -1534,7 +1534,7 @@ export default function MaterialMasterPage() {
               <SelectContent>
                 <SelectItem value="ALL">All Categories</SelectItem>
                 {[
-                  'SHEET', 'PLATE', 'PROFILE_H', 'PROFILE_I', 'PROFILE_C',
+                  'SHEET', 'PROFILE_H', 'PROFILE_I', 'PROFILE_C',
                   'PROFILE_ANGLE', 'FLAT_BAR', 'ROUND_BAR', 'BOLT', 'NUT',
                   'WELDING_ELECTRODE', 'WELDING_WIRE_FLUX', 'WELDING_PPE',
                   'PAINT', 'GAS_CYLINDER', 'OTHER',
@@ -1664,7 +1664,7 @@ export default function MaterialMasterPage() {
           {bulkField === 'material_category' && (
             <select value={bulkValue} onChange={e => setBulkValue(e.target.value)} className="h-7 rounded bg-slate-800 border border-slate-700 text-xs text-white px-2 focus:outline-none">
               <option value="">— select —</option>
-              {['SHEET','PLATE','PROFILE_H','PROFILE_I','PROFILE_C','PROFILE_ANGLE','FLAT_BAR','ROUND_BAR','BOLT','NUT','WELDING_ELECTRODE','WELDING_WIRE_FLUX','WELDING_PPE','PAINT','GAS_CYLINDER','OTHER'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+              {['SHEET','PROFILE_H','PROFILE_I','PROFILE_C','PROFILE_ANGLE','FLAT_BAR','ROUND_BAR','BOLT','NUT','WELDING_ELECTRODE','WELDING_WIRE_FLUX','WELDING_PPE','PAINT','GAS_CYLINDER','OTHER'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
             </select>
           )}
           {bulkField === 'default_wh_type' && (
