@@ -4,6 +4,14 @@ import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { TRACKER_COLUMNS, computeActivityProgress } from '@/lib/services/project-tracker.service';
 
+// 60-second cache + in-flight deduplication so concurrent users after a restart
+// share one computation instead of each triggering hundreds of DB queries.
+const CACHE_TTL_MS = 60_000;
+
+type TrackerPayload = { stats: Record<string, unknown>; projects: unknown[] };
+const cache = new Map<string, { data: TrackerPayload; ts: number }>();
+const inFlight = new Map<string, Promise<TrackerPayload>>();
+
 type Project = Awaited<ReturnType<typeof fetchProjects>>[number];
 type Building = Project['buildings'][number];
 
@@ -165,52 +173,82 @@ async function buildProjectRow(project: Project) {
   };
 }
 
+async function computeFullDataset(projectId: string | null): Promise<TrackerPayload> {
+  const projectWhere: Record<string, unknown> = {
+    deletedAt: null,
+    status: { not: 'Draft' },
+  };
+  if (projectId) projectWhere.id = projectId;
+
+  const projects = await fetchProjects(projectWhere);
+
+  // Process projects sequentially to cap peak memory; each building is also
+  // processed sequentially (only the 7 activity-column queries run in parallel).
+  const trackerData: Awaited<ReturnType<typeof buildProjectRow>>[] = [];
+  for (const project of projects) {
+    trackerData.push(await buildProjectRow(project));
+  }
+
+  const allBuildings = trackerData.flatMap((p) => p.buildings);
+  const stats = {
+    activeProjects: trackerData.filter((p) => p.status === 'Active').length,
+    totalBuildings: allBuildings.length,
+    inProgress: allBuildings.filter((b) => b.overallProgress > 0 && b.overallProgress < 100).length,
+    completed: allBuildings.filter((b) => b.overallProgress === 100).length,
+    blocked: allBuildings.filter((b) => b.hasBlocked).length,
+  };
+
+  return { stats, projects: trackerData };
+}
+
 export const GET = withApiContext(async (req, session) => {
   try {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
     const statusFilter = searchParams.get('status');
 
-    const projectWhere: Record<string, unknown> = {
-      deletedAt: null,
-      status: { not: 'Draft' },
-    };
-    if (projectId) projectWhere.id = projectId;
+    const cacheKey = projectId ?? '__all__';
+    const now = Date.now();
 
-    const projects = await fetchProjects(projectWhere);
-
-    // Process projects sequentially to cap peak memory; each building is also
-    // processed sequentially (only the 7 activity-column queries run in parallel).
-    const trackerData: Awaited<ReturnType<typeof buildProjectRow>>[] = [];
-    for (const project of projects) {
-      trackerData.push(await buildProjectRow(project));
+    // Serve from cache if fresh
+    const cached = cache.get(cacheKey);
+    if (cached && now - cached.ts < CACHE_TTL_MS) {
+      const filtered = applyStatusFilter(cached.data.projects, statusFilter);
+      return NextResponse.json({ stats: cached.data.stats, projects: filtered });
     }
 
-    let filtered = trackerData;
-    if (statusFilter === 'active') {
-      filtered = trackerData.filter((p) => p.status === 'Active');
-    } else if (statusFilter === 'in_progress') {
-      filtered = trackerData.filter((p) => p.overallProgress > 0 && p.overallProgress < 100);
-    } else if (statusFilter === 'completed') {
-      filtered = trackerData.filter((p) => p.overallProgress === 100);
-    } else if (statusFilter === 'blocked') {
-      filtered = trackerData.filter(
-        (p) => p.status === 'On Hold' || p.buildings.some((b) => b.hasBlocked)
-      );
+    // Deduplicate concurrent requests — all callers await the same Promise
+    let promise = inFlight.get(cacheKey);
+    if (!promise) {
+      promise = computeFullDataset(projectId).then((result) => {
+        cache.set(cacheKey, { data: result, ts: Date.now() });
+        inFlight.delete(cacheKey);
+        return result;
+      }).catch((err) => {
+        inFlight.delete(cacheKey);
+        throw err;
+      });
+      inFlight.set(cacheKey, promise);
     }
 
-    const allBuildings = trackerData.flatMap((p) => p.buildings);
-    const stats = {
-      activeProjects: trackerData.filter((p) => p.status === 'Active').length,
-      totalBuildings: allBuildings.length,
-      inProgress: allBuildings.filter((b) => b.overallProgress > 0 && b.overallProgress < 100).length,
-      completed: allBuildings.filter((b) => b.overallProgress === 100).length,
-      blocked: allBuildings.filter((b) => b.hasBlocked).length,
-    };
-
-    return NextResponse.json({ stats, projects: filtered });
+    const result = await promise;
+    const filtered = applyStatusFilter(result.projects, statusFilter);
+    return NextResponse.json({ stats: result.stats, projects: filtered });
   } catch (error) {
     logger.error({ error }, 'Failed to fetch project tracker data');
     return NextResponse.json({ error: 'Failed to fetch project tracker data' }, { status: 500 });
   }
 });
+
+function applyStatusFilter(
+  projects: unknown[],
+  statusFilter: string | null
+): unknown[] {
+  type P = { status: string; overallProgress: number; buildings: { hasBlocked: boolean }[] };
+  const ps = projects as P[];
+  if (statusFilter === 'active') return ps.filter((p) => p.status === 'Active');
+  if (statusFilter === 'in_progress') return ps.filter((p) => p.overallProgress > 0 && p.overallProgress < 100);
+  if (statusFilter === 'completed') return ps.filter((p) => p.overallProgress === 100);
+  if (statusFilter === 'blocked') return ps.filter((p) => p.status === 'On Hold' || p.buildings.some((b) => b.hasBlocked));
+  return ps;
+}
