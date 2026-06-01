@@ -15,7 +15,7 @@ import { auditService } from '@/lib/services/governance';
 import { eventService } from '@/lib/services/event.service';
 import { AuditAction } from '@prisma/client';
 import { logger } from '@/lib/logger';
-import { recordRouteMemory } from '@/lib/monitoring/leak-diagnostics';
+import { recordRouteMemory, markRequestStart, markRequestEnd } from '@/lib/monitoring/leak-diagnostics';
 
 export interface SessionData {
   userId: string;
@@ -62,6 +62,9 @@ export function withApiContext<T = any>(
     const heapBeforeBytes = process.memoryUsage().heapUsed;
     const method = request.method;
     const url = request.nextUrl.pathname;
+    // Mark in-flight so a request that OOMs before completing is still named
+    // in the restart event / heap-snapshot (the first-round blind spot).
+    const reqId = markRequestStart(`${method} ${url}`);
 
     try {
       const cookieStore = await cookies();
@@ -132,6 +135,8 @@ export function withApiContext<T = any>(
         { error: 'Internal server error' },
         { status: 500 }
       );
+    } finally {
+      markRequestEnd(reqId);
     }
   };
 }
