@@ -8,10 +8,10 @@ BEGIN
     SELECT 1 FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME   = 'inv_stock_ledger'
-      AND COLUMN_NAME  = 'reference_no'
+      AND COLUMN_NAME  = 'referenceNo'
   ) THEN
     ALTER TABLE inv_stock_ledger
-      ADD COLUMN reference_no VARCHAR(50) NULL AFTER reference_id;
+      ADD COLUMN referenceNo VARCHAR(50) NULL AFTER referenceId;
   END IF;
 END$$
 DELIMITER ;
