@@ -21,7 +21,7 @@ const updateSchema = z.object({
   buildingId: z.string().uuid().optional().nullable(),
   scopeOfWorkId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
-  mainActivity: z.string().optional().nullable(),
+  mainActivity: z.string().optional().nullable().refine(v => v !== 'Discussion', { message: 'Discussion is reserved and cannot be set manually' }),
   subActivity: z.string().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),

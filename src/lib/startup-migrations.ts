@@ -168,6 +168,9 @@ const STARTUP_MIGRATIONS = [
   // ── Task scope column (22.15.0) ──────────────────────────────────────────
   'v22_15_task_scope.sql',              // scopeOfWorkId on Task; backfill steel scope for existing tasks
 
+  // ── Task isCeoTask backfill (22.16.0) ────────────────────────────────────
+  'v22_16_task_is_ceo_task_backfill.sql', // Ensure isCeoTask NOT NULL DEFAULT 0; backfill NULL rows to 0
+
   // ── Concentration Risk: Project Segment (22.x) ───────────────────────────
   'add_project_segment.sql',            // ProjectSegment table + segmentId on Project
 

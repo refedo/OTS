@@ -19,7 +19,7 @@ const createSchema = z.object({
   scopeOfWorkId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   backlogItemId: z.string().uuid().optional().nullable(),
-  mainActivity: z.string().optional().nullable(),
+  mainActivity: z.string().optional().nullable().refine(v => v !== 'Discussion', { message: 'Discussion is reserved and cannot be set manually' }),
   subActivity: z.string().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
         ],
       },
       // CEO task visibility: only users with manage_ceo_tasks can see CEO tasks
-      canManageCeoTasks ? {} : { isCeoTask: false },
+      canManageCeoTasks ? {} : { OR: [{ isCeoTask: false }, { isCeoTask: null }] },
     ];
   } else if (canViewOthers) {
     // Users with tasks.view_others can see other users' tasks but not all tasks
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
         ],
       },
       // Users without manage_ceo_tasks cannot see CEO tasks
-      canManageCeoTasks ? {} : { isCeoTask: false },
+      canManageCeoTasks ? {} : { OR: [{ isCeoTask: false }, { isCeoTask: null }] },
     ];
     // Apply assignedTo filter if specified
     if (assignedTo) {
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
     ];
     // Users without manage_ceo_tasks cannot see CEO tasks even if assigned
     if (!canManageCeoTasks) {
-      whereClause.isCeoTask = false;
+      whereClause.AND = [{ OR: [{ isCeoTask: false }, { isCeoTask: null }] }];
     }
   }
 
