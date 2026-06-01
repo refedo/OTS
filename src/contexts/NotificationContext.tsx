@@ -1,15 +1,13 @@
 'use client';
 
-/**
- * Notification Context
- * Provides real-time notification state management across the application
- */
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+
+const FAST_POLL_MS = 60_000;               // notifications + delayed tasks: every 60 s
+const SCHEDULE_POLL_MS = 24 * 60 * 60 * 1000; // underperforming schedules: once per day
 
 interface NotificationContextType {
   unreadCount: number;
-  totalAlertCount: number; // Total of delayed tasks + underperforming schedules
+  totalAlertCount: number;
   delayedTasksCount: number;
   deadlinesCount: number;
   taskMessageCount: number;
@@ -22,59 +20,59 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
-  const [totalAlertCount, setTotalAlertCount] = useState(0);
   const [delayedTasksCount, setDelayedTasksCount] = useState(0);
   const [deadlinesCount, setDeadlinesCount] = useState(0);
   const [taskMessageCount, setTaskMessageCount] = useState(0);
 
-  const refreshUnreadCount = useCallback(async () => {
+  // Derived — no manual synchronisation needed
+  const totalAlertCount = unreadCount + delayedTasksCount + deadlinesCount;
+
+  // Fast-changing: unread notifications, delayed tasks, task messages — every 60 s
+  const refreshCounts = useCallback(async () => {
     try {
-      // Fetch all counts in parallel for faster loading
-      const [notificationsRes, delayedTasksRes, schedulesRes, taskMsgRes] = await Promise.all([
+      const [notificationsRes, delayedTasksRes, taskMsgRes] = await Promise.all([
         fetch('/api/notifications?isRead=false&limit=1'),
         fetch('/api/notifications/delayed-tasks'),
-        fetch('/api/notifications/underperforming-schedules'),
         fetch('/api/notifications?isRead=false&type=TASK_MESSAGE&limit=50'),
       ]);
 
-      let unread = 0;
-      let delayedCount = 0;
-      let schedulesCount = 0;
-      let taskMsgUnread = 0;
-
       if (notificationsRes.ok) {
-        const data = await notificationsRes.json();
-        unread = data.unreadCount || 0;
+        const data = await notificationsRes.json() as { unreadCount?: number };
+        setUnreadCount(data.unreadCount ?? 0);
       }
-
       if (delayedTasksRes.ok) {
-        const delayedData = await delayedTasksRes.json();
-        delayedCount = delayedData.total || 0;
+        const data = await delayedTasksRes.json() as { total?: number };
+        setDelayedTasksCount(data.total ?? 0);
       }
-
-      if (schedulesRes.ok) {
-        const schedulesData = await schedulesRes.json();
-        schedulesCount = schedulesData.total || 0;
-      }
-
       if (taskMsgRes.ok) {
-        const taskMsgData = await taskMsgRes.json();
-        taskMsgUnread = taskMsgData.total || 0;
+        const data = await taskMsgRes.json() as { total?: number };
+        setTaskMessageCount(data.total ?? 0);
       }
-
-      // Update all states
-      setUnreadCount(unread);
-      setDelayedTasksCount(delayedCount);
-      setDeadlinesCount(schedulesCount);
-      setTaskMessageCount(taskMsgUnread);
-      setTotalAlertCount(unread + delayedCount + schedulesCount);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
+    } catch {
+      // non-critical polling failure — silent
     }
   }, []);
 
+  // Slow-changing: schedule performance — once per day
+  const refreshSchedules = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications/underperforming-schedules');
+      if (res.ok) {
+        const data = await res.json() as { total?: number };
+        setDeadlinesCount(data.total ?? 0);
+      }
+    } catch {
+      // non-critical polling failure — silent
+    }
+  }, []);
+
+  // Combined manual refresh (public API unchanged)
+  const refreshUnreadCount = useCallback(async () => {
+    await Promise.all([refreshCounts(), refreshSchedules()]);
+  }, [refreshCounts, refreshSchedules]);
+
   const decrementUnreadCount = useCallback(() => {
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setUnreadCount(prev => Math.max(0, prev - 1));
   }, []);
 
   const resetUnreadCount = useCallback(() => {
@@ -82,13 +80,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshUnreadCount();
-    
-    // Poll every 60 seconds for timely notification delivery
-    const interval = setInterval(refreshUnreadCount, 60000);
-    
-    return () => clearInterval(interval);
-  }, [refreshUnreadCount]);
+    refreshCounts();
+    refreshSchedules();
+
+    const fastInterval = setInterval(refreshCounts, FAST_POLL_MS);
+    const slowInterval = setInterval(refreshSchedules, SCHEDULE_POLL_MS);
+
+    return () => {
+      clearInterval(fastInterval);
+      clearInterval(slowInterval);
+    };
+  }, [refreshCounts, refreshSchedules]);
 
   return (
     <NotificationContext.Provider
