@@ -4,29 +4,46 @@
  * Persists the reason for every PM2 restart so we can investigate the root cause.
  *
  * How it works:
- *  1. Writes process state (memory, uptime) to logs/process-state.json every minute
- *     using synchronous I/O so it survives OOM kills.
- *  2. On SIGTERM / uncaughtException / unhandledRejection writes
- *     logs/last-shutdown.json synchronously before the process exits.
- *  3. On startup, reads both files and posts a PROCESS_RESTART event to the DB:
- *       - CLEAN_SHUTDOWN   → SIGTERM received (cron restart or manual pm2 restart)
+ *  1. Writes process state (memory, uptime, peak RSS) to logs/process-state.json
+ *     every 5s using synchronous I/O so it survives OOM kills. The 5s cadence is
+ *     deliberate: the process was dying every ~30s while state was only written
+ *     every 60s, so the high-memory reading was never captured and every restart
+ *     was misclassified as "reason unknown".
+ *  2. On SIGTERM / SIGINT / SIGHUP (PM2 restarts via SIGINT) / uncaughtException /
+ *     unhandledRejection writes logs/last-shutdown.json synchronously, including
+ *     the memory at kill time, before the process exits.
+ *  3. When RSS climbs past SNAPSHOT_RSS_MB it writes a one-shot heap snapshot to
+ *     logs/heapsnapshots/ that names the retained objects causing the leak.
+ *  4. On startup, reads both files and posts a PROCESS_RESTART event to the DB:
+ *       - CLEAN_SHUTDOWN   → signal received with low memory (cron/manual restart)
  *       - CRASH_EXCEPTION  → uncaughtException
  *       - CRASH_REJECTION  → unhandledRejection
- *       - OOM_SUSPECTED    → no clean shutdown + last state showed rss ≥ 700 MB
- *       - UNKNOWN_RESTART  → process-state.json exists but no shutdown file
+ *       - OOM_SUSPECTED    → killed/signalled with peak rss ≥ OOM_RSS_MB
+ *       - UNKNOWN_RESTART  → hard kill with no shutdown file and low peak rss
  *       - FIRST_START      → no prior state at all
  */
 
 import fs from 'fs';
 import path from 'path';
 import { logger } from '@/lib/logger';
+import { writeHeapSnapshotOnce, getTopRouteMemory } from '@/lib/monitoring/leak-diagnostics';
 
 // ─── paths ─────────────────────────────────────────────────────────────────
 
 const LOGS_DIR = path.join(process.cwd(), 'logs');
 const SHUTDOWN_FILE = path.join(LOGS_DIR, 'last-shutdown.json');
 const STATE_FILE = path.join(LOGS_DIR, 'process-state.json');
-const STATE_INTERVAL_MS = 60_000; // 1 minute
+
+// Sample frequently so the run-up to a kill is always persisted.
+const STATE_INTERVAL_MS = 5_000;
+
+// RSS (MB) at which we proactively dump a heap snapshot. Set comfortably below
+// the PM2 max_memory_restart limit so the snapshot finishes before any kill.
+const SNAPSHOT_RSS_MB = 700;
+
+// Peak RSS (MB) at/above which a restart with no clean cause is attributed to
+// memory pressure rather than left as "unknown".
+const OOM_RSS_MB = 700;
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +55,8 @@ interface MemSnapshot {
 
 type ShutdownReason =
   | 'SIGTERM'
+  | 'SIGINT'
+  | 'SIGHUP'
   | 'UNCAUGHT_EXCEPTION'
   | 'UNHANDLED_REJECTION'
   | 'EXIT_NONZERO';
@@ -48,6 +67,8 @@ interface ShutdownRecord {
   error?: string;
   stack?: string;
   mem: MemSnapshot;
+  /** Highest RSS (MB) observed during this process's lifetime. */
+  peakRssMb: number;
   uptimeSec: number;
   timestamp: string;
 }
@@ -58,6 +79,16 @@ interface StateRecord {
   updatedAt: string;
   uptimeSec: number;
   mem: MemSnapshot;
+  /** Highest RSS (MB) observed so far — survives a kill that strikes between samples. */
+  peakRssMb: number;
+}
+
+// Running peak RSS for this process, updated on every sample / signal.
+let _peakRssMb = 0;
+
+function trackPeak(mem: MemSnapshot): number {
+  if (mem.rssMb > _peakRssMb) _peakRssMb = mem.rssMb;
+  return _peakRssMb;
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -88,17 +119,26 @@ function readJsonSync<T>(filePath: string): T | null {
 }
 
 function writeStateSync(startedAt: Date): void {
+  const mem = currentMem();
+  const peakRssMb = trackPeak(mem);
   const state: StateRecord = {
     pid: process.pid,
     startedAt: startedAt.toISOString(),
     updatedAt: new Date().toISOString(),
     uptimeSec: Math.round(process.uptime()),
-    mem: currentMem(),
+    mem,
+    peakRssMb,
   };
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
   } catch {
     // non-fatal — disk full or permissions issue
+  }
+
+  // Capture the leak before the kill: dump a heap snapshot the first time RSS
+  // crosses the threshold. One per process — the guard lives in leak-diagnostics.
+  if (mem.rssMb >= SNAPSHOT_RSS_MB) {
+    writeHeapSnapshotOnce('high-rss');
   }
 }
 
@@ -138,15 +178,23 @@ async function postRestartEvent(
 
     const prevUptimeSec = prevState?.uptimeSec ?? null;
     const prevMem = prevState?.mem ?? shutdown?.mem ?? null;
+    const peakRssMb = Math.max(
+      prevState?.peakRssMb ?? 0,
+      shutdown?.peakRssMb ?? 0,
+      prevState?.mem.rssMb ?? 0,
+      shutdown?.mem.rssMb ?? 0,
+    ) || null;
     const errorMsg = shutdown?.error ?? null;
     const stack = shutdown?.stack ?? null;
+    const signal = shutdown?.reason ?? null;
+    const topRoutes = getTopRouteMemory(10);
 
     const titleMap: Record<RestartKind, string> = {
-      CLEAN_SHUTDOWN: 'Process restarted cleanly (SIGTERM)',
+      CLEAN_SHUTDOWN: `Process restarted cleanly${signal ? ` (${signal})` : ''}`,
       CRASH_EXCEPTION: `Process crashed — uncaughtException${errorMsg ? `: ${errorMsg.slice(0, 100)}` : ''}`,
       CRASH_REJECTION: `Process crashed — unhandledRejection${errorMsg ? `: ${errorMsg.slice(0, 100)}` : ''}`,
-      OOM_SUSPECTED: `Process killed — OOM suspected (RSS was ${prevMem?.rssMb ?? '?'} MB)`,
-      UNKNOWN_RESTART: 'Process restarted — reason unknown (no shutdown record)',
+      OOM_SUSPECTED: `Process killed — memory pressure (peak RSS ${peakRssMb ?? '?'} MB${signal ? `, ${signal}` : ', hard kill'})`,
+      UNKNOWN_RESTART: `Process restarted — hard kill, low memory (peak RSS ${peakRssMb ?? '?'} MB)`,
       FIRST_START: 'Process started for the first time',
     };
 
@@ -168,21 +216,30 @@ async function postRestartEvent(
         title: titleMap[kind],
         entityType: 'Process',
         entityId: String(process.pid),
-        metadata: {
-          kind,
-          prevUptimeSec,
-          prevMem,
-          exitCode: shutdown?.exitCode ?? null,
-          error: errorMsg,
-          stack,
-          prevStartedAt: prevState?.startedAt ?? null,
-          prevUpdatedAt: prevState?.updatedAt ?? null,
-        },
+        // JSON-serialize so the typed interfaces (MemSnapshot / RouteMemSample)
+        // satisfy Prisma's InputJsonValue and undefined fields are dropped.
+        metadata: JSON.parse(
+          JSON.stringify({
+            kind,
+            signal,
+            prevUptimeSec,
+            prevMem,
+            peakRssMb,
+            exitCode: shutdown?.exitCode ?? null,
+            error: errorMsg,
+            stack,
+            prevStartedAt: prevState?.startedAt ?? null,
+            prevUpdatedAt: prevState?.updatedAt ?? null,
+            // The endpoints that grew the heap the most before the kill — the
+            // prime suspects for a request-driven leak.
+            topRoutesByHeapGrowth: topRoutes,
+          }),
+        ),
       },
     });
 
     logger.info(
-      { kind, prevUptimeSec, prevRssMb: prevMem?.rssMb },
+      { kind, signal, prevUptimeSec, peakRssMb, topRoutes },
       '[RestartLogger] Restart event recorded',
     );
   } catch (err) {
@@ -200,23 +257,44 @@ function registerHandlers(): void {
   if (_handlersRegistered) return;
   _handlersRegistered = true;
 
-  process.once('SIGTERM', () => {
+  // PM2 stops a process with SIGINT, manual `pm2 restart` / OS shutdown use
+  // SIGTERM/SIGHUP. We record all three the same way: write a shutdown record
+  // with the memory at kill time so the next boot can tell a clean restart
+  // (low memory) apart from a memory-pressure kill (high peak RSS).
+  const onSignal = (signal: 'SIGTERM' | 'SIGINT' | 'SIGHUP') => () => {
+    const mem = currentMem();
+    const peakRssMb = trackPeak(mem);
     writeShutdownSync({
-      reason: 'SIGTERM',
-      mem: currentMem(),
+      reason: signal,
+      mem,
+      peakRssMb,
       uptimeSec: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     });
-    logger.info({ uptimeSec: Math.round(process.uptime()) }, '[RestartLogger] SIGTERM received — clean shutdown');
-    // Let PM2 kill after kill_timeout; do NOT call process.exit() here
-  });
+    // If we're already near the limit, grab a snapshot in the kill window
+    // (PM2 kill_timeout gives us a few seconds before SIGKILL).
+    if (mem.rssMb >= SNAPSHOT_RSS_MB) writeHeapSnapshotOnce(`${signal}-high-rss`);
+    try {
+      logger.info({ signal, uptimeSec: Math.round(process.uptime()), rssMb: mem.rssMb, peakRssMb }, '[RestartLogger] Termination signal received');
+    } catch {
+      process.stderr.write(`[RestartLogger] ${signal} received (rss ${mem.rssMb} MB)\n`);
+    }
+    // Do NOT call process.exit(): let the existing graceful-shutdown handlers
+    // ($disconnect) run; PM2 force-kills after kill_timeout if needed.
+  };
+
+  process.once('SIGTERM', onSignal('SIGTERM'));
+  process.once('SIGINT', onSignal('SIGINT'));
+  process.once('SIGHUP', onSignal('SIGHUP'));
 
   process.on('uncaughtException', (err: Error) => {
+    const mem = currentMem();
     writeShutdownSync({
       reason: 'UNCAUGHT_EXCEPTION',
       error: err.message,
       stack: err.stack,
-      mem: currentMem(),
+      mem,
+      peakRssMb: trackPeak(mem),
       uptimeSec: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     });
@@ -234,11 +312,13 @@ function registerHandlers(): void {
       reason instanceof Error ? reason.message : String(reason);
     const stack =
       reason instanceof Error ? reason.stack : undefined;
+    const mem = currentMem();
     writeShutdownSync({
       reason: 'UNHANDLED_REJECTION',
       error: message,
       stack,
-      mem: currentMem(),
+      mem,
+      peakRssMb: trackPeak(mem),
       uptimeSec: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     });
@@ -271,18 +351,30 @@ export async function initRestartLogger(): Promise<void> {
   const prevState = readJsonSync<StateRecord>(STATE_FILE);
 
   // ── 2. Determine restart kind ──
+  // Peak RSS is the deciding signal: a process that was sitting near the memory
+  // ceiling and then disappeared was almost certainly killed for memory, whether
+  // PM2 did it via a signal or the OS OOM killer did it via SIGKILL.
+  const peakRssMb = Math.max(
+    prevState?.peakRssMb ?? 0,
+    prevState?.mem.rssMb ?? 0,
+    prevShutdown?.peakRssMb ?? 0,
+    prevShutdown?.mem.rssMb ?? 0,
+  );
+  const memoryPressure = peakRssMb >= OOM_RSS_MB;
+
   let kind: RestartKind;
 
   if (!prevState && !prevShutdown) {
     kind = 'FIRST_START';
   } else if (prevShutdown) {
-    if (prevShutdown.reason === 'SIGTERM') kind = 'CLEAN_SHUTDOWN';
-    else if (prevShutdown.reason === 'UNCAUGHT_EXCEPTION') kind = 'CRASH_EXCEPTION';
-    else kind = 'CRASH_REJECTION';
+    if (prevShutdown.reason === 'UNCAUGHT_EXCEPTION') kind = 'CRASH_EXCEPTION';
+    else if (prevShutdown.reason === 'UNHANDLED_REJECTION') kind = 'CRASH_REJECTION';
+    // SIGTERM / SIGINT / SIGHUP: PM2-initiated. High peak RSS ⇒ memory restart,
+    // otherwise a genuinely clean cron/manual restart.
+    else kind = memoryPressure ? 'OOM_SUSPECTED' : 'CLEAN_SHUTDOWN';
   } else {
-    // prevState exists but no shutdown record → ungraceful kill
-    const rssMb = prevState!.mem.rssMb;
-    kind = rssMb >= 700 ? 'OOM_SUSPECTED' : 'UNKNOWN_RESTART';
+    // prevState exists but no shutdown record → hard kill (SIGKILL / OS OOM).
+    kind = memoryPressure ? 'OOM_SUSPECTED' : 'UNKNOWN_RESTART';
   }
 
   // ── 3. Clean up files so next startup starts fresh ──

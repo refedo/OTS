@@ -7,9 +7,15 @@ module.exports = {
       cwd: '/var/www/hexasteel.sa/ots',
       instances: 1,
       exec_mode: 'fork',
-      node_args: '--max-old-space-size=1024 --expose-gc',
+      // --heapsnapshot-near-heap-limit=2: V8 writes a .heapsnapshot to the cwd
+      //   when it approaches the heap limit — a backstop that names the leaking
+      //   objects even if the in-process RSS watchdog misses.
+      node_args: '--max-old-space-size=1024 --expose-gc --heapsnapshot-near-heap-limit=2',
       watch: false,
-      max_memory_restart: '800M',
+      // Raised from 800M so the in-process heap-snapshot (triggered at ~700MB RSS)
+      // has headroom to finish writing before PM2 kills the process. If the host
+      // has < ~1.5GB RAM, lower this back toward 900M to avoid OS OOM kills.
+      max_memory_restart: '1200M',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
