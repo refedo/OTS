@@ -1,25 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
-import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { cache } from '@/lib/cache';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-type PartRow = {
-  id: string;
-  buildingId: string | null;
-  quantity: number | null;
-  productionLogs: Array<{ processType: string; processedQty: number | null }>;
-};
-
-type SubmissionRow = {
-  buildingId: string | null;
-  documentType: string;
-  clientResponse: string | null;
-  revisions: Array<{ revision: string; clientResponse: string | null }>;
-};
+const SCHEDULE_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000; // only schedules ending within last 90 days
 
 type ScheduleRow = {
   id: string;
@@ -32,83 +18,39 @@ type ScheduleRow = {
   building: { id: string; name: string; designation: string | null } | null;
 };
 
-function computeProgress(
-  scopeType: string,
-  buildingId: string,
-  partsByBuilding: Map<string, PartRow[]>,
-  submissionsByKey: Map<string, SubmissionRow[]>
-): number {
-  if (scopeType === 'fabrication') {
-    const parts = partsByBuilding.get(buildingId) ?? [];
-    if (parts.length === 0) return 0;
-    const totalQty = parts.reduce((s, p) => s + (p.quantity ?? 0), 0);
-    if (totalQty === 0) return 0;
-    const processes = ['Fit-up', 'Welding', 'Visualization'];
-    const avg = processes.map(pt => {
-      const processed = parts.reduce((s, part) => {
-        const sum = part.productionLogs
-          .filter(l => l.processType === pt)
-          .reduce((a, l) => a + (l.processedQty ?? 0), 0);
-        return s + Math.min(sum, part.quantity ?? 0);
-      }, 0);
-      return (processed / totalQty) * 100;
-    });
-    return avg.reduce((s, p) => s + p, 0) / processes.length;
-  }
+type ScheduleResult = {
+  schedules: UnderperformingSchedule[];
+  total: number;
+  critical: number;
+  atRisk: number;
+};
 
-  if (scopeType === 'painting' || scopeType === 'galvanization') {
-    const processType = scopeType === 'painting' ? 'Painting' : 'Galvanization';
-    const parts = partsByBuilding.get(buildingId) ?? [];
-    if (parts.length === 0) return 0;
-    const totalQty = parts.reduce((s, p) => s + (p.quantity ?? 0), 0);
-    if (totalQty === 0) return 0;
-    const processed = parts.reduce((s, part) => {
-      const sum = part.productionLogs
-        .filter(l => l.processType === processType)
-        .reduce((a, l) => a + (l.processedQty ?? 0), 0);
-      return s + Math.min(sum, part.quantity ?? 0);
-    }, 0);
-    return (processed / totalQty) * 100;
-  }
+type UnderperformingSchedule = {
+  id: string;
+  scopeType: string;
+  scopeLabel: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  expectedProgress: number;
+  progressGap: number;
+  status: 'critical' | 'at-risk';
+  daysOverdue: number;
+  project: { id: string; projectNumber: string; name: string } | null;
+  building: { id: string; name: string; designation: string | null } | null;
+};
 
-  if (scopeType === 'design' || scopeType === 'shopDrawing') {
-    const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
-    const submissions = submissionsByKey.get(`${buildingId}:${documentType}`) ?? [];
-    if (submissions.length === 0) return 0;
-    const approved = submissions.filter(doc => {
-      const response = doc.revisions[0]?.clientResponse ?? doc.clientResponse;
-      return response === 'Approved' || response === 'Approved with Comments';
-    });
-    return (approved.length / submissions.length) * 100;
-  }
+// Module-level in-flight map: prevents duplicate concurrent queries for the same key
+const inFlight = new Map<string, Promise<ScheduleResult>>();
 
-  return 0;
-}
+async function runQuery(projectFilter: object, now: Date): Promise<ScheduleResult> {
+  const lookbackDate = new Date(now.getTime() - SCHEDULE_LOOKBACK_MS);
 
-export const GET = withApiContext(async (_req: NextRequest, session) => {
-  const cacheKey = `underperforming-schedules-${session!.userId}`;
-  const cached = cache.get(cacheKey, CACHE_TTL_MS);
-  if (cached) {
-    return NextResponse.json(cached);
-  }
-
-  const userPermissions = await getCurrentUserPermissions();
-  const isAdmin = userPermissions.includes('projects.view_all');
-  const now = new Date();
-
-  const projectFilter = isAdmin
-    ? {}
-    : {
-        project: {
-          OR: [
-            { projectManagerId: session!.userId },
-            { assignments: { some: { userId: session!.userId } } },
-          ],
-        },
-      };
-
-  const scopeSchedules: ScheduleRow[] = await prisma.scopeSchedule.findMany({
-    where: { ...projectFilter },
+  const scopeSchedules = (await prisma.scopeSchedule.findMany({
+    where: {
+      ...projectFilter,
+      endDate: { gte: lookbackDate },
+    },
     select: {
       id: true,
       buildingId: true,
@@ -120,9 +62,8 @@ export const GET = withApiContext(async (_req: NextRequest, session) => {
       building: { select: { id: true, name: true, designation: true } },
     },
     orderBy: { endDate: 'asc' },
-  });
+  })) as ScheduleRow[];
 
-  // Collect building IDs per category — avoids N+1 by batch-loading all data upfront
   const fabricationTypes = new Set(['fabrication', 'painting', 'galvanization']);
   const partBuildingIds = [
     ...new Set(
@@ -139,30 +80,64 @@ export const GET = withApiContext(async (_req: NextRequest, session) => {
     ),
   ];
 
-  // Single batch query for all assembly parts across all relevant buildings
-  const partsByBuilding = new Map<string, PartRow[]>();
+  // buildingId -> processType -> progress%
+  const progressByBuilding = new Map<string, Map<string, number>>();
+  const buildingTotalQty = new Map<string, number>();
+
   if (partBuildingIds.length > 0) {
-    const allParts = await prisma.assemblyPart.findMany({
+    // Step 1: part metadata only — no nested production logs (small payload)
+    const partsBasic = await prisma.assemblyPart.findMany({
       where: { buildingId: { in: partBuildingIds }, deletedAt: null },
-      select: {
-        id: true,
-        buildingId: true,
-        quantity: true,
-        productionLogs: {
-          select: { processType: true, processedQty: true },
-        },
-      },
+      select: { id: true, buildingId: true, quantity: true },
     });
-    for (const part of allParts) {
-      if (!part.buildingId) continue;
-      const list = partsByBuilding.get(part.buildingId);
-      if (list) list.push(part);
-      else partsByBuilding.set(part.buildingId, [part]);
+
+    const partQtyMap = new Map<string, { buildingId: string; quantity: number }>();
+    for (const p of partsBasic) {
+      if (!p.buildingId) continue;
+      partQtyMap.set(p.id, { buildingId: p.buildingId, quantity: p.quantity ?? 0 });
+      buildingTotalQty.set(
+        p.buildingId,
+        (buildingTotalQty.get(p.buildingId) ?? 0) + (p.quantity ?? 0)
+      );
+    }
+
+    if (partQtyMap.size > 0) {
+      // Step 2: DB-level aggregation — one row per (part, processType) instead of one row per log entry
+      const logAgg = await prisma.productionLog.groupBy({
+        by: ['assemblyPartId', 'processType'],
+        where: {
+          assemblyPartId: { in: [...partQtyMap.keys()] },
+          processType: { in: ['Fit-up', 'Welding', 'Visualization', 'Painting', 'Galvanization'] },
+        },
+        _sum: { processedQty: true },
+      });
+
+      const cappedByBuilding = new Map<string, Map<string, number>>();
+      for (const row of logAgg) {
+        const part = partQtyMap.get(row.assemblyPartId);
+        if (!part) continue;
+        const capped = Math.min(row._sum.processedQty ?? 0, part.quantity);
+        if (!cappedByBuilding.has(part.buildingId)) {
+          cappedByBuilding.set(part.buildingId, new Map());
+        }
+        const byType = cappedByBuilding.get(part.buildingId)!;
+        byType.set(row.processType, (byType.get(row.processType) ?? 0) + capped);
+      }
+
+      for (const [buildingId, byType] of cappedByBuilding) {
+        const total = buildingTotalQty.get(buildingId) ?? 0;
+        if (total === 0) continue;
+        const pctMap = new Map<string, number>();
+        for (const [pt, capped] of byType) {
+          pctMap.set(pt, (capped / total) * 100);
+        }
+        progressByBuilding.set(buildingId, pctMap);
+      }
     }
   }
 
-  // Single batch query for all document submissions across all relevant buildings
-  const submissionsByKey = new Map<string, SubmissionRow[]>();
+  // Document submission progress (compact dataset, kept as Prisma query)
+  const submissionsByKey = new Map<string, { total: number; approved: number }>();
   if (docBuildingIds.length > 0) {
     const allSubmissions = await prisma.documentSubmission.findMany({
       where: {
@@ -180,23 +155,40 @@ export const GET = withApiContext(async (_req: NextRequest, session) => {
         },
       },
     });
+
     for (const sub of allSubmissions) {
       const key = `${sub.buildingId}:${sub.documentType}`;
-      const list = submissionsByKey.get(key);
-      if (list) list.push(sub);
-      else submissionsByKey.set(key, [sub]);
+      const response = sub.revisions[0]?.clientResponse ?? sub.clientResponse;
+      const isApproved = response === 'Approved' || response === 'Approved with Comments';
+      const existing = submissionsByKey.get(key) ?? { total: 0, approved: 0 };
+      submissionsByKey.set(key, {
+        total: existing.total + 1,
+        approved: existing.approved + (isApproved ? 1 : 0),
+      });
     }
   }
 
-  // All progress calculations are now pure in-memory — no DB calls in this loop
-  const underperformingSchedules = [];
+  const underperformingSchedules: UnderperformingSchedule[] = [];
   for (const schedule of scopeSchedules) {
-    const progress = computeProgress(
-      schedule.scopeType,
-      schedule.buildingId,
-      partsByBuilding,
-      submissionsByKey
-    );
+    let progress = 0;
+
+    if (schedule.scopeType === 'fabrication') {
+      const types = progressByBuilding.get(schedule.buildingId);
+      if (types) {
+        const processes = ['Fit-up', 'Welding', 'Visualization'];
+        progress = processes.reduce((s, pt) => s + (types.get(pt) ?? 0), 0) / processes.length;
+      }
+    } else if (schedule.scopeType === 'painting') {
+      progress = progressByBuilding.get(schedule.buildingId)?.get('Painting') ?? 0;
+    } else if (schedule.scopeType === 'galvanization') {
+      progress = progressByBuilding.get(schedule.buildingId)?.get('Galvanization') ?? 0;
+    } else if (schedule.scopeType === 'design') {
+      const d = submissionsByKey.get(`${schedule.buildingId}:Design`);
+      if (d && d.total > 0) progress = (d.approved / d.total) * 100;
+    } else if (schedule.scopeType === 'shopDrawing') {
+      const d = submissionsByKey.get(`${schedule.buildingId}:Shop Drawing`);
+      if (d && d.total > 0) progress = (d.approved / d.total) * 100;
+    }
 
     const start = new Date(schedule.startDate);
     const end = new Date(schedule.endDate);
@@ -231,13 +223,54 @@ export const GET = withApiContext(async (_req: NextRequest, session) => {
     }
   }
 
-  const result = {
+  return {
     schedules: underperformingSchedules,
     total: underperformingSchedules.length,
     critical: underperformingSchedules.filter(s => s.status === 'critical').length,
     atRisk: underperformingSchedules.filter(s => s.status === 'at-risk').length,
   };
+}
 
-  cache.set(cacheKey, result);
-  return NextResponse.json(result);
+export const GET = withApiContext(async (_req: NextRequest, session) => {
+  const userPermissions = await getCurrentUserPermissions();
+  const isAdmin = userPermissions.includes('projects.view_all');
+  const now = new Date();
+
+  // Admin users all see the same data — share one cache entry to avoid N parallel queries
+  const cacheKey = isAdmin
+    ? 'underperforming-schedules-all'
+    : `underperforming-schedules-${session!.userId}`;
+
+  const cached = cache.get<ScheduleResult>(cacheKey, CACHE_TTL_MS);
+  if (cached) return NextResponse.json(cached);
+
+  // In-flight deduplication: if the same query is already running (e.g. multiple users at startup),
+  // wait for the first one to complete rather than spawning duplicate DB work
+  const existing = inFlight.get(cacheKey);
+  if (existing) {
+    const result = await existing;
+    return NextResponse.json(result);
+  }
+
+  const projectFilter = isAdmin
+    ? {}
+    : {
+        project: {
+          OR: [
+            { projectManagerId: session!.userId },
+            { assignments: { some: { userId: session!.userId } } },
+          ],
+        },
+      };
+
+  const queryPromise = runQuery(projectFilter, now);
+  inFlight.set(cacheKey, queryPromise);
+
+  try {
+    const result = await queryPromise;
+    cache.set(cacheKey, result);
+    return NextResponse.json(result);
+  } finally {
+    inFlight.delete(cacheKey);
+  }
 }, { requireAuth: true });

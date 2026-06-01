@@ -67,6 +67,7 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
 
   try {
     const assets = await prisma.asset.findMany({
+      take: 500,
       where: {
         deletedAt: null,
         ...(ownEmployeeId ? {
