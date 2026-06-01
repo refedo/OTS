@@ -26,7 +26,7 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from '@/lib/logger';
-import { writeHeapSnapshotOnce, getTopRouteMemory } from '@/lib/monitoring/leak-diagnostics';
+import { writeHeapSnapshotOnce, getTopRouteMemory, getInFlightRequests, getTopQueries } from '@/lib/monitoring/leak-diagnostics';
 
 // ─── paths ─────────────────────────────────────────────────────────────────
 
@@ -37,9 +37,12 @@ const STATE_FILE = path.join(LOGS_DIR, 'process-state.json');
 // Sample frequently so the run-up to a kill is always persisted.
 const STATE_INTERVAL_MS = 5_000;
 
-// RSS (MB) at which we proactively dump a heap snapshot. Set comfortably below
-// the PM2 max_memory_restart limit so the snapshot finishes before any kill.
-const SNAPSHOT_RSS_MB = 700;
+// RSS (MB) at which we proactively dump a heap snapshot. Kept low because this
+// host's OS OOM-killer fires around ~1GB: writing a snapshot of a 700MB+ heap
+// would itself push past the ceiling and be killed mid-write. Snapshotting at
+// ~450MB RSS captures the already-dominant leaking objects while it can still
+// complete safely.
+const SNAPSHOT_RSS_MB = 450;
 
 // Peak RSS (MB) at/above which a restart with no clean cause is attributed to
 // memory pressure rather than left as "unknown".
@@ -81,6 +84,12 @@ interface StateRecord {
   mem: MemSnapshot;
   /** Highest RSS (MB) observed so far — survives a kill that strikes between samples. */
   peakRssMb: number;
+  /** Requests in flight at last sample — survives an OS OOM kill via the state file. */
+  inFlight?: ReturnType<typeof getInFlightRequests>;
+  /** Most frequent DB queries at last sample. */
+  topQueries?: ReturnType<typeof getTopQueries>;
+  /** Endpoints with the largest per-request heap growth at last sample. */
+  topRoutes?: ReturnType<typeof getTopRouteMemory>;
 }
 
 // Running peak RSS for this process, updated on every sample / signal.
@@ -128,6 +137,13 @@ function writeStateSync(startedAt: Date): void {
     uptimeSec: Math.round(process.uptime()),
     mem,
     peakRssMb,
+    // Persisted every 5s so the next boot can attribute even an OS OOM kill
+    // (which leaves no shutdown record) to a route / query. These live in
+    // module memory that dies with the process, so the state file is the only
+    // way the next process can read the dead one's last-known activity.
+    inFlight: getInFlightRequests(20),
+    topQueries: getTopQueries(12),
+    topRoutes: getTopRouteMemory(10),
   };
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
@@ -187,7 +203,11 @@ async function postRestartEvent(
     const errorMsg = shutdown?.error ?? null;
     const stack = shutdown?.stack ?? null;
     const signal = shutdown?.reason ?? null;
-    const topRoutes = getTopRouteMemory(10);
+    // Read from the DEAD process's last 5s sample — NOT the live getters, which
+    // would return this fresh process's empty buffers.
+    const topRoutes = prevState?.topRoutes ?? [];
+    const inFlightAtKill = prevState?.inFlight ?? [];
+    const topQueries = prevState?.topQueries ?? [];
 
     const titleMap: Record<RestartKind, string> = {
       CLEAN_SHUTDOWN: `Process restarted cleanly${signal ? ` (${signal})` : ''}`,
@@ -233,6 +253,12 @@ async function postRestartEvent(
             // The endpoints that grew the heap the most before the kill — the
             // prime suspects for a request-driven leak.
             topRoutesByHeapGrowth: topRoutes,
+            // From the dead process's last 5s sample (not this fresh process):
+            // requests in flight at the kill (catches a request that OOMs before
+            // completing, including unwrapped routes) and the most frequent DB
+            // queries (catches runaway loops on ANY code path).
+            inFlightAtKill,
+            topQueries,
           }),
         ),
       },

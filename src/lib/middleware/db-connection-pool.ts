@@ -14,6 +14,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { recordQuery } from '@/lib/monitoring/leak-diagnostics';
 
 // ── Global guard (survives Next.js hot-reloads in dev) ────────────────────────
 declare global {
@@ -37,6 +38,9 @@ function createClient(): PrismaClient {
   });
 
   client.$on('query', (e: Prisma.QueryEvent) => {
+    // Count every query by shape so a runaway loop / hammered query is visible
+    // in the next restart event — covers code paths the request wrapper misses.
+    recordQuery(e.query);
     if (e.duration >= SLOW_QUERY_ERROR_MS) {
       logger.error(
         { durationMs: e.duration, query: e.query.slice(0, 400), params: e.params.slice(0, 200) },

@@ -12,10 +12,13 @@ module.exports = {
       //   objects even if the in-process RSS watchdog misses.
       node_args: '--max-old-space-size=1024 --expose-gc --heapsnapshot-near-heap-limit=2',
       watch: false,
-      // Raised from 800M so the in-process heap-snapshot (triggered at ~700MB RSS)
-      // has headroom to finish writing before PM2 kills the process. If the host
-      // has < ~1.5GB RAM, lower this back toward 900M to avoid OS OOM kills.
-      max_memory_restart: '1200M',
+      // Observed: the OS OOM-killer hard-kills this process at ~995MB RSS (peak
+      // RSS in the restart events), BELOW any higher PM2 limit — so PM2 never got
+      // to restart gracefully. Set to 820M so PM2 sends SIGINT *before* the OS
+      // SIGKILLs: that lets our handlers write a shutdown record + heap snapshot
+      // instead of vanishing with no trace. (The leak itself is fixed separately;
+      // this only makes the kill observable.)
+      max_memory_restart: '820M',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,

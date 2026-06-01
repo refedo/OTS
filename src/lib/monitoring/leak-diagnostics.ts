@@ -54,6 +54,84 @@ export function getTopRouteMemory(n = 10): RouteMemSample[] {
   return worstSamples.slice(0, n);
 }
 
+// ── in-flight request tracking ───────────────────────────────────────────────
+// Catches the blind spots that defeated the first round of diagnostics:
+//   (a) a request that allocates so much it OOMs *before completing* leaves no
+//       post-hoc heap delta, but it WILL still be "in flight" at kill time;
+//   (b) requests are tracked at start, so even slow/stuck handlers are visible.
+
+interface InFlightRequest {
+  route: string;
+  startedAt: number;
+  heapAtStartMb: number;
+}
+
+const inFlight = new Map<number, InFlightRequest>();
+let _reqSeq = 0;
+
+export function markRequestStart(route: string): number {
+  const id = ++_reqSeq;
+  inFlight.set(id, {
+    route,
+    startedAt: Date.now(),
+    heapAtStartMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+  });
+  return id;
+}
+
+export function markRequestEnd(id: number): void {
+  inFlight.delete(id);
+}
+
+/** Requests still running, oldest first — the prime suspects at an OOM kill. */
+export function getInFlightRequests(n = 20): Array<InFlightRequest & { ageMs: number; count: number }> {
+  const now = Date.now();
+  // Group by route so a route hammered by many concurrent calls stands out.
+  const byRoute = new Map<string, { count: number; oldest: number; heapAtStartMb: number }>();
+  for (const r of inFlight.values()) {
+    const g = byRoute.get(r.route);
+    if (g) {
+      g.count += 1;
+      if (r.startedAt < g.oldest) g.oldest = r.startedAt;
+    } else {
+      byRoute.set(r.route, { count: 1, oldest: r.startedAt, heapAtStartMb: r.heapAtStartMb });
+    }
+  }
+  return Array.from(byRoute.entries())
+    .map(([route, g]) => ({ route, startedAt: g.oldest, heapAtStartMb: g.heapAtStartMb, ageMs: now - g.oldest, count: g.count }))
+    .sort((a, b) => b.count - a.count || b.ageMs - a.ageMs)
+    .slice(0, n);
+}
+
+// ── DB query frequency ───────────────────────────────────────────────────────
+// Hooked from the Prisma query stream, so it sees EVERY query — including
+// unwrapped routes and background jobs that the request wrapper never sees. A
+// runaway loop or a hammered heavy query dominates this list.
+
+const queryCounts = new Map<string, number>();
+
+function normalizeSql(sql: string): string {
+  return sql.replace(/\s+/g, ' ').trim().slice(0, 90);
+}
+
+export function recordQuery(sql: string): void {
+  const key = normalizeSql(sql);
+  queryCounts.set(key, (queryCounts.get(key) ?? 0) + 1);
+  // Bound the map: if too many distinct shapes accumulate, drop the rare ones.
+  if (queryCounts.size > 1500) {
+    for (const [k, c] of queryCounts) {
+      if (c <= 1) queryCounts.delete(k);
+    }
+  }
+}
+
+export function getTopQueries(n = 12): Array<{ query: string; count: number }> {
+  return Array.from(queryCounts.entries())
+    .map(([query, count]) => ({ query, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, n);
+}
+
 // ── heap snapshot (one per process) ──────────────────────────────────────────
 
 let _snapshotWritten = false;
@@ -89,6 +167,8 @@ export function writeHeapSnapshotOnce(reason: string): string | null {
         rssMb: Math.round(mem.rss / 1024 / 1024),
         heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
         topRoutesByHeapGrowth: getTopRouteMemory(10),
+        inFlightRequests: getInFlightRequests(20),
+        topQueries: getTopQueries(12),
       },
       '[LeakDiagnostics] Heap snapshot written — open in Chrome DevTools → Memory to identify retained objects',
     );
