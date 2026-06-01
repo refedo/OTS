@@ -269,8 +269,18 @@ export default function NewSubcontractorContractPage() {
         }),
       });
 
-      const data = await res.json() as { id?: string; contractNumber?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create contract');
+      if (res.redirected) {
+        throw new Error('Your session has expired. Please refresh the page and log in again.');
+      }
+      if (!res.ok) {
+        const ct = res.headers.get('content-type') ?? '';
+        if (ct.includes('application/json')) {
+          const errData = await res.json() as { error?: string };
+          throw new Error(errData.error ?? 'Failed to create contract');
+        }
+        throw new Error(`Request failed (${res.status}). Please refresh the page and try again.`);
+      }
+      const data = await res.json() as { id?: string; contractNumber?: string };
 
       if (action === 'submit' && data.id) {
         await fetch(`/api/subcontractor-contracts/${data.id}/status`, {
