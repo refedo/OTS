@@ -15,6 +15,13 @@ const querySchema = z.object({
 const cache = new Map<string, { data: unknown; ts: number }>();
 const CACHE_TTL_MS = 30_000;
 
+function pruneCache() {
+  const now = Date.now();
+  for (const [k, v] of cache) {
+    if (now - v.ts >= CACHE_TTL_MS) cache.delete(k);
+  }
+}
+
 export const GET = withApiContext(async (req, session, ctx) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -42,6 +49,7 @@ export const GET = withApiContext(async (req, session, ctx) => {
     });
 
     const result = { orders, total: orders.length, page, limit };
+    pruneCache();
     cache.set(cacheKey, { data: result, ts: Date.now() });
     return NextResponse.json(result);
   } catch (error) {
