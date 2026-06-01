@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Restart loop diagnostics — stop guessing the cause.** The process was restarting every ~30s but every event logged as *"reason unknown"*. Root cause of the blindness: process memory was only sampled every 60s (so the run-up to a kill was never captured) and only `SIGTERM` was handled (but PM2 restarts via `SIGINT`), so the OOM detector could never fire. Now: memory is sampled every 5s with a persisted **peak RSS**; `SIGINT`/`SIGHUP` are handled alongside `SIGTERM`; restarts are classified using peak memory; a one-shot **heap snapshot** is written to `logs/heapsnapshots/` when RSS crosses 700MB (plus a V8 near-heap-limit backstop); and each API request's heap growth is attributed per-endpoint so the leaking route names itself in the restart event metadata (`topRoutesByHeapGrowth`). `max_memory_restart` raised 800M→1200M so the snapshot can finish before the kill.
+
+---
+
 ## [24.2.0] - 2026-05-31 — **Inventory & MIR: Pricing, Quarantine, Category Fix, Purchases History & Pagination**
 
 ### Added

@@ -15,6 +15,7 @@ import { auditService } from '@/lib/services/governance';
 import { eventService } from '@/lib/services/event.service';
 import { AuditAction } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { recordRouteMemory } from '@/lib/monitoring/leak-diagnostics';
 
 export interface SessionData {
   userId: string;
@@ -58,6 +59,7 @@ export function withApiContext<T = any>(
 ): (request: NextRequest, context?: { params: Record<string, string> }) => Promise<NextResponse> {
   return async (request: NextRequest, context?: { params: Record<string, string> }) => {
     const startMs = Date.now();
+    const heapBeforeBytes = process.memoryUsage().heapUsed;
     const method = request.method;
     const url = request.nextUrl.pathname;
 
@@ -89,8 +91,31 @@ export function withApiContext<T = any>(
       });
 
       const durationMs = Date.now() - startMs;
+      const mem = process.memoryUsage();
+      const heapDeltaMb = Math.round((mem.heapUsed - heapBeforeBytes) / 1024 / 1024);
+
+      // Attribute heap growth to the endpoint so a request-driven leak names
+      // itself in the heap-snapshot / restart event. Noisy by nature (GC and
+      // concurrency), but a route that repeatedly shows large positive deltas
+      // is the prime suspect.
+      if (heapDeltaMb >= 5) {
+        recordRouteMemory({
+          method,
+          url,
+          heapDeltaMb,
+          rssAfterMb: Math.round(mem.rss / 1024 / 1024),
+          durationMs,
+          at: new Date().toISOString(),
+        });
+      }
+      if (heapDeltaMb >= 40) {
+        logger.warn(
+          { method, url, durationMs, heapDeltaMb, rssAfterMb: Math.round(mem.rss / 1024 / 1024) },
+          '[API] Large heap growth in single request — possible leak source'
+        );
+      }
+
       if (durationMs >= SLOW_REQUEST_ERROR_MS) {
-        const mem = process.memoryUsage();
         logger.error(
           { method, url, durationMs, heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024) },
           '[API] Very slow request — likely 502 source'
