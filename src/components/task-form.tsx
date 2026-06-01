@@ -111,9 +111,10 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       ? `/api/scope-of-work?buildingId=${selectedBuildingId}`
       : `/api/scope-of-work?projectId=${selectedProjectId}`;
     fetch(url)
-      .then((r) => r.ok ? r.json() : { scopes: [] })
+      .then((r) => r.ok ? r.json() : [])
       .then((json) => {
-        const scopes: ScopeOption[] = (json.scopes ?? []).map((s: { id: string; scopeType: string; scopeLabel: string }) => ({
+        const scopeArray = Array.isArray(json) ? json : (json.scopes ?? []);
+        const scopes: ScopeOption[] = scopeArray.map((s: { id: string; scopeType: string; scopeLabel: string }) => ({
           id: s.id,
           scopeType: s.scopeType,
           scopeLabel: s.scopeLabel,

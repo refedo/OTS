@@ -281,6 +281,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     requesterId: string;
     projectId: string;
     buildingId: string;
+    scopeOfWorkId: string;
     departmentId: string;
     mainActivity: string;
     subActivity: string;
@@ -300,6 +301,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     requesterId: '',
     projectId: '',
     buildingId: '',
+    scopeOfWorkId: '',
     departmentId: '',
     mainActivity: '',
     subActivity: '',
@@ -313,6 +315,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     revision: '',
     consultantResponseCode: '',
   });
+  const [quickEditScopes, setQuickEditScopes] = useState<{ id: string; scopeType: string; scopeLabel: string }[]>([]);
   const [updating, setUpdating] = useState(false);
   const [undoingTaskId, setUndoingTaskId] = useState<string | null>(null);
   const [recentlyChangedTasks, setRecentlyChangedTasks] = useState<Set<string>>(new Set());
@@ -555,6 +558,32 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       expandAll();
     }
   }, [viewMode, expandAll]);
+
+  // Fetch available scopes for quick-edit when building or project changes
+  useEffect(() => {
+    if (!editingTaskId) return;
+    const buildingId = editData.buildingId;
+    const projectId = editData.projectId;
+    if (!buildingId && !projectId) {
+      setQuickEditScopes([]);
+      return;
+    }
+    const url = buildingId
+      ? `/api/scope-of-work?buildingId=${buildingId}`
+      : `/api/scope-of-work?projectId=${projectId}`;
+    fetch(url)
+      .then((r) => r.ok ? r.json() : [])
+      .then((json) => {
+        const arr = Array.isArray(json) ? json : (json.scopes ?? []);
+        setQuickEditScopes(arr.map((s: { id: string; scopeType: string; scopeLabel: string }) => ({
+          id: s.id,
+          scopeType: s.scopeType,
+          scopeLabel: s.scopeLabel,
+        })));
+      })
+      .catch(() => setQuickEditScopes([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingTaskId, editData.buildingId, editData.projectId]);
 
 
   const handleDelete = async (taskId: string) => {
@@ -976,6 +1005,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       requesterId: task.requester?.id || '',
       projectId: task.project?.id || '',
       buildingId: task.building?.id || '',
+      scopeOfWorkId: task.scopeOfWork?.id || '',
       departmentId: task.department?.id || '',
       mainActivity: task.mainActivity || '',
       subActivity: task.subActivity || '',
@@ -993,6 +1023,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
 
   const handleCancelEdit = () => {
     setEditingTaskId(null);
+    setQuickEditScopes([]);
     setEditData({
       title: '',
       description: '',
@@ -1000,6 +1031,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       requesterId: '',
       projectId: '',
       buildingId: '',
+      scopeOfWorkId: '',
       departmentId: '',
       mainActivity: '',
       subActivity: '',
@@ -1037,6 +1069,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         requesterId: editData.requesterId || null,
         projectId: editData.projectId || null,
         buildingId: editData.buildingId || null,
+        scopeOfWorkId: editData.scopeOfWorkId || null,
         departmentId: editData.departmentId || null,
         mainActivity: editData.mainActivity || null,
         subActivity: editData.subActivity || null,
@@ -1613,6 +1646,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                 {MAIN_ACTIVITIES.map((act) => (
                   <option key={act.key} value={act.key}>{act.label}</option>
                 ))}
+                <option disabled>──────────</option>
+                <option value="Discussion">Discussion</option>
               </select>
               <select
                 value={subActivityFilter}
@@ -2224,7 +2259,19 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                       </TableCell>
                       {/* Scope of Work */}
                       <TableCell>
-                        {task.scopeOfWork ? (
+                        {isEditing ? (
+                          <select
+                            value={editData.scopeOfWorkId}
+                            onChange={(e) => setEditData({ ...editData, scopeOfWorkId: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating || (!editData.buildingId && !editData.projectId)}
+                          >
+                            <option value="">No Scope</option>
+                            {quickEditScopes.map((s) => (
+                              <option key={s.id} value={s.id}>{s.scopeLabel}</option>
+                            ))}
+                          </select>
+                        ) : task.scopeOfWork ? (
                           <span className="text-sm">{task.scopeOfWork.scopeLabel}</span>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
