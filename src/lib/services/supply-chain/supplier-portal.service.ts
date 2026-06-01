@@ -1,6 +1,11 @@
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  computeWeightedScore,
+  scoreToRating,
+  ratingToOutcome,
+} from './supplier-evaluation-scoring';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,45 +146,12 @@ export interface CreatePaymentTermsInput {
 }
 
 // ---------------------------------------------------------------------------
-// Weight constants (ISO9001 Form-002)
+// Evaluation scoring (ISO9001 Form-002)
 // ---------------------------------------------------------------------------
-
-const WEIGHTS = {
-  quality: 0.25,
-  delivery: 0.20,
-  price: 0.20,
-  service: 0.15,
-  documentation: 0.15,
-  hse: 0.05,
-};
-
-export function computeWeightedScore(scores: {
-  quality: number; delivery: number; price: number;
-  service: number; documentation: number; hse: number;
-}): number {
-  return (
-    scores.quality * 20 * WEIGHTS.quality +
-    scores.delivery * 20 * WEIGHTS.delivery +
-    scores.price * 20 * WEIGHTS.price +
-    scores.service * 20 * WEIGHTS.service +
-    scores.documentation * 20 * WEIGHTS.documentation +
-    scores.hse * 20 * WEIGHTS.hse
-  );
-}
-
-export function scoreToRating(score: number): string {
-  if (score >= 85) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 55) return 'C';
-  return 'D';
-}
-
-export function ratingToOutcome(rating: string): string {
-  if (rating === 'A') return 'APPROVED';
-  if (rating === 'B') return 'CONDITIONAL';
-  if (rating === 'C') return 'SUSPENDED';
-  return 'REJECTED';
-}
+// Pure scoring helpers live in a dependency-free module so they can be shared
+// with client components without pulling the server-only db chain into the
+// browser bundle. Re-exported here for backward-compatible imports.
+export { computeWeightedScore, scoreToRating, ratingToOutcome };
 
 // ---------------------------------------------------------------------------
 // Supplier List
