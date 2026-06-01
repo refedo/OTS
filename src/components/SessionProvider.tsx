@@ -1,13 +1,7 @@
 'use client';
 
-/**
- * Session Provider Component
- * Validates user session on initial load and when page becomes visible
- * Re-validates when user returns to page (e.g., after clicking back button)
- */
-
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SessionActivityProvider } from './session-activity-provider';
 import { UpdateNotificationDialog } from './update-notification-dialog';
@@ -19,55 +13,76 @@ interface SessionProviderProps {
 
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'];
 
+// Only re-check session on visibility change if this much time has passed since the last check.
+const REVALIDATION_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+function redirectToLogin(pathname: string) {
+  window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+}
+
 export function SessionProvider({ children }: SessionProviderProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [isValidating, setIsValidating] = useState(true);
   const [sessionValid, setSessionValid] = useState(false);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const hasValidated = useRef(false);
+  const lastValidatedAt = useRef<number>(0);
 
   const validateSession = useCallback(async (isVisibilityCheck = false) => {
-    // Skip validation for public paths
     if (PUBLIC_PATHS.includes(pathname)) {
       setIsValidating(false);
       setSessionValid(true);
       return;
     }
 
+    // Visibility re-checks are rate-limited to avoid hammering the DB on every tab switch.
+    if (isVisibilityCheck) {
+      const msSinceLast = Date.now() - lastValidatedAt.current;
+      if (msSinceLast < REVALIDATION_COOLDOWN_MS) return;
+    }
+
     try {
       const response = await fetch('/api/auth/session', {
         credentials: 'include',
-        cache: 'no-store'
+        cache: 'no-store',
       });
-      
-      if (!response.ok) {
-        console.warn('Session invalid, redirecting to login');
+
+      // Only redirect to login for explicit auth failures (401).
+      // 5xx / network issues are transient server problems — keep the user where they are.
+      if (response.status === 401) {
         setShouldRedirect(true);
         setIsValidating(false);
         setSessionValid(false);
-        window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+        redirectToLogin(pathname);
+        return;
+      }
+
+      if (!response.ok) {
+        // Server error — don't kick the user out, just log and continue.
+        console.warn('Session check returned', response.status, '— keeping current session');
+        setSessionValid(true);
+        setIsValidating(false);
+        lastValidatedAt.current = Date.now();
         return;
       }
 
       const data = await response.json();
-      
+
       if (data.valid) {
         setSessionValid(true);
+        lastValidatedAt.current = Date.now();
       } else {
+        // Server explicitly said session is not valid.
         setShouldRedirect(true);
         setIsValidating(false);
         setSessionValid(false);
-        window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+        redirectToLogin(pathname);
         return;
       }
     } catch (error) {
-      console.error('Session validation error:', error);
-      setShouldRedirect(true);
-      setIsValidating(false);
-      setSessionValid(false);
-      window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
-      return;
+      // Network / fetch error — don't redirect. Assume session is still valid.
+      console.warn('Session validation network error — keeping current session:', error);
+      setSessionValid(true);
     } finally {
       setIsValidating(false);
     }
@@ -97,13 +112,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Re-validate session when page becomes visible
         validateSession(true);
       }
     };
 
     const handlePageShow = (event: PageTransitionEvent) => {
-      // bfcache (back-forward cache) restoration
       if (event.persisted) {
         validateSession(true);
       }
