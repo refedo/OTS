@@ -71,31 +71,28 @@ async function buildBuildingRow(projectId: string, building: Building) {
   const currentStage = activities.find((a) => a.percentage > 0 && a.percentage < 100);
   const hasBlocked = activities.some((a) => a.status === 'blocked');
 
-  // Sum assembly tonnage — use netWeightTotal if set, else singlePartWeight * quantity
-  const assemblyParts = await prisma.assemblyPart.findMany({
-    where: { buildingId: building.id, deletedAt: null },
-    select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
-  });
-  let rawTotalKg = assemblyParts.reduce((sum, p) => {
-    const w =
-      Number(p.netWeightTotal ?? 0) > 0
-        ? Number(p.netWeightTotal)
-        : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
-    return sum + w;
-  }, 0);
+  // Aggregate tonnage in MySQL — avoids loading potentially thousands of rows
+  type TonnageRow = { total_kg: string | null };
+  const [buildingTonnage] = await prisma.$queryRaw<TonnageRow[]>`
+    SELECT SUM(
+      CASE WHEN netWeightTotal > 0 THEN netWeightTotal
+           ELSE singlePartWeight * quantity END
+    ) AS total_kg
+    FROM AssemblyPart
+    WHERE buildingId = ${building.id} AND deletedAt IS NULL
+  `;
+  let rawTotalKg = Number(buildingTonnage?.total_kg ?? 0);
 
   if (rawTotalKg === 0) {
-    const projectParts = await prisma.assemblyPart.findMany({
-      where: { projectId, buildingId: null, deletedAt: null },
-      select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
-    });
-    rawTotalKg = projectParts.reduce((sum, p) => {
-      const w =
-        Number(p.netWeightTotal ?? 0) > 0
-          ? Number(p.netWeightTotal)
-          : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
-      return sum + w;
-    }, 0);
+    const [projectTonnage] = await prisma.$queryRaw<TonnageRow[]>`
+      SELECT SUM(
+        CASE WHEN netWeightTotal > 0 THEN netWeightTotal
+             ELSE singlePartWeight * quantity END
+      ) AS total_kg
+      FROM AssemblyPart
+      WHERE projectId = ${projectId} AND buildingId IS NULL AND deletedAt IS NULL
+    `;
+    rawTotalKg = Number(projectTonnage?.total_kg ?? 0);
   }
   const assemblyTonnage = rawTotalKg / 1000;
 
