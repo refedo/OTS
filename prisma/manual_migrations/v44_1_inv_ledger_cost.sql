@@ -11,7 +11,7 @@ BEGIN
       AND COLUMN_NAME  = 'unit_cost'
   ) THEN
     ALTER TABLE inv_stock_ledger
-      ADD COLUMN unit_cost DECIMAL(12,4) NULL AFTER reference_no;
+      ADD COLUMN unit_cost DECIMAL(12,4) NULL AFTER referenceNo;
   END IF;
 END$$
 DELIMITER ;
