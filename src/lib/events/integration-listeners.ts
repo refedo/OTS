@@ -36,7 +36,7 @@ export function registerIntegrationListeners(): void {
       .catch((err: unknown) => logger.error({ err }, '[OpenAudit] Forward failed'));
   });
 
-  logger.info('[Events] open-audit listener registered');
+  logger.info({}, '[Events] open-audit listener registered');
 
   // ── Libre MES ───────────────────────────────────────────────────────────────
 
@@ -50,5 +50,5 @@ export function registerIntegrationListeners(): void {
       );
   });
 
-  logger.info('[Events] Libre MES listener registered');
+  logger.info({}, '[Events] Libre MES listener registered');
 }
