@@ -1646,6 +1646,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                 {MAIN_ACTIVITIES.map((act) => (
                   <option key={act.key} value={act.key}>{act.label}</option>
                 ))}
+                <option disabled>──────────</option>
+                <option value="Discussion">Discussion</option>
               </select>
               <select
                 value={subActivityFilter}
