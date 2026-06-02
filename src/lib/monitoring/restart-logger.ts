@@ -38,17 +38,20 @@ const STATE_FILE = path.join(LOGS_DIR, 'process-state.json');
 const STATE_INTERVAL_MS = 5_000;
 
 // RSS (MB) at which we proactively dump a heap snapshot. This MUST sit above the
-// process's normal working set (~550-600MB here, per 14-day memory graph) or the
-// watchdog fires on every healthy process — in a restart loop that buried the
-// host disk under dozens of ~500MB snapshots and wedged the box. 720MB is clearly
-// abnormal (only reached while growing toward the ~992MB OS-OOM ceiling) yet still
-// leaves ~270MB headroom to finish writing before the kill. Combined with the
-// keep-newest-only prune in leak-diagnostics, the snapshot dir stays bounded.
-const SNAPSHOT_RSS_MB = 720;
+// process's normal working set (~940MB here, confirmed via `pm2 status`) or the
+// watchdog fires on every healthy process. 1400MB is unambiguously abnormal — only
+// reached if memory is genuinely running away — yet still below the 1800MB PM2
+// max_memory_restart ceiling, so the snapshot completes before the graceful
+// restart. Combined with the keep-newest-only prune in leak-diagnostics the
+// snapshot dir stays bounded to ~2 files.
+const SNAPSHOT_RSS_MB = 1400;
 
 // Peak RSS (MB) at/above which a restart with no clean cause is attributed to
-// memory pressure rather than left as "unknown".
-const OOM_RSS_MB = 700;
+// memory pressure rather than left as "unknown". Must sit just under the 1800MB
+// PM2 max_memory_restart ceiling: the app's NORMAL working set is ~940MB, so the
+// old 700 threshold mislabelled every ordinary restart as an OOM. Only a process
+// that actually climbed toward the PM2 ceiling is genuine memory pressure.
+const OOM_RSS_MB = 1700;
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
