@@ -295,6 +295,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v44.1.1 — INV: unit_cost + total_cost on inv_stock_ledger ────────────────
   'v44_1_inv_ledger_cost.sql',
+
+  // ── v44.2.0 — INV: repair unit_cost + total_cost (v44.1.1 tracked-but-failed) ─
+  'v44_2_inv_ledger_cost_repair.sql',
 ];
 
 /**
