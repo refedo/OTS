@@ -137,6 +137,34 @@ export function getTopQueries(n = 12): Array<{ query: string; count: number }> {
 let _snapshotWritten = false;
 
 /**
+ * Delete all but the newest `keep` heap snapshots so a restart loop can't fill
+ * the disk. Best-effort: any failure is swallowed (a full disk is exactly when
+ * this matters most, and we must never throw from the diagnostics path).
+ */
+function pruneOldSnapshots(keep: number): void {
+  try {
+    if (!fs.existsSync(SNAPSHOT_DIR)) return;
+    const files = fs
+      .readdirSync(SNAPSHOT_DIR)
+      .filter((f) => f.endsWith('.heapsnapshot'))
+      .map((f) => {
+        const full = path.join(SNAPSHOT_DIR, f);
+        return { full, mtime: fs.statSync(full).mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    for (const stale of files.slice(keep)) {
+      try {
+        fs.unlinkSync(stale.full);
+      } catch {
+        // ignore individual unlink failures
+      }
+    }
+  } catch {
+    // non-fatal — directory unreadable / disk issue
+  }
+}
+
+/**
  * Write a single heap snapshot for this process. No-op on subsequent calls so a
  * memory spike can't itself spiral into repeated multi-second snapshot writes.
  *
@@ -148,6 +176,13 @@ export function writeHeapSnapshotOnce(reason: string): string | null {
 
   try {
     if (!fs.existsSync(SNAPSHOT_DIR)) fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+
+    // Bound the snapshot directory. Each process writes at most one snapshot, but
+    // a PM2 restart loop spawns dozens of processes — each ~500-750MB — which
+    // pile up and fill the (small) host disk to 100%, taking the DB and app down
+    // with it. Keep only the most recent snapshot: prune everything before
+    // writing the new one so the directory never holds more than two files.
+    pruneOldSnapshots(1);
 
     const mem = process.memoryUsage();
     const file = path.join(
