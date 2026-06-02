@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { computeWeightedScore, scoreToRating, ratingToOutcome } from '@/lib/services/supply-chain/supplier-portal.service';
+import { computeWeightedScore, scoreToRating, ratingToOutcome } from '@/lib/services/supply-chain/supplier-evaluation-scoring';
 
 export interface EvaluationFormData {
   evaluation_date: string;

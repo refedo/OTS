@@ -18,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaymentTermsBadge } from '@/components/supply-chain/PaymentTermsBadge';
 import { SoaTabContent } from '@/components/supply-chain/SoaTabContent';
 import { EvaluationScoreForm, EMPTY_EVALUATION_FORM, EvaluationFormData } from '@/components/supply-chain/EvaluationScoreForm';
-import { computeWeightedScore, scoreToRating, ratingToOutcome } from '@/lib/services/supply-chain/supplier-portal.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
