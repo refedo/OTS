@@ -7,18 +7,27 @@ module.exports = {
       cwd: '/var/www/hexasteel.sa/ots',
       instances: 1,
       exec_mode: 'fork',
-      // --heapsnapshot-near-heap-limit=2: V8 writes a .heapsnapshot to the cwd
-      //   when it approaches the heap limit — a backstop that names the leaking
-      //   objects even if the in-process RSS watchdog misses.
-      node_args: '--max-old-space-size=1024 --expose-gc --heapsnapshot-near-heap-limit=2',
+      // NOTE: --heapsnapshot-near-heap-limit was removed. With --max-old-space-size
+      //   at 1024 but the OS OOM-killer firing at ~992MB RSS, V8's near-heap-limit
+      //   (≈95% of 1024) never triggered before the kill, so it produced no useful
+      //   backstop — and any snapshot it DID write went UNPRUNED into the cwd,
+      //   helping fill the disk during the restart loop. The bounded RSS watchdog
+      //   in restart-logger.ts (keep-newest-only) is the sole snapshot mechanism.
+      // Host has 7.8GB RAM (confirmed via `free -h`), NOT the ~1GB assumed by
+      //   earlier rounds — there is no OS OOM-killer involvement (dmesg is clean).
+      //   1024 was far too low for this ERP's legitimate ~900MB+ working set: V8
+      //   spent its time GC-thrashing near the cap. 2048 gives real headroom while
+      //   still leaving the box ~5GB for MySQL/OS/other apps.
+      node_args: '--max-old-space-size=2048 --expose-gc',
       watch: false,
-      // Observed: the OS OOM-killer hard-kills this process at ~995MB RSS (peak
-      // RSS in the restart events), BELOW any higher PM2 limit — so PM2 never got
-      // to restart gracefully. Set to 820M so PM2 sends SIGINT *before* the OS
-      // SIGKILLs: that lets our handlers write a shutdown record + heap snapshot
-      // instead of vanishing with no trace. (The leak itself is fixed separately;
-      // this only makes the kill observable.)
-      max_memory_restart: '820M',
+      // The restart loop was self-inflicted: PM2 was restarting the app every
+      //   ~19s because this limit (820M) sat BELOW the app's normal ~937MB working
+      //   set on a 7.8GB host. That is not memory pressure — it is a misconfigured
+      //   ceiling. 1800M is ~2x the baseline: a healthy process never trips it, and
+      //   a genuine runaway still gets a graceful PM2 restart before V8's 2048MB
+      //   heap limit would crash it. (Earlier this was wrongly lowered 1200M->820M
+      //   on the false premise of a 992MB OS-OOM ceiling.)
+      max_memory_restart: '1800M',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
