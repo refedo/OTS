@@ -7,10 +7,13 @@ module.exports = {
       cwd: '/var/www/hexasteel.sa/ots',
       instances: 1,
       exec_mode: 'fork',
-      // --heapsnapshot-near-heap-limit=2: V8 writes a .heapsnapshot to the cwd
-      //   when it approaches the heap limit — a backstop that names the leaking
-      //   objects even if the in-process RSS watchdog misses.
-      node_args: '--max-old-space-size=1024 --expose-gc --heapsnapshot-near-heap-limit=2',
+      // NOTE: --heapsnapshot-near-heap-limit was removed. With --max-old-space-size
+      //   at 1024 but the OS OOM-killer firing at ~992MB RSS, V8's near-heap-limit
+      //   (≈95% of 1024) never triggered before the kill, so it produced no useful
+      //   backstop — and any snapshot it DID write went UNPRUNED into the cwd,
+      //   helping fill the disk during the restart loop. The bounded RSS watchdog
+      //   in restart-logger.ts (keep-newest-only) is the sole snapshot mechanism.
+      node_args: '--max-old-space-size=1024 --expose-gc',
       watch: false,
       // Observed: the OS OOM-killer hard-kills this process at ~995MB RSS (peak
       // RSS in the restart events), BELOW any higher PM2 limit — so PM2 never got

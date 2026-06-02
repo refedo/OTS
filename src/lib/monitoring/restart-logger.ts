@@ -37,12 +37,14 @@ const STATE_FILE = path.join(LOGS_DIR, 'process-state.json');
 // Sample frequently so the run-up to a kill is always persisted.
 const STATE_INTERVAL_MS = 5_000;
 
-// RSS (MB) at which we proactively dump a heap snapshot. Kept low because this
-// host's OS OOM-killer fires around ~1GB: writing a snapshot of a 700MB+ heap
-// would itself push past the ceiling and be killed mid-write. Snapshotting at
-// ~450MB RSS captures the already-dominant leaking objects while it can still
-// complete safely.
-const SNAPSHOT_RSS_MB = 450;
+// RSS (MB) at which we proactively dump a heap snapshot. This MUST sit above the
+// process's normal working set (~550-600MB here, per 14-day memory graph) or the
+// watchdog fires on every healthy process — in a restart loop that buried the
+// host disk under dozens of ~500MB snapshots and wedged the box. 720MB is clearly
+// abnormal (only reached while growing toward the ~992MB OS-OOM ceiling) yet still
+// leaves ~270MB headroom to finish writing before the kill. Combined with the
+// keep-newest-only prune in leak-diagnostics, the snapshot dir stays bounded.
+const SNAPSHOT_RSS_MB = 720;
 
 // Peak RSS (MB) at/above which a restart with no clean cause is attributed to
 // memory pressure rather than left as "unknown".
