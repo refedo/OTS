@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   ArrowLeft,
   Edit,
+  Wand2,
   Building2,
   Calendar,
   DollarSign,
@@ -17,14 +17,11 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
-  Plus,
   Clock,
   Trash2,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   Pencil,
-  X,
-  Save,
   CheckCircle2,
   Circle,
   ShieldCheck,
@@ -33,8 +30,6 @@ import {
   AlertCircle,
   ClipboardList,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAlert } from '@/hooks/useAlert';
@@ -164,22 +159,24 @@ function getRalColorName(ralNumber: string): string {
   return ralColorNames[cleanRal] || 'Unknown Color';
 }
 
-function CollapsibleSection({ 
-  title, 
-  icon: Icon, 
-  children, 
-  defaultOpen = false 
-}: { 
-  title: string; 
-  icon: any; 
-  children: React.ReactNode; 
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  children,
+  defaultOpen = false,
+  editHref,
+}: {
+  title: string;
+  icon: any;
+  children: React.ReactNode;
   defaultOpen?: boolean;
+  editHref?: string;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
     <Card>
-      <CardHeader 
+      <CardHeader
         className="cursor-pointer hover:bg-muted/50 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -188,7 +185,19 @@ function CollapsibleSection({
             <Icon className="size-5 text-primary" />
             <CardTitle className="text-lg">{title}</CardTitle>
           </div>
-          {isOpen ? <ChevronDown className="size-5" /> : <ChevronRight className="size-5" />}
+          <div className="flex items-center gap-2">
+            {editHref && (
+              <a
+                href={editHref}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-primary/10"
+              >
+                <Pencil className="size-3" />
+                Edit
+              </a>
+            )}
+            {isOpen ? <ChevronDown className="size-5" /> : <ChevronRight className="size-5" />}
+          </div>
         </div>
       </CardHeader>
       {isOpen && <CardContent>{children}</CardContent>}
@@ -207,75 +216,6 @@ function InfoRow({ label, value }: { label: string; value: any }) {
   );
 }
 
-// ── Inline scope editor ────────────────────────────────────────────────────
-function ScopeEditRow({ scope, onSaved }: { scope: any; onSaved: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [quantity, setQuantity] = useState(scope.quantity ?? '');
-  const [unit, setUnit] = useState(scope.unit ?? (scope.scopeType === 'steel' ? 'ton' : 'm²'));
-  const [ralColor, setRalColor] = useState(scope.ralColor ?? '');
-  const [specification, setSpecification] = useState(scope.specification ?? '');
-
-  async function save() {
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/scope-of-work/${scope.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: quantity ? Number(quantity) : null, unit: unit || null, ralColor: ralColor || null, specification: specification || null }),
-      });
-      if (res.ok) { setEditing(false); onSaved(); }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (!editing) {
-    return (
-      <button
-        onClick={() => setEditing(true)}
-        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-        title="Edit scope"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </button>
-    );
-  }
-
-  return (
-    <div className="mt-3 p-3 border rounded-lg bg-muted/30 space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Quantity</Label>
-          <Input type="number" step="0.01" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-sm" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Unit</Label>
-          <Input value={unit} onChange={(e) => setUnit(e.target.value)} className="h-8 text-sm" placeholder="ton / m²" />
-        </div>
-        {(scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting') && (
-          <div className="space-y-1">
-            <Label className="text-xs">RAL Color</Label>
-            <Input value={ralColor} onChange={(e) => setRalColor(e.target.value)} className="h-8 text-sm" placeholder="e.g. 9002" />
-          </div>
-        )}
-        <div className="col-span-2 space-y-1">
-          <Label className="text-xs">Specification / Notes</Label>
-          <Input value={specification} onChange={(e) => setSpecification(e.target.value)} className="h-8 text-sm" />
-        </div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving} className="h-7 text-xs">
-          <X className="w-3 h-3 mr-1" /> Cancel
-        </Button>
-        <Button size="sm" onClick={save} disabled={saving} className="h-7 text-xs">
-          <Save className="w-3 h-3 mr-1" /> {saving ? 'Saving…' : 'Save'}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ── Project Validation Panel ──────────────────────────────────────────────
 
 const WIZARD_STEPS = [
@@ -288,7 +228,7 @@ const WIZARD_STEPS = [
   { step: 7, label: 'Payment Terms' },
   { step: 8, label: 'Project Checklist' },
   { step: 9, label: 'Technical Specs' },
-  { step: 10, label: 'Parts Upload' },
+  { step: 10, label: 'Review' },
 ];
 
 type StepNote = { status: 'verified' | 'needs_rectification' | 'pending'; note: string };
@@ -926,6 +866,11 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
                   <Edit className="size-4 mr-1" /> Edit
                 </Button>
               </Link>
+              <Link href={`/projects/wizard?resume=${project.id}`}>
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white">
+                  <Wand2 className="size-4 mr-1" /> Setup Wizard
+                </Button>
+              </Link>
               <Button size="sm" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
                 <Trash2 className="size-4" />
               </Button>
@@ -1061,7 +1006,7 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
         {/* Collapsible Sections */}
         <div className="space-y-4">
           {/* Basic Information */}
-          <CollapsibleSection title="Basic Information" icon={FileText} defaultOpen>
+          <CollapsibleSection title="Basic Information" icon={FileText} defaultOpen editHref={`/projects/${project.id}/edit`}>
             <dl className="space-y-0">
               <InfoRow label="Project Number" value={project.projectNumber} />
               <InfoRow label="Estimation Number" value={project.estimationNumber} />
@@ -1088,7 +1033,7 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
           </CollapsibleSection>
 
           {/* Dates & Durations */}
-          <CollapsibleSection title="Dates & Durations" icon={Calendar} defaultOpen>
+          <CollapsibleSection title="Dates & Durations" icon={Calendar} editHref={`/projects/${project.id}/edit`}>
             <dl className="space-y-0">
               <InfoRow label="Contract Date" value={formatDate(project.contractDate)} />
               <InfoRow label="Down Payment Date" value={formatDate(project.downPaymentDate)} />
@@ -1160,7 +1105,7 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
 
           {/* Financial & Payment Terms - only visible to authorized roles */}
           {canViewFinancials && !hideFinancialData && (
-            <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
+            <CollapsibleSection title="Finance" icon={DollarSign} editHref={`/projects/${project.id}/edit`}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1188,7 +1133,7 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
           )}
 
           {/* Payment Schedule - only visible to authorized roles */}
-          {canViewFinancials && <CollapsibleSection title="Payment Schedule" icon={DollarSign} defaultOpen>
+          {canViewFinancials && <CollapsibleSection title="Payment Schedule" icon={DollarSign} editHref={`/projects/${project.id}/edit`}>
             <div className="space-y-4">
               <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
               <div className="overflow-x-auto">
@@ -1250,125 +1195,8 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
             </div>
           </CollapsibleSection>}
 
-          {/* Buildings & Scope */}
-          {project.buildings && project.buildings.length > 0 && (
-            <CollapsibleSection title="Buildings & Scope" icon={Building2} defaultOpen>
-              <div className="space-y-4">
-                {project.buildings.map((building: any) => (
-                  <div key={building.id} className="border rounded-xl overflow-hidden">
-                    <div className="bg-muted/40 px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-base">{building.designation}</span>
-                        <span className="text-muted-foreground ml-2">— {building.name}</span>
-                        {building.location && (
-                          <span className="ml-3 text-xs text-muted-foreground bg-background border px-2 py-0.5 rounded-full">
-                            📍 {building.location}
-                          </span>
-                        )}
-                      </div>
-                      {building.weight && (
-                        <span className="text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                          {building.weight} ton
-                        </span>
-                      )}
-                    </div>
-                    <div className="divide-y">
-                      {(building.scopeOfWorks || []).map((scope: any) => (
-                        <div key={scope.id} className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                                  scope.scopeType === 'steel' ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                                  scope.scopeType === 'roof_sheeting' ? 'bg-orange-50 border-orange-200 text-orange-700' :
-                                  scope.scopeType === 'wall_sheeting' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                                  scope.scopeType === 'deck_panel' ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                                  scope.scopeType === 'metal_work' ? 'bg-gray-50 border-gray-200 text-gray-700' :
-                                  'bg-green-50 border-green-200 text-green-700'
-                                }`}>
-                                  {scope.scopeLabel}{scope.customLabel ? ` — ${scope.customLabel}` : ''}
-                                </span>
-                                {scope.quantity && (
-                                  <span className="text-sm font-medium">
-                                    {scope.quantity} {scope.unit || (scope.scopeType === 'steel' ? 'ton' : 'm²')}
-                                  </span>
-                                )}
-                                <ScopeEditRow scope={scope} onSaved={() => router.refresh()} />
-                              </div>
-
-                              {/* Steel */}
-                              {scope.scopeType === 'steel' && scope.quantity && (
-                                <div className="text-xs text-muted-foreground">
-                                  Contractual steel quantity
-                                </div>
-                              )}
-
-                              {/* Sandwich panels */}
-                              {(scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting') && (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                                  {scope.ralColor && (
-                                    <div className="flex items-center gap-1.5">
-                                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: getRalColor(scope.ralColor) }} />
-                                      <span>RAL {scope.ralColor}</span>
-                                    </div>
-                                  )}
-                                  {scope.panelProfile && <span>Profile: <strong className="text-foreground">{scope.panelProfile}</strong></span>}
-                                  {scope.panelThickness && <span>Panel: <strong className="text-foreground">{scope.panelThickness}mm</strong></span>}
-                                  {scope.ribHeight && <span>Rib: <strong className="text-foreground">{scope.ribHeight}mm</strong></span>}
-                                  {scope.upperSheetThick && <span>Upper: <strong className="text-foreground">{scope.upperSheetThick}mm</strong></span>}
-                                  {scope.lowerSheetThick && <span>Lower: <strong className="text-foreground">{scope.lowerSheetThick}mm</strong></span>}
-                                </div>
-                              )}
-
-                              {/* Deck panel */}
-                              {scope.scopeType === 'deck_panel' && (
-                                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                                  {scope.deckProfile && <span>Profile: <strong className="text-foreground">{scope.deckProfile}</strong></span>}
-                                  {scope.hasShearStuds && (
-                                    <span>Shear studs: <strong className="text-foreground">{scope.shearStudQty ?? '?'} {scope.shearStudSpecs || ''}</strong></span>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Metal works */}
-                              {scope.scopeType === 'metal_work' && scope.metalWorkItems && scope.metalWorkItems.length > 0 && (
-                                <div className="text-xs space-y-0.5">
-                                  {scope.metalWorkItems.map((item: any, i: number) => (
-                                    <div key={i} className="flex gap-3 text-muted-foreground">
-                                      <span className="font-medium text-foreground">{item.name}</span>
-                                      <span>{item.quantity} {item.unit}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Activities */}
-                            {scope.activities && scope.activities.length > 0 && (
-                              <div className="flex flex-wrap gap-1 justify-end">
-                                {scope.activities.filter((a: any) => a.isApplicable).map((a: any) => (
-                                  <span key={a.activityType}
-                                    className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                                    {a.activityLabel}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {(!building.scopeOfWorks || building.scopeOfWorks.length === 0) && (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">No scope defined</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
-          )}
-
           {/* Technical Specifications */}
-          <CollapsibleSection title="Technical Specifications" icon={Settings} defaultOpen>
+          <CollapsibleSection title="Technical Specifications" icon={Settings} editHref={`/projects/wizard?resume=${project.id}`}>
             <dl className="space-y-0">
               <InfoRow label="Erection Subcontractor" value={project.erectionSubcontractor} />
               <InfoRow label="Engineering Tonnage" value={project.engineeringTonnage} />
@@ -1673,13 +1501,6 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
           )}
         </div>
       </div>
-
-      {/* System Events Timeline */}
-      <EntityTimeline
-        entityType="Project"
-        entityId={project.id}
-        className="mt-6"
-      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

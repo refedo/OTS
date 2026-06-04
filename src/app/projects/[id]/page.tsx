@@ -2,9 +2,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { ProjectDetails } from '@/components/project-details';
-import { BuildingsList } from '@/components/buildings-list';
-import { ScopeSchedulesView } from '@/components/scope-schedules-view';
-import { BuildingScopesView } from '@/components/building-scopes-view';
+import { ProjectSectionTabs } from '@/components/project-section-tabs';
 import { getCurrentUserRestrictedModules, getCurrentUserPermissions } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import type { Metadata } from 'next';
@@ -87,7 +85,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const canViewFinancials = isAdminOrCeo || userPermissions.includes('financial.view');
 
   return (
-    <div className="space-y-6">
+    <div>
       <ProjectDetails
         project={project}
         restrictedModules={restrictedModules}
@@ -95,19 +93,15 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         isAdminOrCeo={isAdminOrCeo}
         canViewFinancials={canViewFinancials}
       />
-      {scopeSchedules.length > 0 && (
-        <ScopeSchedulesView schedules={scopeSchedules} />
-      )}
-      {buildings.length > 0 && (
-        <BuildingScopesView
+      <div className="container mx-auto px-6 lg:px-8 pb-10">
+        <ProjectSectionTabs
+          projectId={id}
           buildings={buildings}
           scopeOfWorks={scopeOfWorks}
-          buildingActivities={[]}
-          projectId={id}
+          scopeSchedules={scopeSchedules}
           canEdit={canEdit}
         />
-      )}
-      <BuildingsList projectId={id} buildings={buildings} canEdit={canEdit} />
+      </div>
     </div>
   );
 }
