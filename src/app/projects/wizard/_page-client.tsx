@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SuccessDialog } from '@/components/ui/success-dialog';
 import { CustomerCombobox } from '@/components/ui/customer-combobox';
-import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STRUCTURE_TYPES, SAUDI_CITIES, EMPTY_CHECKLIST, type ProjectChecklistAnswers, type ChecklistAnswer } from '@/lib/project-constants';
@@ -194,6 +194,8 @@ export default function ProjectSetupWizard() {
   const [loading, setLoading] = useState(false);
   const [resumingDraft, setResumingDraft] = useState(false);
   const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
+  // true when resuming an existing non-draft project (edit mode)
+  const [isActiveEdit, setIsActiveEdit] = useState(false);
 
   // Step 1: Project Details
   const [projectNumber, setProjectNumber] = useState('');
@@ -245,8 +247,7 @@ export default function ProjectSetupWizard() {
   const [thirdPartyRequired, setThirdPartyRequired] = useState(false);
   const [thirdPartyResponsibility, setThirdPartyResponsibility] = useState<'our' | 'customer'>('our');
 
-  // Step 10: Upload Parts (handled separately)
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  // (Upload step removed — assembly parts can be uploaded from the project details page)
 
   // Success dialog state
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -269,6 +270,9 @@ export default function ProjectSetupWizard() {
         
         // Restore basic fields
         setDraftProjectId(project.id);
+        if (project.status && project.status !== 'Draft') {
+          setIsActiveEdit(true);
+        }
         if (project.projectNumber && !project.projectNumber.startsWith('DRAFT-')) {
           setProjectNumber(project.projectNumber);
         }
@@ -683,7 +687,7 @@ export default function ProjectSetupWizard() {
       case 9:
         return true; // Technical specs — optional
       case 10:
-        return true; // Upload — optional
+        return true; // Review — always valid
       default:
         return false;
     }
@@ -811,8 +815,11 @@ export default function ProjectSetupWizard() {
         remarks: JSON.stringify({ __wizardDraft: true, step: currentStep, data: wizardState }),
       };
 
-      const response = await fetch('/api/projects', {
-        method: 'POST',
+      const draftUrl = draftProjectId ? `/api/projects/${draftProjectId}` : '/api/projects';
+      const draftMethod = draftProjectId ? 'PATCH' : 'POST';
+
+      const response = await fetch(draftUrl, {
+        method: draftMethod,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData),
       });
@@ -824,22 +831,31 @@ export default function ProjectSetupWizard() {
 
       const project = await response.json();
 
-      // Save buildings if any
-      for (const building of buildings) {
-        if (building.name && building.designation) {
-          await fetch('/api/buildings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId: project.id,
-              name: building.name,
-              designation: building.designation,
-            }),
-          });
+      // Save buildings if any (only on new draft creation — skip for existing projects)
+      if (!draftProjectId) {
+        for (const building of buildings) {
+          if (building.name && building.designation) {
+            await fetch('/api/buildings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: project.id,
+                name: building.name,
+                designation: building.designation,
+              }),
+            });
+          }
         }
       }
 
-      setSuccessMessage(`Project saved as draft!\n\nYou can continue editing it later from the Projects list.`);
+      // Update remarks on existing project so we can resume with correct step
+      if (!draftProjectId) {
+        setDraftProjectId(project.id);
+      }
+
+      setSuccessMessage(isActiveEdit
+        ? `Project updated successfully!\n\nChanges have been saved.`
+        : `Project saved as draft!\n\nYou can continue editing it later from the Projects list.`);
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error saving draft:', error);
@@ -894,6 +910,89 @@ export default function ProjectSetupWizard() {
       const engineeringStage = stageDurations.find(s => s.stage === 'engineering');
       const operationsStage = stageDurations.find(s => s.stage === 'operations');
       const siteStage = stageDurations.find(s => s.stage === 'site');
+
+      // When editing an active (non-draft) project: PATCH it.
+      // When resuming a draft: delete the draft then create a fresh active project.
+      if (isActiveEdit && draftProjectId) {
+        const projectData = {
+          projectNumber,
+          name: projectName,
+          clientName,
+          projectManagerId,
+          salesEngineerId: salesEngineerId || null,
+          operationsManagerId: operationsManagerId || null,
+          status: 'Active',
+          contractualTonnage: contractualTonnage ? parseFloat(contractualTonnage) : 0,
+          contractDate: contractDate || null,
+          downPaymentDate: downPaymentDate || null,
+          contractValue: contractValue ? parseFloat(contractValue) : null,
+          scopeOfWork: generateScopeText(),
+          structureType: structureType || null,
+          projectLocation: projectLocation || null,
+          galvanized: coatingSystems.some(cs => cs.isGalvanized),
+          cranesIncluded,
+          surveyorOurScope: surveyorIncluded,
+          thirdPartyRequired,
+          thirdPartyResponsibility: thirdPartyRequired ? thirdPartyResponsibility : null,
+          engineeringWeeksMin: stageDurations.find(s => s.stage === 'engineering')?.durationWeeksMin || null,
+          engineeringWeeksMax: stageDurations.find(s => s.stage === 'engineering')?.durationWeeksMax || null,
+          operationsWeeksMin: stageDurations.find(s => s.stage === 'operations')?.durationWeeksMin || null,
+          operationsWeeksMax: stageDurations.find(s => s.stage === 'operations')?.durationWeeksMax || null,
+          siteWeeksMin: stageDurations.find(s => s.stage === 'site')?.durationWeeksMin || null,
+          siteWeeksMax: stageDurations.find(s => s.stage === 'site')?.durationWeeksMax || null,
+          ...paymentFieldsMap,
+          ...coatingFieldsMap,
+        };
+
+        const patchRes = await fetch(`/api/projects/${draftProjectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(projectData),
+        });
+
+        if (!patchRes.ok) {
+          const errorData = await patchRes.json();
+          throw new Error(errorData.details || errorData.error || 'Failed to update project');
+        }
+
+        const project = await patchRes.json();
+
+        // Update coating systems
+        if (coatingSystems.length > 0) {
+          const csPayload = coatingSystems.map((cs, idx) => ({
+            name: cs.name || null,
+            appliesToAll: cs.appliesToAll,
+            buildingIds: cs.appliesToAll ? [] : cs.buildingIds,
+            coats: cs.coats.map(c => ({ coatName: c.coatName, microns: c.microns, ralNumber: c.ralNumber })),
+            isGalvanized: cs.isGalvanized,
+            galvanizationMicrons: cs.galvanizationMicrons ? parseInt(cs.galvanizationMicrons) : null,
+            sortOrder: idx,
+          }));
+          await fetch(`/api/projects/${project.id}/coating-systems`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(csPayload),
+          });
+        }
+
+        // Update checklist
+        const checklistPayload = {
+          contractReceived: checklistData.contractReceived,
+          answers: checklistData,
+          notifications: Object.fromEntries(
+            Object.entries(checklistData).filter(([k]) => k.endsWith('Notify')).map(([k, v]) => [k, v])
+          ),
+        };
+        await fetch(`/api/projects/${project.id}/checklist`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(checklistPayload),
+        });
+
+        setSuccessMessage(`Project updated successfully!\n\n✓ All changes saved`);
+        setShowSuccessDialog(true);
+        return;
+      }
 
       // If resuming a draft, delete the old draft first
       if (draftProjectId) {
@@ -1096,7 +1195,6 @@ export default function ProjectSetupWizard() {
         }
       }
 
-      // Handle file upload if present
       // Create coating systems
       if (coatingSystems.length > 0) {
         const csPayload = coatingSystems.map((cs, idx) => ({
@@ -1131,17 +1229,6 @@ export default function ProjectSetupWizard() {
         body: JSON.stringify(checklistPayload),
       });
 
-      if (uploadedFile) {
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        formData.append('projectId', project.id);
-
-        await fetch('/api/projects/upload', {
-          method: 'POST',
-          body: formData,
-        });
-      }
-
       const buildingCount = buildings.length;
       const coatingSystemCount = coatingSystems.length;
 
@@ -1156,12 +1243,6 @@ export default function ProjectSetupWizard() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setUploadedFile(e.target.files[0]);
-    }
-  };
-
   const STEP_LABELS = [
     'Project Info',
     'Buildings',
@@ -1172,7 +1253,7 @@ export default function ProjectSetupWizard() {
     'Payment',
     'Checklist',
     'Tech Specs',
-    'Upload',
+    'Review',
   ];
 
   const TOTAL_STEPS = 10;
@@ -1182,13 +1263,19 @@ export default function ProjectSetupWizard() {
       {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step, idx) => (
         <div key={step} className="flex items-center">
           <div className="flex flex-col items-center">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-              currentStep === step
-                ? 'bg-primary text-white'
-                : currentStep > step
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-200 text-gray-600'
-            }`}>
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-opacity ${
+                resumeProjectId ? 'cursor-pointer hover:opacity-80' : ''
+              } ${
+                currentStep === step
+                  ? 'bg-primary text-white'
+                  : currentStep > step
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+              onClick={() => resumeProjectId && setCurrentStep(step)}
+              title={resumeProjectId ? `Jump to ${STEP_LABELS[step - 1]}` : undefined}
+            >
               {currentStep > step ? <Check className="h-4 w-4" /> : step}
             </div>
             <span className="text-[10px] text-muted-foreground mt-1 hidden sm:block w-16 text-center leading-tight">
@@ -1212,13 +1299,18 @@ export default function ProjectSetupWizard() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Wand2 className="h-8 w-8" />
-            Project Setup Wizard
+            {isActiveEdit ? 'Edit Project' : 'Project Setup Wizard'}
           </h1>
           <p className="text-muted-foreground mt-1">
             Step {currentStep} of {TOTAL_STEPS}
+            {isActiveEdit && resumeProjectId && (
+              <span className="ml-2 text-xs text-blue-600 font-medium">
+                — Edit Mode (click any step circle to jump)
+              </span>
+            )}
           </p>
         </div>
-        <Link href="/projects">
+        <Link href={resumeProjectId ? `/projects/${resumeProjectId}` : '/projects'}>
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Cancel
@@ -1234,8 +1326,8 @@ export default function ProjectSetupWizard() {
           <ArrowLeft className="mr-1 h-3 w-3" /> Previous
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleSaveAsDraft} disabled={loading || !projectNumber} size="sm" title="Save progress as draft">
-            Save as Draft
+          <Button variant="outline" onClick={handleSaveAsDraft} disabled={loading || (!projectNumber && !draftProjectId)} size="sm" title={isActiveEdit ? 'Save changes' : 'Save progress as draft'}>
+            {isActiveEdit ? 'Save Changes' : 'Save as Draft'}
           </Button>
           {currentStep < TOTAL_STEPS ? (
             <Button onClick={nextStep} size="sm">
@@ -1243,7 +1335,7 @@ export default function ProjectSetupWizard() {
             </Button>
           ) : (
             <Button onClick={handleSubmit} disabled={loading} size="sm">
-              {loading ? 'Creating...' : 'Create Project'} <Check className="ml-1 h-3 w-3" />
+              {loading ? (isActiveEdit ? 'Updating...' : 'Creating...') : (isActiveEdit ? 'Update Project' : 'Create Project')} <Check className="ml-1 h-3 w-3" />
             </Button>
           )}
         </div>
@@ -2623,41 +2715,174 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 10: Upload Parts */}
+      {/* Step 10: Review */}
       {currentStep === 10 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Assembly Parts (Optional)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-4">
-                Upload Excel file with assembly parts data
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Review Project Details</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Review everything before {isActiveEdit ? 'updating' : 'creating'} the project.
+                Click any step circle above to go back and make changes.
               </p>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button type="button" variant="outline" asChild>
-                  <span>Choose File</span>
-                </Button>
-              </label>
-              {uploadedFile && (
-                <p className="mt-4 text-sm font-medium text-green-600">
-                  Selected: {uploadedFile.name}
-                </p>
+            </CardHeader>
+          </Card>
+
+          {/* Project Info */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">1. Project Information</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div><span className="text-muted-foreground">Number:</span> <span className="font-medium">{projectNumber || '—'}</span></div>
+              <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{projectName || '—'}</span></div>
+              <div><span className="text-muted-foreground">Client:</span> <span className="font-medium">{clientName || '—'}</span></div>
+              <div><span className="text-muted-foreground">Structure Type:</span> <span className="font-medium">{structureType || '—'}</span></div>
+              <div><span className="text-muted-foreground">Location:</span> <span className="font-medium">{projectLocation || '—'}</span></div>
+              <div><span className="text-muted-foreground">Contract Value:</span> <span className="font-medium">{contractValue ? `${contractValue} SAR` : '—'}</span></div>
+              <div><span className="text-muted-foreground">Contract Date:</span> <span className="font-medium">{contractDate || '—'}</span></div>
+              <div><span className="text-muted-foreground">Tonnage:</span> <span className="font-medium">{contractualTonnage ? `${contractualTonnage} t` : '—'}</span></div>
+            </CardContent>
+          </Card>
+
+          {/* Buildings */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">2. Buildings ({buildings.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {buildings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No buildings added.</p>
+              ) : (
+                <div className="space-y-1">
+                  {buildings.map((b) => (
+                    <div key={b.id} className="flex items-center gap-3 text-sm py-1 border-b last:border-0">
+                      <span className="font-mono text-xs bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded text-blue-700">{b.designation}</span>
+                      <span className="font-medium">{b.name}</span>
+                      {b.weight && <span className="text-muted-foreground ml-auto">{b.weight} t</span>}
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              You can skip this step and upload parts later from the project details page.
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Scope Definition */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">3 & 4. Scope & Activities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {scopeDefinitions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No scope definitions added.</p>
+              ) : (
+                <div className="space-y-3">
+                  {buildings.map((b) => {
+                    const bScopes = scopeDefinitions.filter(s => s.buildingId === b.id);
+                    if (bScopes.length === 0) return null;
+                    return (
+                      <div key={b.id}>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">{b.designation} — {b.name}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {bScopes.map((s, i) => {
+                            const opt = SCOPE_TYPE_OPTIONS.find(o => o.type === s.scopeType);
+                            return (
+                              <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-medium ${opt?.color || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                                {opt?.label || s.scopeType}{s.quantity ? ` — ${s.quantity} ${s.unit || ''}` : ''}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Duration */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">5. Stage Durations</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4 text-sm">
+              {stageDurations.map((s) => (
+                <div key={s.stage} className="text-center p-3 bg-muted/40 rounded-lg">
+                  <p className="font-medium">{s.label}</p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {s.durationWeeksMin}–{s.durationWeeksMax} weeks
+                  </p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Coating */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">6. Coating Systems ({coatingSystems.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {coatingSystems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No coating systems defined.</p>
+              ) : (
+                coatingSystems.map((cs) => (
+                  <div key={cs.id} className="text-sm border rounded p-2">
+                    <p className="font-medium">{cs.name || 'Unnamed system'} {cs.isGalvanized && <span className="text-xs text-amber-600">(Galvanized)</span>}</p>
+                    <p className="text-xs text-muted-foreground">{cs.coats.length} coat(s): {cs.coats.map(c => c.coatName || '?').join(', ')}</p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">7. Payment Terms ({paymentTerms.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paymentTerms.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No payment terms defined.</p>
+              ) : (
+                <div className="space-y-1 text-sm">
+                  {paymentTerms.map((t, i) => (
+                    <div key={t.id} className="flex items-center gap-3 py-1 border-b last:border-0">
+                      <span className="w-6 text-xs text-muted-foreground">{i + 1}.</span>
+                      <span className="font-medium w-12">{t.percentage}%</span>
+                      <span className="text-muted-foreground">{t.description}</span>
+                    </div>
+                  ))}
+                  <p className="text-xs text-right text-muted-foreground pt-1">
+                    Total: {getTotalPaymentPercentage()}%
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tech Specs */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-700">9. Technical Specifications</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4 text-sm">
+              <div className="text-center p-3 bg-muted/40 rounded-lg">
+                <p className="text-xs text-muted-foreground">Cranes</p>
+                <p className="font-medium mt-1">{cranesIncluded ? 'Yes' : 'No'}</p>
+              </div>
+              <div className="text-center p-3 bg-muted/40 rounded-lg">
+                <p className="text-xs text-muted-foreground">Surveyor</p>
+                <p className="font-medium mt-1">{surveyorIncluded ? 'Yes' : 'No'}</p>
+              </div>
+              <div className="text-center p-3 bg-muted/40 rounded-lg">
+                <p className="text-xs text-muted-foreground">3rd Party Test</p>
+                <p className="font-medium mt-1">{thirdPartyRequired ? `Yes (${thirdPartyResponsibility === 'our' ? 'Our scope' : 'Client scope'})` : 'No'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Navigation Buttons (bottom) */}
@@ -2670,10 +2895,10 @@ export default function ProjectSetupWizard() {
           <Button
             variant="outline"
             onClick={handleSaveAsDraft}
-            disabled={loading || !projectNumber}
-            title="Save current progress as draft"
+            disabled={loading || (!projectNumber && !draftProjectId)}
+            title={isActiveEdit ? 'Save changes' : 'Save current progress as draft'}
           >
-            Save as Draft
+            {isActiveEdit ? 'Save Changes' : 'Save as Draft'}
           </Button>
           {currentStep < TOTAL_STEPS ? (
             <Button onClick={nextStep}>
@@ -2682,7 +2907,7 @@ export default function ProjectSetupWizard() {
             </Button>
           ) : (
             <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? (isActiveEdit ? 'Updating...' : 'Creating...') : (isActiveEdit ? 'Update Project' : 'Create Project')}
               <Check className="ml-2 h-4 w-4" />
             </Button>
           )}
@@ -2698,7 +2923,11 @@ export default function ProjectSetupWizard() {
         type={successMessage.includes('Failed') || successMessage.includes('cannot') ? 'error' : 'success'}
         onConfirm={() => {
           if (!successMessage.includes('Failed') && !successMessage.includes('cannot')) {
-            router.push('/projects');
+            if (isActiveEdit && draftProjectId) {
+              router.push(`/projects/${draftProjectId}`);
+            } else {
+              router.push('/projects');
+            }
           }
         }}
       />
