@@ -185,7 +185,7 @@ function SearchableSelect({
               className="w-full h-7 px-2 text-sm border rounded outline-none focus:ring-1 focus:ring-sky-500"
             />
           </div>
-          <div className="max-h-52 overflow-y-auto py-1">
+          <div className="max-h-72 overflow-y-auto py-1">
             <button
               type="button"
               className={cn(
