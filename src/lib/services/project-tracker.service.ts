@@ -115,7 +115,7 @@ async function computeTaskProgress(
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
-      OR: [{ buildingId }, { buildingId: null }],
+      buildingId,
       mainActivity,
       deletedAt: null,
     },
