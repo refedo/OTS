@@ -174,7 +174,7 @@ function SearchableSelect({
         <ChevronDown className="size-3 shrink-0 text-slate-400" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 w-56 rounded-lg border bg-white shadow-lg">
+        <div className="absolute bottom-full left-0 mb-1 z-50 w-56 rounded-lg border bg-white shadow-lg">
           <div className="p-2 border-b">
             <input
               autoFocus
