@@ -74,7 +74,7 @@ export async function GET(req: Request) {
         ],
       },
       // CEO task visibility: only users with manage_ceo_tasks can see CEO tasks
-      canManageCeoTasks ? {} : { OR: [{ isCeoTask: false }, { isCeoTask: null }] },
+      canManageCeoTasks ? {} : { isCeoTask: false },
     ];
   } else if (canViewOthers) {
     // Users with tasks.view_others can see other users' tasks but not all tasks
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
         ],
       },
       // Users without manage_ceo_tasks cannot see CEO tasks
-      canManageCeoTasks ? {} : { OR: [{ isCeoTask: false }, { isCeoTask: null }] },
+      canManageCeoTasks ? {} : { isCeoTask: false },
     ];
     // Apply assignedTo filter if specified
     if (assignedTo) {
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
     ];
     // Users without manage_ceo_tasks cannot see CEO tasks even if assigned
     if (!canManageCeoTasks) {
-      whereClause.AND = [{ OR: [{ isCeoTask: false }, { isCeoTask: null }] }];
+      whereClause.AND = [{ isCeoTask: false }];
     }
   }
 
