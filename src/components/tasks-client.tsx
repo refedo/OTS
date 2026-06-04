@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, createPortal } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -142,7 +142,9 @@ function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
@@ -152,69 +154,102 @@ function SearchableSelect({
 
   const selected = options.find(o => o.id === value);
 
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      bottom: window.innerHeight - rect.top + 4,
+      left: rect.left,
+      width: 224,
+      zIndex: 9999,
+    });
+  }, []);
+
+  const handleOpen = () => {
+    updatePosition();
+    setOpen(o => !o);
+    setQuery('');
+  };
+
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        wrapperRef.current && !wrapperRef.current.contains(target) &&
+        !(document.getElementById('searchable-select-portal')?.contains(target))
+      ) {
         setOpen(false);
         setQuery('');
       }
     };
+    const onScroll = () => { updatePosition(); };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [open, updatePosition]);
+
+  const dropdown = open ? (
+    <div id="searchable-select-portal" style={dropdownStyle} className="rounded-lg border bg-white shadow-lg">
+      <div className="p-2 border-b">
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search..."
+          className="w-full h-7 px-2 text-sm border rounded outline-none focus:ring-1 focus:ring-sky-500"
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto py-1">
+        <button
+          type="button"
+          className={cn(
+            'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
+            !value && 'font-medium text-sky-600'
+          )}
+          onClick={() => { onChange(''); setOpen(false); setQuery(''); }}
+        >
+          {placeholder}
+        </button>
+        {filtered.map(o => (
+          <button
+            key={o.id}
+            type="button"
+            className={cn(
+              'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
+              value === o.id && 'font-medium text-sky-600 bg-sky-50'
+            )}
+            onClick={() => { onChange(o.id); setOpen(false); setQuery(''); }}
+          >
+            {o.name}
+          </button>
+        ))}
+        {filtered.length === 0 && (
+          <p className="px-3 py-2 text-xs text-slate-400">No results</p>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   return (
-    <div ref={ref} className={cn('relative', className)}>
+    <div ref={wrapperRef} className={cn('relative', className)}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => { setOpen(o => !o); setQuery(''); }}
+        onClick={handleOpen}
         className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none flex items-center gap-1.5 min-w-[130px] max-w-[180px] truncate"
       >
         <span className="truncate flex-1 text-left">{selected ? selected.name : placeholder}</span>
         <ChevronDown className="size-3 shrink-0 text-slate-400" />
       </button>
-      {open && (
-        <div className="absolute bottom-full left-0 mb-1 z-50 w-56 rounded-lg border bg-white shadow-lg">
-          <div className="p-2 border-b">
-            <input
-              autoFocus
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full h-7 px-2 text-sm border rounded outline-none focus:ring-1 focus:ring-sky-500"
-            />
-          </div>
-          <div className="max-h-72 overflow-y-auto py-1">
-            <button
-              type="button"
-              className={cn(
-                'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
-                !value && 'font-medium text-sky-600'
-              )}
-              onClick={() => { onChange(''); setOpen(false); setQuery(''); }}
-            >
-              {placeholder}
-            </button>
-            {filtered.map(o => (
-              <button
-                key={o.id}
-                type="button"
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
-                  value === o.id && 'font-medium text-sky-600 bg-sky-50'
-                )}
-                onClick={() => { onChange(o.id); setOpen(false); setQuery(''); }}
-              >
-                {o.name}
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <p className="px-3 py-2 text-xs text-slate-400">No results</p>
-            )}
-          </div>
-        </div>
-      )}
+      {typeof document !== 'undefined' && dropdown && createPortal(dropdown, document.body)}
     </div>
   );
 }
