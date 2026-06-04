@@ -29,7 +29,7 @@ export async function GET() {
   // Fetch all tasks (non-CEO tasks unless user has manage_ceo_tasks)
   const canManageCeoTasks = userPermissions.includes('tasks.manage_ceo_tasks');
   const tasks = await prisma.task.findMany({
-    where: canManageCeoTasks ? {} : { OR: [{ isCeoTask: false }, { isCeoTask: null }] },
+    where: canManageCeoTasks ? {} : { isCeoTask: false },
     select: {
       id: true,
       assignedToId: true,
