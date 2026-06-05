@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback, useRef, createPortal } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -142,9 +143,12 @@ function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
@@ -249,7 +253,7 @@ function SearchableSelect({
         <span className="truncate flex-1 text-left">{selected ? selected.name : placeholder}</span>
         <ChevronDown className="size-3 shrink-0 text-slate-400" />
       </button>
-      {typeof document !== 'undefined' && dropdown && createPortal(dropdown, document.body)}
+      {mounted && dropdown && createPortal(dropdown, document.body)}
     </div>
   );
 }
