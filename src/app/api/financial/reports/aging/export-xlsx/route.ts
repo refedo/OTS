@@ -16,6 +16,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const type = (searchParams.get('type') || 'ar') as 'ar' | 'ap';
   const asOf = searchParams.get('as_of') || new Date().toISOString().slice(0, 10);
+  const minAmount = Math.max(0, parseFloat(searchParams.get('min_amount') || '0') || 0);
 
   try {
     const service = new FinancialReportService();
@@ -23,8 +24,26 @@ export async function GET(req: Request) {
 
     const label = type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable';
 
+    // Exclude third parties whose total outstanding is below the requested minimum.
+    const rows = minAmount > 0
+      ? report.rows.filter(row => row.buckets.total >= minAmount)
+      : report.rows;
+
+    // Totals recomputed from the filtered rows so the spreadsheet matches the screen.
+    const totals = rows.reduce(
+      (acc, r) => ({
+        current: acc.current + r.buckets.current,
+        days1to30: acc.days1to30 + r.buckets.days1to30,
+        days31to60: acc.days31to60 + r.buckets.days31to60,
+        days61to90: acc.days61to90 + r.buckets.days61to90,
+        days90plus: acc.days90plus + r.buckets.days90plus,
+        total: acc.total + r.buckets.total,
+      }),
+      { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, days90plus: 0, total: 0 },
+    );
+
     // Summary sheet rows
-    const summaryRows = report.rows.map(row => ({
+    const summaryRows = rows.map(row => ({
       'Third Party': row.thirdpartyName,
       'Invoices': row.invoices.length,
       'Current': fmt(row.buckets.current),
@@ -38,17 +57,17 @@ export async function GET(req: Request) {
     // Totals row
     summaryRows.push({
       'Third Party': 'TOTAL',
-      'Invoices': report.rows.reduce((s, r) => s + r.invoices.length, 0),
-      'Current': fmt(report.totals.current),
-      '1-30 Days': fmt(report.totals.days1to30),
-      '31-60 Days': fmt(report.totals.days31to60),
-      '61-90 Days': fmt(report.totals.days61to90),
-      '90+ Days': fmt(report.totals.days90plus),
-      'Total': fmt(report.totals.total),
+      'Invoices': rows.reduce((s, r) => s + r.invoices.length, 0),
+      'Current': fmt(totals.current),
+      '1-30 Days': fmt(totals.days1to30),
+      '31-60 Days': fmt(totals.days31to60),
+      '61-90 Days': fmt(totals.days61to90),
+      '90+ Days': fmt(totals.days90plus),
+      'Total': fmt(totals.total),
     });
 
     // Detail sheet rows
-    const detailRows = report.rows.flatMap(row =>
+    const detailRows = rows.flatMap(row =>
       row.invoices.map((inv: Record<string, unknown>) => ({
         'Third Party': row.thirdpartyName,
         'Invoice Ref': inv.ref,
