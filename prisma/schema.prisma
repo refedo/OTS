@@ -4565,6 +4565,9 @@ model Employee {
   // 19.16.0 — Circulations
   circulationRecipients HrCirculationRecipient[] @relation("EmployeeCirculationRecipients")
 
+  // Saudi Labor Law unauthorized-absence alerts (OTS-BL-080)
+  absenceAlerts EmployeeAbsenceAlert[] @relation("EmployeeAbsenceAlerts")
+
   // 22.2.0 — IMS Competence Matrix
   competenceEntries ImsCompetenceEntry[]
 
@@ -5894,6 +5897,9 @@ model HrLetter {
   deletedBy    User?     @relation("HrLetterDeletedBy", fields: [deletedById], references: [id])
   deleteReason String?   @db.VarChar(500)
 
+  // OTS-BL-080 — alerts that recommended/linked this disciplinary letter
+  absenceAlerts EmployeeAbsenceAlert[] @relation("AbsenceAlertLetter")
+
   @@index([employeeId])
   @@index([letterType, classification])
   @@index([status])
@@ -5983,6 +5989,76 @@ model HrCirculationRecipient {
   @@index([employeeId])
   @@index([departmentId])
   @@map("HrCirculationRecipient")
+}
+
+// ============================================================================
+// Saudi Labor Law — Unauthorized Absence Alerts & Escalation (OTS-BL-080)
+// ============================================================================
+// Persisted, scheduled escalation of ABSENT_NO_PERMISSION (ANP) attendance.
+// Two ladders per the labour-law policy:
+//   • CONSECUTIVE  — 5 / 10 / 15 unbroken ANP days (weekend-transparent)
+//   • INTERMITTENT — 10 / 20 / 30 ANP days over a rolling trailing 12 months
+// PRE_THRESHOLD alerts fire a few days before each boundary so HR can act in
+// time. THRESHOLD alerts recommend the matching HrLetterType (recommend-only —
+// no letter is issued automatically). Idempotent via the unique dedupeKey.
+
+enum AbsenceWindowType {
+  CONSECUTIVE
+  INTERMITTENT
+}
+
+enum AbsenceAlertKind {
+  PRE_THRESHOLD
+  THRESHOLD
+}
+
+enum AbsenceAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  LETTER_LINKED
+  RESOLVED
+  DISMISSED
+}
+
+model EmployeeAbsenceAlert {
+  id         String   @id @default(uuid()) @db.Char(36)
+  employeeId String   @db.Char(36)
+  employee   Employee @relation("EmployeeAbsenceAlerts", fields: [employeeId], references: [id])
+
+  windowType    AbsenceWindowType
+  kind          AbsenceAlertKind
+  thresholdDays Int // stage boundary: 5/10/15 (consecutive) or 10/20/30 (intermittent)
+  anpDays       Int // actual ANP day count at detection
+  severity      String  @db.VarChar(10) // LOW | MEDIUM | HIGH
+  recommendedLetterType String? @db.VarChar(40) // HrLetterType value; null for PRE_THRESHOLD
+
+  status     AbsenceAlertStatus @default(OPEN)
+  periodFrom DateTime           @db.Date
+  periodTo   DateTime           @db.Date
+  detail     String             @db.VarChar(500)
+  meta       Json?
+
+  // Deterministic idempotency key — prevents duplicate alerts on daily re-runs.
+  dedupeKey String @unique @db.VarChar(180)
+
+  linkedLetterId String?   @db.Char(36)
+  linkedLetter   HrLetter? @relation("AbsenceAlertLetter", fields: [linkedLetterId], references: [id])
+
+  notifiedAt       DateTime?
+  acknowledgedById String?   @db.Char(36)
+  acknowledgedAt   DateTime?
+  resolvedById     String?   @db.Char(36)
+  resolvedAt       DateTime?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([employeeId, status])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("EmployeeAbsenceAlert")
 }
 
 // ============================================================================
