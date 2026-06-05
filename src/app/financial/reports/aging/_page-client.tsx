@@ -24,6 +24,7 @@ export default function AgingReportPage() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
+  const [minAmount, setMinAmount] = useState('100');
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [detailSheet, setDetailSheet] = useState<{ open: boolean; invoiceId: number | null }>({
@@ -64,14 +65,31 @@ export default function AgingReportPage() {
   };
 
   const bucketField = BUCKETS.find(b => b.key === bucketFilter)?.field ?? null;
+  const minAmt = Math.max(0, parseFloat(minAmount) || 0);
 
   const filteredRows = (report?.rows ?? []).filter((row: any) => {
     const matchesBucket = !bucketField || bucketField === 'total' || row.buckets[bucketField] > 0;
     const matchesSearch = !search ||
       row.thirdpartyName?.toLowerCase().includes(search.toLowerCase()) ||
       row.invoices?.some((inv: any) => inv.ref?.toLowerCase().includes(search.toLowerCase()));
-    return matchesBucket && matchesSearch;
+    const matchesMin = row.buckets.total >= minAmt;
+    return matchesBucket && matchesSearch && matchesMin;
   });
+
+  // Totals recomputed from the filtered rows so KPI cards and the footer
+  // always reflect what is actually shown after the min-amount/search/bucket filters.
+  const displayTotals = filteredRows.reduce(
+    (acc: any, r: any) => ({
+      current: acc.current + r.buckets.current,
+      days1to30: acc.days1to30 + r.buckets.days1to30,
+      days31to60: acc.days31to60 + r.buckets.days31to60,
+      days61to90: acc.days61to90 + r.buckets.days61to90,
+      days90plus: acc.days90plus + r.buckets.days90plus,
+      total: acc.total + r.buckets.total,
+    }),
+    { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, days90plus: 0, total: 0 },
+  );
+  const hiddenCount = (report?.rows?.length ?? 0) - filteredRows.length;
 
   return (
     <div className="space-y-6 print:space-y-0">
@@ -99,7 +117,7 @@ export default function AgingReportPage() {
               variant="outline"
               size="sm"
               className="print:hidden"
-              onClick={() => { window.open(`/api/financial/reports/aging/export-xlsx?type=${type}&as_of=${asOfDate}`, '_blank'); }}
+              onClick={() => { window.open(`/api/financial/reports/aging/export-xlsx?type=${type}&as_of=${asOfDate}&min_amount=${minAmt}`, '_blank'); }}
             >
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
             </Button>
@@ -147,6 +165,19 @@ export default function AgingReportPage() {
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
               Generate
             </Button>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Min Amount (SAR)</label>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                value={minAmount}
+                onChange={e => setMinAmount(e.target.value)}
+                className="w-[140px]"
+                placeholder="0"
+                title="Hide third parties whose total outstanding is below this amount"
+              />
+            </div>
             <div className="relative flex-1 min-w-[200px]">
               <Input
                 placeholder="Search by name or invoice…"
@@ -157,6 +188,11 @@ export default function AgingReportPage() {
               <Search className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
+          {report && minAmt > 0 && hiddenCount > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Hiding {hiddenCount} third {hiddenCount === 1 ? 'party' : 'parties'} with a total below {fmt(minAmt)} SAR.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -164,7 +200,7 @@ export default function AgingReportPage() {
       {report && (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 print:hidden">
           {BUCKETS.map(b => {
-            const value = report.totals[b.field];
+            const value = displayTotals[b.field];
             const active = bucketFilter === b.key;
             return (
               <button
@@ -357,12 +393,12 @@ export default function AgingReportPage() {
                 <tfoot>
                   <tr className="border-t-2 bg-muted/50 font-bold">
                     <td className="p-3">TOTALS</td>
-                    <td className="p-3 text-right font-mono text-green-700">{fmt(report.totals.current)}</td>
-                    <td className="p-3 text-right font-mono text-yellow-700">{fmt(report.totals.days1to30)}</td>
-                    <td className="p-3 print:p-2 text-right font-mono text-orange-600 hidden sm:table-cell print:!table-cell">{fmt(report.totals.days31to60)}</td>
-                    <td className="p-3 print:p-2 text-right font-mono text-red-500 hidden sm:table-cell print:!table-cell">{fmt(report.totals.days61to90)}</td>
-                    <td className="p-3 text-right font-mono text-red-700">{fmt(report.totals.days90plus)}</td>
-                    <td className="p-3 text-right font-mono">{fmt(report.totals.total)}</td>
+                    <td className="p-3 text-right font-mono text-green-700">{fmt(displayTotals.current)}</td>
+                    <td className="p-3 text-right font-mono text-yellow-700">{fmt(displayTotals.days1to30)}</td>
+                    <td className="p-3 print:p-2 text-right font-mono text-orange-600 hidden sm:table-cell print:!table-cell">{fmt(displayTotals.days31to60)}</td>
+                    <td className="p-3 print:p-2 text-right font-mono text-red-500 hidden sm:table-cell print:!table-cell">{fmt(displayTotals.days61to90)}</td>
+                    <td className="p-3 text-right font-mono text-red-700">{fmt(displayTotals.days90plus)}</td>
+                    <td className="p-3 text-right font-mono">{fmt(displayTotals.total)}</td>
                   </tr>
                 </tfoot>
               </table>
