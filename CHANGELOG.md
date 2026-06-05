@@ -9,9 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [24.3.0] - 2026-06-05 — **Stability Hardening, Projects & HR Enhancements**
+
+### Added
+- **Saudi Labor Law unauthorized-absence alerts & escalation** (OTS-BL-080): automated multi-step HR compliance escalation for uncovered absences — HR alert → manager → CEO — with override flags and audit trail
+- **Aging Report minimum-amount filter**: exclude small balances from the aged receivables view by configuring a minimum threshold
+- **Projects wizard edit mode**: existing projects can now be re-entered into the creation wizard for editing; new review step before saving; redesigned project details page
+
 ### Fixed
-- **Restart loop diagnostics — stop guessing the cause.** The process was restarting every ~30s but every event logged as *"reason unknown"*. Root cause of the blindness: process memory was only sampled every 60s (so the run-up to a kill was never captured) and only `SIGTERM` was handled (but PM2 restarts via `SIGINT`), so the OOM detector could never fire. Now: memory is sampled every 5s with a persisted **peak RSS**; `SIGINT`/`SIGHUP` are handled alongside `SIGTERM`; restarts are classified using peak memory; a one-shot **heap snapshot** is written to `logs/heapsnapshots/` when RSS crosses the threshold; and a V8 near-heap-limit backstop is enabled. **Confirmed via the captured events that this is a genuine OOM (peak RSS ~995MB on a ~1GB host), not a phantom restart.**
-- **Restart diagnostics round 2 — name the culprit, not just the cause.** Closed two attribution blind spots that made the first round report empty data: (1) all of the per-process counters (top routes by heap growth, in-flight requests, top DB queries) are now **persisted into the 5s state file**, so the next boot reports the *dead* process's last activity instead of the fresh process's empty buffers; (2) requests are tracked **in-flight** (start→end) so a request that OOMs before completing — including routes that bypass `withApiContext` — is still named; (3) the **Prisma query stream is counted by shape** so a runaway loop or hammered query on *any* code path (background jobs, unwrapped routes) shows up in `topQueries`. Heap-snapshot threshold lowered so it completes on a ~1GB host, and `max_memory_restart` set to 820M (below the observed ~995MB OS OOM ceiling) so PM2 restarts gracefully and the kill is captured.
+
+**Server & PM2 stability:**
+- **OOM restart loop — root-cause diagnostics**: memory now sampled every 5s with persisted peak RSS; `SIGINT`/`SIGHUP` handled alongside `SIGTERM`; restarts classified by peak memory; one-shot heap snapshot written to `logs/heapsnapshots/` when RSS crosses threshold; V8 near-heap-limit backstop enabled. Confirmed genuine OOM (peak RSS ~995MB on ~1GB host)
+- **OOM restart loop — culprit attribution**: per-process counters (top routes by heap growth, in-flight requests, top DB queries) persisted into 5s state file; requests tracked in-flight (start→end) so a route that OOMs before completing is still named; Prisma query stream counted by shape
+- **PM2 memory limits**: raised to match the actual 7.8GB host — prior limit was too low and caused unnecessary restarts
+- **Heap snapshot disk overflow**: snapshot watchdog now bounds the `heapsnapshots/` directory size so it cannot fill the host disk
+- **Server crash on broken links**: broken-link navigation no longer kills the Node process
+- **SessionProvider restart loop**: network/server errors in `SessionProvider` no longer trigger PM2 restart
+- **Session expiry on contract save**: redirect handled gracefully instead of crashing the save handler
+- **Restart-death spiral**: eliminated by capping the restart threshold and removing memory-exhausting polling queries
+
+**Tasks:**
+- Task list now shows `Discussion`-type tasks (were silently hidden by a type filter)
+- `isCeoTask NULL` silent filter removed — tasks with no CEO flag now appear correctly
+- Scope dropdown now visible in task edit mode; API response keys aligned with form expectations
+- Filter dropdowns (scope, status, user) now open upward to prevent clipping below the viewport
+- `SearchableSelect` max-height increased; uses React portal to escape stacking context
+- `createPortal` fixed: import was from `react` instead of `react-dom`
+
+**Project Tracker:**
+- Tonnage aggregated in SQL instead of loading all rows into Node memory (eliminates full-table scan + N+1)
+- In-flight deduplication and 60s cache prevent thundering-herd on the tracker API
+- Null-building tasks excluded from per-building progress percentage calculations
+
+**Inventory:**
+- Missing `unit_cost` / `total_cost` columns repaired on `inv_stock_ledger`
+- `reference_no` migration added so the stock ledger cost migration can succeed
+- camelCase column names fixed in stock ledger migration files
+
+**Build:**
+- Server-only db chain (Prisma client) no longer leaks into the client bundle
+
+**Polling:**
+- `underperforming-schedules` query moved from every 60s to once per day — eliminates a slow background query that was hammering the DB
+- `underperforming-schedules` removed from the global notification polling loop
 
 ---
 

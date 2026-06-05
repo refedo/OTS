@@ -1,8 +1,27 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 24.1.0 | **Release Date:** May 26, 2026
+**Version:** 24.3.0 | **Release Date:** June 5, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
+
+### What's New in 24.3.0 — Stability Hardening, Projects & HR Enhancements *(Minor)*
+- **Saudi Labor Law unauthorized-absence alerts** (OTS-BL-080): automated escalation — HR → manager → CEO — with override flags and audit trail.
+- **Aging Report minimum-amount filter**: exclude small balances from the aged receivables view.
+- **Projects wizard edit mode**: re-open the creation wizard to edit an existing project; new review step; redesigned project details page.
+- **PM2 memory limits** raised to actual 7.8GB host — ending the OOM restart loop.
+- **Full OOM diagnostics**: 5s RSS sampling, persisted state file, in-flight request tracking, Prisma query shape counting, heap snapshot on threshold.
+- **Tasks**: Discussion-type tasks now visible; `isCeoTask NULL` filter removed; filter dropdowns open upward; SearchableSelect uses React portal.
+- **Project Tracker**: tonnage aggregated in SQL; in-flight deduplication and 60s cache; null-building tasks excluded from per-building progress.
+- **Inventory**: `unit_cost`/`total_cost` columns repaired on `inv_stock_ledger`; migration sequencing fixed.
+- **Build**: server-only Prisma chain no longer leaks into the client bundle.
+
+### What's New in 24.2.0 — Inventory & MIR: Pricing, Quarantine, Category Fix, Purchases History & Pagination *(Minor)*
+- **Material pricing in stock**: unit price captured from PO line at MIR receipt, stored as `unit_cost`/`total_cost` in `inv_stock_ledger`.
+- **Purchases tab** in Material Master: full stock-in history with costs and weighted average price per tonne.
+- **Quarantine Qty** in MIR inspection form: auto-computes `rejected = received − accepted − quarantine`.
+- **Receive All / Accept All** bulk action buttons in MIR receipt detail (Draft workflow).
+- **Expanded page sizes** in Material Master; First/Last page navigation; Stock Level client-side pagination.
+- **Category fix**: HEA/IPE/HEB profiles now correctly show as Structural Steel in Stock Levels.
 
 ### What's New in 24.1.0 — INV UI Polish + Material Master Enrichment Engine *(Minor)*
 - **Fixed:** Deployment "Too many connections" crash — PM2 now stops before `prisma migrate deploy` to free DB pool connections, then restarts cleanly.
