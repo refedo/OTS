@@ -41,6 +41,7 @@ export async function register() {
     const { ContractRemindersScheduler } = await import('@/lib/scheduler/contract-reminders.scheduler');
     const { OpsAgentScheduler } = await import('@/lib/scheduler/ops-agent.scheduler');
     const { AttendanceSyncScheduler } = await import('@/lib/scheduler/attendance-sync.scheduler');
+    const { AbsenceEscalationScheduler } = await import('@/lib/scheduler/absence-escalation.scheduler');
     const { CalibrationReminderScheduler } = await import('@/lib/scheduler/calibration-reminder.scheduler');
     const { HrMonthlyReportScheduler } = await import('@/lib/scheduler/hr-monthly-report.scheduler');
     const { ensureOpsAgentConfig } = await import('@/lib/ops-agent/seeder');
@@ -75,6 +76,10 @@ export async function register() {
 
     // Initialize the daily PTS Attendance & Overtime Sync scheduler (HR module, 19.6.0)
     AttendanceSyncScheduler.initialize();
+
+    // Initialize the daily Absence Escalation scheduler (HR module, OTS-BL-080)
+    // Runs at 07:00 — after the 06:00 attendance sync — to evaluate ANP ladders.
+    AbsenceEscalationScheduler.initialize();
 
     // Initialize the daily Calibration Due Reminder scheduler (IMS module, 22.2.0)
     CalibrationReminderScheduler.initialize();

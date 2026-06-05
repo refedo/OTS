@@ -298,6 +298,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v44.2.0 — INV: repair unit_cost + total_cost (v44.1.1 tracked-but-failed) ─
   'v44_2_inv_ledger_cost_repair.sql',
+
+  // ── v45.0.0 — Saudi Labor Law unauthorized-absence alerts (OTS-BL-080) ──────
+  'v45_0_employee_absence_alerts.sql',  // EmployeeAbsenceAlert table (consecutive/intermittent ANP escalation)
 ];
 
 /**

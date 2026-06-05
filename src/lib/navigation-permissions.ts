@@ -229,6 +229,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // HR Absence Analytics (19.4.0)
   '/hr/analytics': ['hr.analytics.view'],
 
+  // HR Unauthorized-Absence Alerts (OTS-BL-080)
+  '/hr/absence-alerts': ['hr.analytics.view'],
+
   // HR Policies, Onboarding, Training (19.11.0)
   '/hr/policies': ['hr.employee.view'],
   '/hr/onboarding': ['hr.employee.view'],

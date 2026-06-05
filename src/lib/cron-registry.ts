@@ -6,6 +6,7 @@ export type CronJobId =
   | 'early-warning'
   | 'ops-agent'
   | 'attendance-sync'
+  | 'absence-escalation'
   | 'calibration-reminder';
 
 export interface CronJobDef {
@@ -105,6 +106,19 @@ export const CRON_JOB_REGISTRY: CronJobDef[] = [
     enabledEnvVar: 'ENABLE_ATTENDANCE_SYNC_SCHEDULER',
     intervalEnvVar: null,
     category: 'sync',
+  },
+  {
+    id: 'absence-escalation',
+    name: 'Absence Escalation Engine',
+    description:
+      'Saudi Labor Law — daily evaluation of unauthorized (ANP) absences. Persists graduated alerts (5/10/15 consecutive; 10/20/30 intermittent over a rolling year) and notifies HR before each disciplinary threshold.',
+    scheduleExpression: '0 7 * * *',
+    scheduleHuman: 'Daily at 07:00 (Asia/Riyadh)',
+    endpoint: '/api/hr/absence-alerts/evaluate',
+    authMode: 'bearer',
+    enabledEnvVar: 'ENABLE_ABSENCE_ESCALATION_SCHEDULER',
+    intervalEnvVar: null,
+    category: 'analysis',
   },
   {
     id: 'calibration-reminder',

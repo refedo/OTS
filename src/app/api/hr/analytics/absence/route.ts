@@ -20,6 +20,7 @@ import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db';
+import { longestStreak } from '@/lib/services/hr/absence-streak';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,34 +92,9 @@ function monthKey(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-/** Two ANP dates are part of the same consecutive streak if their gap is ≤ 3 days
- *  (bridges a Fri/Sat/Sun weekend so Thu→Mon counts as consecutive). */
-function isConsecutiveGap(a: Date, b: Date): boolean {
-  const diffMs = b.getTime() - a.getTime();
-  const diffDays = diffMs / 86_400_000;
-  return diffDays > 0 && diffDays <= 3;
-}
-
-/** Find longest run of "consecutive" ANP dates (weekends transparent). */
-function longestStreak(dates: Date[]): { length: number; start: Date; end: Date } | null {
-  if (dates.length === 0) return null;
-  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
-  let best = { length: 1, start: sorted[0], end: sorted[0] };
-  let runStart = sorted[0];
-  let runLen = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    if (isConsecutiveGap(sorted[i - 1], sorted[i])) {
-      runLen++;
-      if (runLen > best.length) {
-        best = { length: runLen, start: runStart, end: sorted[i] };
-      }
-    } else {
-      runStart = sorted[i];
-      runLen = 1;
-    }
-  }
-  return best;
-}
+// Streak helpers (isConsecutiveGap, longestStreak) live in
+// '@/lib/services/hr/absence-streak' so the analytics view and the persisted
+// escalation engine share one weekend-transparent definition.
 
 // ---------------------------------------------------------------------------
 // Main handler
