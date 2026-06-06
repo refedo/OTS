@@ -18,11 +18,7 @@ Deployment: hexasteel.sa/ots
 ## Versioning
 - Patch (X.Y.Z): fixes  
 - Minor (X.Y.0): features  
-- Major (X.0.0): manual only  
-
-On every change:
-- Update package.json
-- Update changelog.md + UI changelog
+- Major (X.0.0): **user instruction only — never bump major without explicit permission**
 
 ---
 
@@ -40,8 +36,31 @@ When multiple sessions run in parallel:
 ---
 
 ## Development Rules
-- Work directly on main
-- No feature branches or PRs
+- Push directly to main — no branch permission needed
+- No feature branches or PRs required
+
+---
+
+## Release Routine
+
+Run `npm run release:patch` for fixes or `npm run release:minor` for new features.  
+**Never run a major bump** — major version changes require explicit user instruction.
+
+### Every release must update ALL of the following:
+
+1. **`package.json`** — version field (updated automatically by the release script)
+2. **`src/lib/version.ts`** — update `date` to today and `type` to `'patch'` or `'minor'`
+3. **`CHANGELOG.md`** — convert the `[Unreleased]` section to `[X.Y.Z] - YYYY-MM-DD — **Title**`; document every commit since the last release (features, fixes, changes)
+4. **`src/app/changelog/_page-client.tsx`** — add the new version object at the top of `hardcodedVersions[]` with `status: 'current'`; set all previous entries to `status: 'previous'`
+5. **`README.md`** — update the version badge and "What's New" section at the top
+
+### Files to read before every release:
+- `package.json` — confirm current version
+- `src/lib/version.ts` — update date/type
+- `CHANGELOG.md` — move [Unreleased] → new version
+- `src/app/api/system/latest-version/route.ts` — verify version API is consistent
+- `src/app/changelog/_page-client.tsx` — add new hardcoded version block
+- `README.md` — update header
 
 ---
 
