@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const tasks = await prisma.task.findMany({
     where: {
       dueDate: { gte: windowStart, lte: windowEnd },
-      status: { notIn: ['Completed'] },
+      status: { notIn: ['Completed', 'Pending'] },
       assignedToId: { not: null },
     },
     select: {
