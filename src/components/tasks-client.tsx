@@ -1162,12 +1162,12 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   };
 
   const isOverdue = (dueDate: string, status: string) => {
-    if (status === 'Completed') return false;
+    if (status === 'Completed' || status === 'Pending') return false;
     return new Date(dueDate) < new Date();
   };
 
   const getOverdueDays = (dueDate: string, status: string) => {
-    if (status === 'Completed') return 0;
+    if (status === 'Completed' || status === 'Pending') return 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate);

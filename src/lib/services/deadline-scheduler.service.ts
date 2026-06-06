@@ -72,7 +72,7 @@ export class DeadlineSchedulerService {
             lte: in48Hours,
           },
           status: {
-            not: 'Completed',
+            notIn: ['Completed', 'Pending'],
           },
           assignedToId: {
             not: null,

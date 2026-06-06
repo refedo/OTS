@@ -72,7 +72,7 @@ export async function GET(req: Request) {
           lt: now, // Due date is in the past
         },
         status: {
-          not: 'Completed', // Not completed
+          notIn: ['Completed', 'Pending'], // Not completed, not pending (pending tasks haven't started yet)
         },
         deletedAt: null,
         ...userFilter,
