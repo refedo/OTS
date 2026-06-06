@@ -58,24 +58,16 @@ export async function GET(req: Request) {
   const canViewOthers = userPermissions.includes('tasks.view_others');
   
   if (canViewAll) {
-    // Users with tasks.view_all can see all tasks (or can filter)
-    // But still filter out private tasks that don't belong to them
+    // tasks.view_all bypasses isPrivate — project managers and admins can see all work tasks
+    // regardless of who created or owns them. This prevents tasks from becoming orphaned
+    // when the creator/assignee account is deactivated.
     if (assignedTo) {
       whereClause.assignedToId = assignedTo;
     }
-    // Filter private tasks - only show non-private OR tasks where user is creator/assignee
-    // Also filter CEO tasks - only CEO can see CEO tasks
-    whereClause.AND = [
-      {
-        OR: [
-          { isPrivate: false },
-          { createdById: session.sub },
-          { assignedToId: session.sub },
-        ],
-      },
-      // CEO task visibility: only users with manage_ceo_tasks can see CEO tasks
-      canManageCeoTasks ? {} : { isCeoTask: false },
-    ];
+    // CEO task visibility: only users with manage_ceo_tasks can see CEO tasks
+    if (!canManageCeoTasks) {
+      whereClause.AND = [{ isCeoTask: false }];
+    }
   } else if (canViewOthers) {
     // Users with tasks.view_others can see other users' tasks but not all tasks
     // They can see: their own tasks + tasks created by them + non-private tasks

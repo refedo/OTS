@@ -156,22 +156,20 @@ export async function GET(
   const permissions = await getCurrentUserPermissions();
   const canViewAll = permissions.includes('tasks.view_all');
   const canViewOthers = permissions.includes('tasks.view_others');
-  
-  if (!canViewAll && !canViewOthers) {
-    // Without view_all or view_others, can only see own assigned/created tasks
-    if (task.assignedToId !== session.sub && task.createdById !== session.sub) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // tasks.view_all bypasses isPrivate — same as the list endpoint
+  if (!canViewAll) {
+    if (!canViewOthers) {
+      // No broad view permission: only own assigned/created tasks
+      if (task.assignedToId !== session.sub && task.createdById !== session.sub) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      // view_others but not view_all: non-private tasks + own tasks
+      if (task.isPrivate && task.assignedToId !== session.sub && task.createdById !== session.sub) {
+        return NextResponse.json({ error: 'Forbidden - This is a private task' }, { status: 403 });
+      }
     }
-  } else if (canViewOthers && !canViewAll) {
-    // With view_others but not view_all, can see non-private tasks + own tasks
-    if (task.isPrivate && task.assignedToId !== session.sub && task.createdById !== session.sub) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-  }
-  
-  // For private tasks, only creator or assignee can view
-  if (task.isPrivate && task.createdById !== session.sub && task.assignedToId !== session.sub) {
-    return NextResponse.json({ error: 'Forbidden - This is a private task' }, { status: 403 });
   }
 
   return NextResponse.json(task);

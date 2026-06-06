@@ -124,6 +124,23 @@ export async function PATCH(
       include: { role: true, department: true },
     });
 
+    // When deactivating a user, un-private their tasks so they remain visible
+    // to project managers. Tasks are self-assigned (auto-private) and would
+    // become orphaned/invisible when the account is deactivated.
+    if (parsed.data.status === 'inactive' && oldUser?.status === 'active') {
+      await prisma.task.updateMany({
+        where: {
+          isPrivate: true,
+          deletedAt: null,
+          OR: [
+            { createdById: params.id },
+            { assignedToId: params.id },
+          ],
+        },
+        data: { isPrivate: false },
+      });
+    }
+
     // Determine the most significant event type
     if (parsed.data.status === 'inactive' && oldUser?.status === 'active') {
       systemEventService.logUser('USER_DEACTIVATED', user.id, session.sub, {

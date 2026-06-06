@@ -301,6 +301,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v45.0.0 — Saudi Labor Law unauthorized-absence alerts (OTS-BL-080) ──────
   'v45_0_employee_absence_alerts.sql',  // EmployeeAbsenceAlert table (consecutive/intermittent ANP escalation)
+
+  // ── v45.1.0 — Un-private tasks orphaned by deactivated users ─────────────
+  'v45_1_unprivate_inactive_user_tasks.sql', // Clear isPrivate=1 where both creator and assignee are inactive
 ];
 
 /**
