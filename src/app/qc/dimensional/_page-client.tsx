@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Ruler, Search, Plus, CheckCircle, XCircle, Clock, Loader2, FileDown } from 'lucide-react';
+import { Ruler, Search, Plus, CheckCircle, XCircle, Clock, Loader2, FileDown, SendHorizonal, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { generateDimensionalReport, type DimReportItem, type DimReportMeta } from '@/lib/dimensional-pdf-generator';
 
 type Inspection = {
@@ -14,6 +14,7 @@ type Inspection = {
   partDesignation: string;
   result: string;
   toleranceCheck: string;
+  approvalStatus: string;
   inspectionDate: string;
   measuredLength: number | null;
   measuredWidth: number | null;
@@ -34,6 +35,8 @@ type Inspection = {
     };
   } | null;
   inspector: { id: string; name: string } | null;
+  checkedBy: { id: string; name: string } | null;
+  approvedBy: { id: string; name: string } | null;
   rfiRequest: { id: string; rfiNumber: string | null } | null;
 };
 
@@ -45,6 +48,7 @@ export default function DimensionalInspectionPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
   const [resultFilter, setResultFilter] = useState('all');
+  const [workflowBusy, setWorkflowBusy] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInspections();
@@ -128,7 +132,7 @@ export default function DimensionalInspectionPage() {
       pid: String(idx + 1).padStart(5, '0'),
       assemblyMark: insp.productionLog?.assemblyPart.assemblyMark ?? '—',
       revision: '',
-      profile: insp.productionLog?.assemblyPart.profile ?? 'BEAM',
+      profile: insp.productionLog?.assemblyPart.profile ?? '',
       designation: insp.partDesignation,
       checkedQty: 1,
       dwgLengthMm: insp.requiredLength,
@@ -149,7 +153,8 @@ export default function DimensionalInspectionPage() {
       projectNumber: proj?.projectNumber ?? '',
       buildingName: '—',
       projectName: proj?.name ?? '',
-      preparedBy: group[0].inspector?.name ?? '—',
+      preparedBy: group[0].checkedBy?.name ?? group[0].inspector?.name ?? '—',
+      checkedBy: group[0].checkedBy?.name ?? '—',
       inspectorName: group[0].inspector?.name ?? 'Hexa QC Inspector',
       rfiNumber: rfiNumber.replace('RFI-', ''),
       qtyBuilding: String(group.length),
@@ -158,6 +163,48 @@ export default function DimensionalInspectionPage() {
     };
 
     generateDimensionalReport(meta, items);
+  }
+
+  async function runWorkflow(ids: string[], action: 'submit' | 'approve' | 'reject') {
+    setWorkflowBusy(ids[0]);
+    try {
+      const resp = await fetch('/api/qc/dimensional/workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inspectionIds: ids, action }),
+      });
+      if (resp.ok) fetchInspections();
+    } finally {
+      setWorkflowBusy(null);
+    }
+  }
+
+  function getApprovalBadge(status: string) {
+    const map: Record<string, React.ReactElement> = {
+      Draft: (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+          Draft
+        </span>
+      ),
+      PendingApproval: (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+          Pending Approval
+        </span>
+      ),
+      Approved: (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircle className="h-3 w-3" /> Approved
+        </span>
+      ),
+      Rejected: (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+          <XCircle className="h-3 w-3" /> Rejected
+        </span>
+      ),
+    };
+    return map[status] ?? (
+      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">{status}</span>
+    );
   }
 
   if (loading) {
@@ -269,13 +316,14 @@ export default function DimensionalInspectionPage() {
                   <th className="text-right px-4 py-3 font-medium">Diff (mm)</th>
                   <th className="text-left px-4 py-3 font-medium">RFI</th>
                   <th className="text-left px-4 py-3 font-medium">Result</th>
+                  <th className="text-left px-4 py-3 font-medium">Approval</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredInspections.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                    <td colSpan={10} className="text-center py-12 text-muted-foreground">
                       No inspection records found
                     </td>
                   </tr>
@@ -286,6 +334,7 @@ export default function DimensionalInspectionPage() {
                         ? parseFloat((insp.measuredLength - insp.requiredLength).toFixed(1))
                         : null;
                     const tol = insp.lengthTolerance ?? 2;
+                    const busy = workflowBusy === insp.id;
                     return (
                       <tr key={insp.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-mono text-xs">{insp.inspectionNumber}</td>
@@ -314,16 +363,61 @@ export default function DimensionalInspectionPage() {
                         </td>
                         <td className="px-4 py-3">{getResultBadge(insp.result)}</td>
                         <td className="px-4 py-3">
-                          {insp.rfiRequestId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Download PDF report"
-                              onClick={() => downloadGroupPdf(insp.rfiRequestId!)}
-                            >
-                              <FileDown className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <div className="flex flex-col gap-1">
+                            {getApprovalBadge(insp.approvalStatus ?? 'Draft')}
+                            {insp.checkedBy && (
+                              <span className="text-xs text-muted-foreground">{insp.checkedBy.name}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {insp.rfiRequestId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Download PDF report"
+                                onClick={() => downloadGroupPdf(insp.rfiRequestId!)}
+                              >
+                                <FileDown className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {(insp.approvalStatus === 'Draft' || insp.approvalStatus === 'Rejected' || !insp.approvalStatus) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Submit for approval"
+                                disabled={busy}
+                                onClick={() => runWorkflow([insp.id], 'submit')}
+                              >
+                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+                              </Button>
+                            )}
+                            {insp.approvalStatus === 'PendingApproval' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Approve"
+                                  disabled={busy}
+                                  className="text-green-700 hover:text-green-800"
+                                  onClick={() => runWorkflow([insp.id], 'approve')}
+                                >
+                                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Reject"
+                                  disabled={busy}
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => runWorkflow([insp.id], 'reject')}
+                                >
+                                  <ThumbsDown className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

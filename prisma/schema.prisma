@@ -147,7 +147,9 @@ model User {
   mirApprovedReceipts                 MaterialInspectionReceipt[]           @relation("MIRApprovedBy")
   mirAttachments                      MaterialInspectionReceiptAttachment[] @relation("MIRAttachmentUploader")
   weldingInspections         WeldingInspection[]                   @relation("WeldingInspector")
-  dimensionalInspections     DimensionalInspection[]               @relation("DimensionalInspector")
+  dimensionalInspections          DimensionalInspection[]               @relation("DimensionalInspector")
+  dimensionalInspectionsChecked   DimensionalInspection[]               @relation("DimensionalCheckedBy")
+  dimensionalInspectionsApproved  DimensionalInspection[]               @relation("DimensionalApprovedBy")
   ndtInspections             NDTInspection[]                       @relation("NDTInspector")
   createdProjectPlans        ProjectPlan[]                         @relation("ProjectPlanCreatedBy")
   updatedProjectPlans        ProjectPlan[]                         @relation("ProjectPlanUpdatedBy")
@@ -1921,9 +1923,15 @@ model DimensionalInspection {
 
   // Inspection Details
   inspectorId    String   @db.Char(36)
+  checkedById    String?  @db.Char(36)
+  approvedById   String?  @db.Char(36)
   inspectionDate DateTime @default(now())
   toleranceCheck String   @default("Pending") // Within, Out of Tolerance, Pending
   result         String   @default("Pending") // Accepted, Rejected, Pending
+
+  // Approval workflow
+  approvalStatus String  @default("Draft") // Draft, PendingApproval, Approved, Rejected
+  approvalNotes  String? @db.Text
 
   remarks     String? @db.Text
   attachments String? @db.Text // JSON array of file paths
@@ -1936,6 +1944,8 @@ model DimensionalInspection {
   building      Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   productionLog ProductionLog @relation(fields: [productionLogId], references: [id], onDelete: Cascade)
   inspector     User          @relation("DimensionalInspector", fields: [inspectorId], references: [id])
+  checkedBy     User?         @relation("DimensionalCheckedBy", fields: [checkedById], references: [id])
+  approvedBy    User?         @relation("DimensionalApprovedBy", fields: [approvedById], references: [id])
   rfiRequest    RFIRequest?   @relation("DimensionalRFI", fields: [rfiRequestId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -1945,6 +1955,8 @@ model DimensionalInspection {
   @@index([buildingId])
   @@index([productionLogId])
   @@index([inspectorId])
+  @@index([checkedById])
+  @@index([approvedById])
   @@index([result])
   @@index([inspectionDate])
   @@index([rfiRequestId])

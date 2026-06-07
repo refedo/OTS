@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logger } from '@/lib/logger';
 
 async function generateInspectionNumber(): Promise<string> {
   const now = new Date();
@@ -30,6 +31,8 @@ const assemblyPartSelect = {
   quantity: true,
 };
 
+const userSelect = { id: true, name: true, email: true };
+
 export async function GET(request: Request) {
   try {
     const store = await cookies();
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
     const buildingId = searchParams.get('buildingId');
     const result = searchParams.get('result');
     const rfiRequestId = searchParams.get('rfiRequestId');
+    const approvalStatus = searchParams.get('approvalStatus');
 
     const whereClause: Record<string, unknown> = {};
 
@@ -52,6 +56,7 @@ export async function GET(request: Request) {
     if (buildingId && buildingId !== 'all') whereClause.buildingId = buildingId;
     if (result && result !== 'all') whereClause.result = result;
     if (rfiRequestId) whereClause.rfiRequestId = rfiRequestId;
+    if (approvalStatus && approvalStatus !== 'all') whereClause.approvalStatus = approvalStatus;
 
     const inspections = await prisma.dimensionalInspection.findMany({
       where: whereClause,
@@ -61,7 +66,9 @@ export async function GET(request: Request) {
         productionLog: {
           include: { assemblyPart: { select: assemblyPartSelect } },
         },
-        inspector: { select: { id: true, name: true, email: true } },
+        inspector: { select: userSelect },
+        checkedBy: { select: userSelect },
+        approvedBy: { select: userSelect },
         rfiRequest: { select: { id: true, rfiNumber: true, status: true } },
       },
       orderBy: { inspectionDate: 'desc' },
@@ -69,7 +76,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(inspections);
   } catch (error) {
-    console.error('Error fetching dimensional inspections:', error);
+    logger.error({ error }, 'Error fetching dimensional inspections');
     return NextResponse.json(
       { error: 'Failed to fetch dimensional inspections' },
       { status: 500 }
@@ -96,12 +103,14 @@ export async function POST(request: Request) {
         buildingId,
         rfiRequestId,
         inspectionDate,
+        checkedById,
         items,
       } = body as {
         projectId: string;
         buildingId?: string;
         rfiRequestId?: string;
         inspectionDate?: string;
+        checkedById?: string;
         items: {
           productionLogId: string;
           partDesignation: string;
@@ -147,9 +156,11 @@ export async function POST(request: Request) {
             measuredLength: actualLength ?? null,
             lengthTolerance: tolerance,
             inspectorId: session.sub,
+            checkedById: checkedById || null,
             inspectionDate: inspectionDate ? new Date(inspectionDate) : new Date(),
             toleranceCheck,
             result,
+            approvalStatus: 'Draft',
             remarks: remarks || null,
           },
           include: {
@@ -157,6 +168,7 @@ export async function POST(request: Request) {
             productionLog: {
               include: { assemblyPart: { select: assemblyPartSelect } },
             },
+            checkedBy: { select: userSelect },
           },
         });
 
@@ -194,6 +206,7 @@ export async function POST(request: Request) {
       remarks,
       attachments,
       rfiRequestId,
+      checkedById,
     } = body;
 
     if (!projectId || !productionLogId || !partDesignation) {
@@ -227,9 +240,11 @@ export async function POST(request: Request) {
         flatness: flatness || null,
         squareness: squareness || null,
         inspectorId: session.sub,
+        checkedById: checkedById || null,
         inspectionDate: inspectionDate ? new Date(inspectionDate) : new Date(),
         toleranceCheck: toleranceCheck || 'Pending',
         result: result || 'Pending',
+        approvalStatus: 'Draft',
         remarks: remarks || null,
         attachments: attachments || null,
       },
@@ -239,13 +254,14 @@ export async function POST(request: Request) {
         productionLog: {
           include: { assemblyPart: { select: assemblyPartSelect } },
         },
-        inspector: { select: { id: true, name: true, email: true } },
+        inspector: { select: userSelect },
+        checkedBy: { select: userSelect },
       },
     });
 
     return NextResponse.json(inspection, { status: 201 });
   } catch (error) {
-    console.error('Error creating dimensional inspection:', error);
+    logger.error({ error }, 'Error creating dimensional inspection');
     return NextResponse.json(
       { error: 'Failed to create dimensional inspection' },
       { status: 500 }

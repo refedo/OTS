@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Ruler, ChevronLeft, Loader2, CheckCircle, XCircle, Clock,
-  FileDown, Plus, Trash2, Search,
+  FileDown, Plus, Trash2, Search, UserCheck,
 } from 'lucide-react';
 import { generateDimensionalReport, type DimReportItem, type DimReportMeta } from '@/lib/dimensional-pdf-generator';
 
@@ -18,6 +18,8 @@ import { generateDimensionalReport, type DimReportItem, type DimReportMeta } fro
 type Project = { id: string; projectNumber: string; name: string };
 
 type Building = { id: string; designation: string; name: string };
+
+type Employee = { id: string; name: string; position: string | null };
 
 type RFIOption = {
   id: string;
@@ -64,7 +66,7 @@ type MeasurementRow = {
   checkedQty: number;
   totalQty: number;
   dwgLengthMm: number | null;
-  actualLengthMm: string; // user input (string for controlled input)
+  actualLengthMm: string;
   toleranceMm: string;
   differenceMm: number | null;
   result: 'Pass' | 'Fail' | 'Pending';
@@ -109,7 +111,7 @@ function logToRow(log: ProductionLogOption): MeasurementRow {
   return {
     productionLogId: log.id,
     assemblyMark: log.assemblyPart.assemblyMark,
-    profile: log.assemblyPart.profile || 'BEAM',
+    profile: log.assemblyPart.profile || '',
     partDesignation: log.assemblyPart.partDesignation,
     checkedQty: log.processedQty,
     totalQty: log.assemblyPart.quantity,
@@ -137,6 +139,10 @@ export default function NewDimensionalInspectionPage() {
   const [reportNumber, setReportNumber] = useState('');
   const [rows, setRows] = useState<MeasurementRow[]>([]);
 
+  // Checked by
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [checkedById, setCheckedById] = useState('');
+
   // RFI mode
   const [rfis, setRfis] = useState<RFIOption[]>([]);
   const [selectedRfi, setSelectedRfi] = useState('');
@@ -157,6 +163,13 @@ export default function NewDimensionalInspectionPage() {
     fetch('/api/projects')
       .then((r) => r.json())
       .then((data: Project[]) => setProjects(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/users?forAssignment=true')
+      .then((r) => r.json())
+      .then((data: Employee[]) => setEmployees(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -276,6 +289,7 @@ export default function NewDimensionalInspectionPage() {
           buildingId: selectedBuilding || undefined,
           rfiRequestId: selectedRfi || undefined,
           inspectionDate,
+          checkedById: checkedById || undefined,
           items,
         }),
       });
@@ -291,6 +305,7 @@ export default function NewDimensionalInspectionPage() {
       // Build PDF report
       const proj = projects.find((p) => p.id === selectedProject);
       const bld = buildings.find((b) => b.id === selectedBuilding);
+      const checkedByEmployee = employees.find((e) => e.id === checkedById);
 
       const pdfItems: DimReportItem[] = rows.map((row, idx) => ({
         sn: idx + 1,
@@ -315,14 +330,13 @@ export default function NewDimensionalInspectionPage() {
         projectNumber: proj?.projectNumber ?? '',
         buildingName: bld ? `${bld.designation} – ${bld.name}` : '—',
         projectName: proj?.name ?? '',
-        preparedBy: 'Sarfraz MD',
-        inspectorName: rfi?.productionLogs[0]?.productionLog?.assemblyPart?.partDesignation
-          ? 'Hexa QC Inspector'
-          : 'Hexa QC Inspector',
+        preparedBy: checkedByEmployee?.name ?? 'Hexa QC Inspector',
+        checkedBy: checkedByEmployee?.name ?? '—',
+        inspectorName: 'Hexa QC Inspector',
         rfiNumber: rfi?.rfiNumber?.replace('RFI-', '') ?? '—',
         qtyBuilding: String(rows.reduce((s, r) => s + r.checkedQty, 0)),
         inspectionDate: now.toLocaleDateString('en-SA-u-ca-gregory'),
-        inspectionTime: '10:AM',
+        inspectionTime: new Date().toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
 
       generateDimensionalReport(pdfMeta, pdfItems);
@@ -432,14 +446,32 @@ export default function NewDimensionalInspectionPage() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label>Report Number (optional)</Label>
-            <Input
-              placeholder="e.g. 270-PIC-PI-01"
-              value={reportNumber}
-              onChange={(e) => setReportNumber(e.target.value)}
-              className="max-w-xs"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Report Number (optional)</Label>
+              <Input
+                placeholder="e.g. 270-PIC-PI-01"
+                value={reportNumber}
+                onChange={(e) => setReportNumber(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5" /> Checked By
+              </Label>
+              <select
+                value={checkedById}
+                onChange={(e) => setCheckedById(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+              >
+                <option value="">— Select employee —</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}{e.position ? ` · ${e.position}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Mode tabs */}
@@ -663,7 +695,7 @@ export default function NewDimensionalInspectionPage() {
                     >
                       <td className="px-3 py-2 text-muted-foreground">{idx + 1}</td>
                       <td className="px-3 py-2 font-mono text-xs">{row.assemblyMark}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{row.profile}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.profile || '—'}</td>
                       <td className="px-3 py-2">{row.partDesignation}</td>
                       <td className="px-3 py-2 text-right">{row.checkedQty}</td>
                       <td className="px-3 py-2 text-right font-mono">
@@ -736,10 +768,10 @@ export default function NewDimensionalInspectionPage() {
           <Button
             variant="outline"
             onClick={() => {
-              // Preview PDF without saving
               const proj = projects.find((p) => p.id === selectedProject);
               const bld = buildings.find((b) => b.id === selectedBuilding);
               const rfi = rfis.find((r) => r.id === selectedRfi);
+              const checkedByEmployee = employees.find((e) => e.id === checkedById);
               const now = new Date(inspectionDate);
               const pdfItems: DimReportItem[] = rows.map((row, idx) => ({
                 sn: idx + 1,
@@ -763,12 +795,13 @@ export default function NewDimensionalInspectionPage() {
                   projectNumber: proj?.projectNumber ?? '',
                   buildingName: bld ? `${bld.designation} – ${bld.name}` : '—',
                   projectName: proj?.name ?? '',
-                  preparedBy: 'Sarfraz MD',
+                  preparedBy: checkedByEmployee?.name ?? 'Hexa QC Inspector',
+                  checkedBy: checkedByEmployee?.name ?? '—',
                   inspectorName: 'Hexa QC Inspector',
                   rfiNumber: rfi?.rfiNumber?.replace('RFI-', '') ?? '—',
                   qtyBuilding: String(rows.reduce((s, r) => s + r.checkedQty, 0)),
                   inspectionDate: now.toLocaleDateString('en-SA-u-ca-gregory'),
-                  inspectionTime: '10:AM',
+                  inspectionTime: new Date().toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 },
                 pdfItems
               );
