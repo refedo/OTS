@@ -71,6 +71,8 @@ export async function GET(request: Request) {
                     name: true,
                     assemblyMark: true,
                     quantity: true,
+                    profile: true,
+                    lengthMm: true,
                   },
                 },
               },
