@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Ruler, ChevronLeft, Loader2, CheckCircle, XCircle, Clock,
   FileDown, Plus, Trash2, Search, UserCheck,
@@ -88,22 +89,22 @@ function calcRow(row: MeasurementRow): MeasurementRow {
 function ResultBadge({ result }: { result: string }) {
   if (result === 'Pass' || result === 'Accepted') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        <CheckCircle className="h-3 w-3" /> Pass
-      </span>
+      <Badge className="bg-green-500/10 text-green-700 border border-green-200 whitespace-nowrap">
+        <CheckCircle className="h-3 w-3 mr-1" /> Pass
+      </Badge>
     );
   }
   if (result === 'Fail' || result === 'Rejected') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        <XCircle className="h-3 w-3" /> Fail
-      </span>
+      <Badge className="bg-red-500/10 text-red-700 border border-red-200 whitespace-nowrap">
+        <XCircle className="h-3 w-3 mr-1" /> Fail
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-      <Clock className="h-3 w-3" /> —
-    </span>
+    <Badge className="bg-gray-500/10 text-gray-500 whitespace-nowrap">
+      <Clock className="h-3 w-3 mr-1" /> —
+    </Badge>
   );
 }
 

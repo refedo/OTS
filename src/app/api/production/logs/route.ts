@@ -99,6 +99,8 @@ export async function GET(req: Request) {
             partMark: true,
             name: true,
             quantity: true,
+            profile: true,
+            lengthMm: true,
             netWeightTotal: true,
             netAreaTotal: true,
             singlePartWeight: true,

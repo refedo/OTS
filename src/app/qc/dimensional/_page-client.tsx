@@ -5,7 +5,19 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Ruler, Search, Plus, CheckCircle, XCircle, Clock, Loader2, FileDown, SendHorizonal, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Ruler, Search, Plus, CheckCircle, XCircle, Clock, Loader2,
+  FileDown, SendHorizonal, ShieldCheck, ShieldX, ClipboardList,
+  MoreHorizontal, AlertCircle,
+} from 'lucide-react';
 import { generateDimensionalReport, type DimReportItem, type DimReportMeta } from '@/lib/dimensional-pdf-generator';
 
 type Inspection = {
@@ -17,13 +29,12 @@ type Inspection = {
   approvalStatus: string;
   inspectionDate: string;
   measuredLength: number | null;
-  measuredWidth: number | null;
-  measuredHeight: number | null;
   requiredLength: number | null;
   lengthTolerance: number | null;
   projectId: string;
   rfiRequestId: string | null;
   project: { id: string; projectNumber: string; name: string } | null;
+  building: { id: string; designation: string; name: string } | null;
   productionLog: {
     assemblyPart: {
       partDesignation: string;
@@ -40,6 +51,64 @@ type Inspection = {
   rfiRequest: { id: string; rfiNumber: string | null } | null;
 };
 
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function WorkflowBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'Approved':
+      return (
+        <Badge className="bg-green-500/15 text-green-700 border border-green-300 font-semibold whitespace-nowrap">
+          <ShieldCheck className="h-3 w-3 mr-1" /> Approved
+        </Badge>
+      );
+    case 'Rejected':
+      return (
+        <Badge className="bg-red-500/15 text-red-700 border border-red-300 font-semibold whitespace-nowrap">
+          <ShieldX className="h-3 w-3 mr-1" /> Rejected
+        </Badge>
+      );
+    case 'PendingApproval':
+      return (
+        <Badge className="bg-amber-500/15 text-amber-700 border border-amber-300 whitespace-nowrap">
+          <ClipboardList className="h-3 w-3 mr-1" /> Pending Approval
+        </Badge>
+      );
+    default:
+      return (
+        <Badge className="bg-gray-500/10 text-gray-600 whitespace-nowrap">
+          <Clock className="h-3 w-3 mr-1" /> Draft
+        </Badge>
+      );
+  }
+}
+
+function ResultBadge({ result }: { result: string }) {
+  switch (result) {
+    case 'Accepted':
+      return (
+        <Badge className="bg-green-500/10 text-green-600 whitespace-nowrap">
+          <CheckCircle className="h-3 w-3 mr-1" /> Accepted
+        </Badge>
+      );
+    case 'Rejected':
+      return (
+        <Badge className="bg-red-500/10 text-red-600 whitespace-nowrap">
+          <XCircle className="h-3 w-3 mr-1" /> Rejected
+        </Badge>
+      );
+    default:
+      return (
+        <Badge className="bg-blue-500/10 text-blue-600 whitespace-nowrap">
+          <Clock className="h-3 w-3 mr-1" /> Pending
+        </Badge>
+      );
+  }
+}
+
 export default function DimensionalInspectionPage() {
   const router = useRouter();
   const [inspections, setInspections] = useState<Inspection[]>([]);
@@ -48,6 +117,7 @@ export default function DimensionalInspectionPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
   const [resultFilter, setResultFilter] = useState('all');
+  const [approvalFilter, setApprovalFilter] = useState('all');
   const [workflowBusy, setWorkflowBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,75 +126,60 @@ export default function DimensionalInspectionPage() {
   }, []);
 
   const fetchInspections = async () => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/qc/dimensional');
-      if (response.ok) {
-        const data = await response.json();
-        setInspections(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      // silently ignore
-    } finally {
+      const r = await fetch('/api/qc/dimensional');
+      if (r.ok) setInspections(await r.json());
+    } catch { /* ignore */ } finally {
       setLoading(false);
     }
   };
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/projects');
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      // silently ignore
-    }
+      const r = await fetch('/api/projects');
+      if (r.ok) setProjects(await r.json());
+    } catch { /* ignore */ }
   };
 
-  const filteredInspections = inspections.filter((i) => {
-    const matchesSearch =
-      i.inspectionNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.partDesignation?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProject = projectFilter === 'all' || i.projectId === projectFilter;
-    const matchesResult = resultFilter === 'all' || i.result === resultFilter;
-    return matchesSearch && matchesProject && matchesResult;
+  const filtered = inspections.filter((i) => {
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q ||
+      i.inspectionNumber?.toLowerCase().includes(q) ||
+      i.partDesignation?.toLowerCase().includes(q) ||
+      i.productionLog?.assemblyPart.assemblyMark?.toLowerCase().includes(q);
+    const matchProject = projectFilter === 'all' || i.projectId === projectFilter;
+    const matchResult  = resultFilter === 'all' || i.result === resultFilter;
+    const matchApproval = approvalFilter === 'all' || (i.approvalStatus ?? 'Draft') === approvalFilter;
+    return matchSearch && matchProject && matchResult && matchApproval;
   });
 
   const stats = {
-    total: inspections.length,
-    accepted: inspections.filter((i) => i.result === 'Accepted').length,
-    rejected: inspections.filter((i) => i.result === 'Rejected').length,
-    pending: inspections.filter((i) => i.result === 'Pending').length,
+    total:   inspections.length,
+    draft:   inspections.filter(i => !i.approvalStatus || i.approvalStatus === 'Draft').length,
+    pending: inspections.filter(i => i.approvalStatus === 'PendingApproval').length,
+    approved: inspections.filter(i => i.approvalStatus === 'Approved').length,
+    rejected: inspections.filter(i => i.approvalStatus === 'Rejected').length,
   };
 
-  function getResultBadge(result: string) {
-    const map: Record<string, React.ReactElement> = {
-      Accepted: (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircle className="h-3 w-3" /> Accepted
-        </span>
-      ),
-      Rejected: (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          <XCircle className="h-3 w-3" /> Rejected
-        </span>
-      ),
-      Pending: (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          <Clock className="h-3 w-3" /> Pending
-        </span>
-      ),
-    };
-    return map[result] ?? (
-      <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{result}</span>
-    );
+  async function runWorkflow(id: string, action: 'submit' | 'approve' | 'reject') {
+    setWorkflowBusy(id);
+    try {
+      const r = await fetch('/api/qc/dimensional/workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inspectionIds: [id], action }),
+      });
+      if (r.ok) fetchInspections();
+    } finally {
+      setWorkflowBusy(null);
+    }
   }
 
   function downloadGroupPdf(rfiId: string) {
-    const group = inspections.filter((i) => i.rfiRequestId === rfiId);
-    if (group.length === 0) return;
-
-    const proj = projects.find((p) => p.id === group[0].projectId);
+    const group = inspections.filter(i => i.rfiRequestId === rfiId);
+    if (!group.length) return;
+    const proj = projects.find(p => p.id === group[0].projectId);
     const rfiNumber = group[0].rfiRequest?.rfiNumber ?? '—';
 
     const items: DimReportItem[] = group.map((insp, idx) => ({
@@ -151,7 +206,7 @@ export default function DimensionalInspectionPage() {
       date: now.toLocaleDateString('en-SA-u-ca-gregory', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
       reportNumber: group[0].inspectionNumber.replace('DIM-', 'RPT-'),
       projectNumber: proj?.projectNumber ?? '',
-      buildingName: '—',
+      buildingName: group[0].building ? `${group[0].building.designation} – ${group[0].building.name}` : '—',
       projectName: proj?.name ?? '',
       preparedBy: group[0].checkedBy?.name ?? group[0].inspector?.name ?? '—',
       checkedBy: group[0].checkedBy?.name ?? '—',
@@ -161,50 +216,7 @@ export default function DimensionalInspectionPage() {
       inspectionDate: now.toLocaleDateString('en-SA-u-ca-gregory'),
       inspectionTime: now.toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' }),
     };
-
     generateDimensionalReport(meta, items);
-  }
-
-  async function runWorkflow(ids: string[], action: 'submit' | 'approve' | 'reject') {
-    setWorkflowBusy(ids[0]);
-    try {
-      const resp = await fetch('/api/qc/dimensional/workflow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inspectionIds: ids, action }),
-      });
-      if (resp.ok) fetchInspections();
-    } finally {
-      setWorkflowBusy(null);
-    }
-  }
-
-  function getApprovalBadge(status: string) {
-    const map: Record<string, React.ReactElement> = {
-      Draft: (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-          Draft
-        </span>
-      ),
-      PendingApproval: (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-          Pending Approval
-        </span>
-      ),
-      Approved: (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircle className="h-3 w-3" /> Approved
-        </span>
-      ),
-      Rejected: (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-          <XCircle className="h-3 w-3" /> Rejected
-        </span>
-      ),
-    };
-    return map[status] ?? (
-      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">{status}</span>
-    );
   }
 
   if (loading) {
@@ -217,7 +229,7 @@ export default function DimensionalInspectionPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -233,30 +245,51 @@ export default function DimensionalInspectionPage() {
         </Button>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      {/* KPI tiles — clickable filters */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${approvalFilter === 'all' ? 'ring-2 ring-primary/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setApprovalFilter('all')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">Total</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${approvalFilter === 'Draft' ? 'ring-2 ring-gray-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setApprovalFilter('Draft')}
+        >
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.accepted}</div>
-            <p className="text-xs text-muted-foreground">Accepted</p>
+            <div className="text-2xl font-bold text-gray-500">{stats.draft}</div>
+            <p className="text-xs text-muted-foreground">Draft</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${approvalFilter === 'PendingApproval' ? 'ring-2 ring-amber-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setApprovalFilter('PendingApproval')}
+        >
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground">Pending Approval</p>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${approvalFilter === 'Approved' ? 'ring-2 ring-green-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setApprovalFilter('Approved')}
+        >
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <p className="text-xs text-muted-foreground">Approved</p>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all hover:shadow-md ${approvalFilter === 'Rejected' ? 'ring-2 ring-red-400/50 shadow-md' : 'hover:ring-1 hover:ring-muted-foreground/20'}`}
+          onClick={() => setApprovalFilter('Rejected')}
+        >
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
             <p className="text-xs text-muted-foreground">Rejected</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Pending</p>
           </CardContent>
         </Card>
       </div>
@@ -268,7 +301,7 @@ export default function DimensionalInspectionPage() {
             <div className="flex-1 relative min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by inspection # or part…"
+                placeholder="Search by inspection #, designation, or mark…"
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -281,7 +314,7 @@ export default function DimensionalInspectionPage() {
             >
               <option value="all">All Projects</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.projectNumber}</option>
+                <option key={p.id} value={p.id}>{p.projectNumber} — {p.name}</option>
               ))}
             </select>
             <select
@@ -298,10 +331,10 @@ export default function DimensionalInspectionPage() {
         </CardContent>
       </Card>
 
-      {/* Inspection records table */}
+      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Inspection Records ({filteredInspections.length})</CardTitle>
+          <CardTitle>Inspection Records ({filtered.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -310,48 +343,54 @@ export default function DimensionalInspectionPage() {
                 <tr className="border-b bg-muted/40">
                   <th className="text-left px-4 py-3 font-medium">Inspection #</th>
                   <th className="text-left px-4 py-3 font-medium">Project</th>
-                  <th className="text-left px-4 py-3 font-medium">Part / Mark</th>
+                  <th className="text-left px-4 py-3 font-medium">Assembly Mark</th>
+                  <th className="text-left px-4 py-3 font-medium">Profile</th>
                   <th className="text-right px-4 py-3 font-medium">DWG (mm)</th>
                   <th className="text-right px-4 py-3 font-medium">Actual (mm)</th>
-                  <th className="text-right px-4 py-3 font-medium">Diff (mm)</th>
+                  <th className="text-right px-4 py-3 font-medium">Diff</th>
                   <th className="text-left px-4 py-3 font-medium">RFI</th>
                   <th className="text-left px-4 py-3 font-medium">Result</th>
                   <th className="text-left px-4 py-3 font-medium">Approval</th>
+                  <th className="text-left px-4 py-3 font-medium">Checked By</th>
+                  <th className="text-center px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredInspections.length === 0 ? (
+                {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-muted-foreground">
+                    <td colSpan={13} className="text-center py-12 text-muted-foreground">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       No inspection records found
                     </td>
                   </tr>
                 ) : (
-                  filteredInspections.map((insp) => {
+                  filtered.map((insp) => {
                     const diff =
                       insp.measuredLength !== null && insp.requiredLength !== null
                         ? parseFloat((insp.measuredLength - insp.requiredLength).toFixed(1))
                         : null;
                     const tol = insp.lengthTolerance ?? 2;
                     const busy = workflowBusy === insp.id;
+                    const approvalStatus = insp.approvalStatus ?? 'Draft';
                     return (
                       <tr key={insp.id} className="border-b hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-mono text-xs">{insp.inspectionNumber}</td>
-                        <td className="px-4 py-3">{insp.project?.projectNumber ?? '—'}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-semibold">{insp.inspectionNumber}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{insp.project?.projectNumber ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <div>{insp.partDesignation}</div>
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {insp.productionLog?.assemblyPart.assemblyMark}
-                          </div>
+                          <div className="font-mono text-xs font-semibold">{insp.productionLog?.assemblyPart.assemblyMark ?? '—'}</div>
+                          <div className="text-xs text-muted-foreground">{insp.partDesignation}</div>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
-                          {insp.requiredLength !== null ? insp.requiredLength : '—'}
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                          {insp.productionLog?.assemblyPart.profile ?? '—'}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
-                          {insp.measuredLength !== null ? insp.measuredLength : '—'}
+                        <td className="px-4 py-3 text-right font-mono text-xs">
+                          {insp.requiredLength !== null ? insp.requiredLength.toFixed(0) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
+                        <td className="px-4 py-3 text-right font-mono text-xs">
+                          {insp.measuredLength !== null ? insp.measuredLength.toFixed(0) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-xs">
                           {diff !== null ? (
                             <span className={Math.abs(diff) > tol ? 'text-red-600 font-semibold' : 'text-green-700'}>
                               {diff > 0 ? '+' : ''}{diff}
@@ -361,63 +400,56 @@ export default function DimensionalInspectionPage() {
                         <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
                           {insp.rfiRequest?.rfiNumber ?? '—'}
                         </td>
-                        <td className="px-4 py-3">{getResultBadge(insp.result)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            {getApprovalBadge(insp.approvalStatus ?? 'Draft')}
-                            {insp.checkedBy && (
-                              <span className="text-xs text-muted-foreground">{insp.checkedBy.name}</span>
-                            )}
-                          </div>
+                        <td className="px-4 py-3"><ResultBadge result={insp.result} /></td>
+                        <td className="px-4 py-3"><WorkflowBadge status={approvalStatus} /></td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {insp.checkedBy?.name ?? '—'}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            {insp.rfiRequestId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Download PDF report"
-                                onClick={() => downloadGroupPdf(insp.rfiRequestId!)}
-                              >
-                                <FileDown className="h-4 w-4" />
+                        <td className="px-4 py-3 text-center text-xs text-muted-foreground whitespace-nowrap">
+                          {fmtDate(insp.inspectionDate)}
+                        </td>
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                               </Button>
-                            )}
-                            {(insp.approvalStatus === 'Draft' || insp.approvalStatus === 'Rejected' || !insp.approvalStatus) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Submit for approval"
-                                disabled={busy}
-                                onClick={() => runWorkflow([insp.id], 'submit')}
-                              >
-                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
-                              </Button>
-                            )}
-                            {insp.approvalStatus === 'PendingApproval' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title="Approve"
-                                  disabled={busy}
-                                  className="text-green-700 hover:text-green-800"
-                                  onClick={() => runWorkflow([insp.id], 'approve')}
-                                >
-                                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title="Reject"
-                                  disabled={busy}
-                                  className="text-red-600 hover:text-red-700"
-                                  onClick={() => runWorkflow([insp.id], 'reject')}
-                                >
-                                  <ThumbsDown className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {insp.rfiRequestId && (
+                                <DropdownMenuItem onClick={() => downloadGroupPdf(insp.rfiRequestId!)}>
+                                  <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                                </DropdownMenuItem>
+                              )}
+                              {(approvalStatus === 'Draft' || approvalStatus === 'Rejected') && (
+                                <>
+                                  {insp.rfiRequestId && <DropdownMenuSeparator />}
+                                  <DropdownMenuItem onClick={() => runWorkflow(insp.id, 'submit')} disabled={busy}>
+                                    <SendHorizonal className="h-4 w-4 mr-2" /> Submit for Approval
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {approvalStatus === 'PendingApproval' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => runWorkflow(insp.id, 'approve')}
+                                    disabled={busy}
+                                    className="text-green-700 focus:text-green-700"
+                                  >
+                                    <ShieldCheck className="h-4 w-4 mr-2" /> Approve
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => runWorkflow(insp.id, 'reject')}
+                                    disabled={busy}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <ShieldX className="h-4 w-4 mr-2" /> Reject
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     );
