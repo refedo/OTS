@@ -1500,12 +1500,13 @@ model RFIRequest {
   attachments String? @db.Text // JSON array of file paths
 
   // Relations
-  project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  building       Building?          @relation(fields: [buildingId], references: [id], onDelete: SetNull)
-  productionLogs RFIProductionLog[] // Multiple production logs per RFI
-  requestedBy    User               @relation("RFIRequestedBy", fields: [requestedById], references: [id])
-  assignedTo     User?              @relation("RFIAssignedTo", fields: [assignedToId], references: [id])
-  ncrReports     NCRReport[]
+  project                Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building               Building?             @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  productionLogs         RFIProductionLog[]    // Multiple production logs per RFI
+  requestedBy            User                  @relation("RFIRequestedBy", fields: [requestedById], references: [id])
+  assignedTo             User?                 @relation("RFIAssignedTo", fields: [assignedToId], references: [id])
+  ncrReports             NCRReport[]
+  dimensionalInspections DimensionalInspection[] @relation("DimensionalRFI")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1927,11 +1928,15 @@ model DimensionalInspection {
   remarks     String? @db.Text
   attachments String? @db.Text // JSON array of file paths
 
+  // RFI link (for batch inspection reports)
+  rfiRequestId String? @db.Char(36)
+
   // Relations
   project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building      Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   productionLog ProductionLog @relation(fields: [productionLogId], references: [id], onDelete: Cascade)
   inspector     User          @relation("DimensionalInspector", fields: [inspectorId], references: [id])
+  rfiRequest    RFIRequest?   @relation("DimensionalRFI", fields: [rfiRequestId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1942,6 +1947,7 @@ model DimensionalInspection {
   @@index([inspectorId])
   @@index([result])
   @@index([inspectionDate])
+  @@index([rfiRequestId])
 }
 
 model NDTInspection {
