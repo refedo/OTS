@@ -3,21 +3,17 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 
-// Generate Dimensional Inspection Number
 async function generateInspectionNumber(): Promise<string> {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  
+
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
+
   const count = await prisma.dimensionalInspection.count({
     where: {
-      createdAt: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
+      createdAt: { gte: startOfMonth, lte: endOfMonth },
     },
   });
 
@@ -25,12 +21,21 @@ async function generateInspectionNumber(): Promise<string> {
   return `DIM-${year}${month}-${sequence}`;
 }
 
+const assemblyPartSelect = {
+  partDesignation: true,
+  name: true,
+  assemblyMark: true,
+  profile: true,
+  lengthMm: true,
+  quantity: true,
+};
+
 export async function GET(request: Request) {
   try {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,44 +44,25 @@ export async function GET(request: Request) {
     const projectId = searchParams.get('projectId');
     const buildingId = searchParams.get('buildingId');
     const result = searchParams.get('result');
+    const rfiRequestId = searchParams.get('rfiRequestId');
 
-    const whereClause: any = {};
-    
-    if (projectId && projectId !== 'all') {
-      whereClause.projectId = projectId;
-    }
-    
-    if (buildingId && buildingId !== 'all') {
-      whereClause.buildingId = buildingId;
-    }
-    
-    if (result && result !== 'all') {
-      whereClause.result = result;
-    }
+    const whereClause: Record<string, unknown> = {};
+
+    if (projectId && projectId !== 'all') whereClause.projectId = projectId;
+    if (buildingId && buildingId !== 'all') whereClause.buildingId = buildingId;
+    if (result && result !== 'all') whereClause.result = result;
+    if (rfiRequestId) whereClause.rfiRequestId = rfiRequestId;
 
     const inspections = await prisma.dimensionalInspection.findMany({
       where: whereClause,
       include: {
-        project: {
-          select: { id: true, projectNumber: true, name: true },
-        },
-        building: {
-          select: { id: true, designation: true, name: true },
-        },
+        project: { select: { id: true, projectNumber: true, name: true } },
+        building: { select: { id: true, designation: true, name: true } },
         productionLog: {
-          include: {
-            assemblyPart: {
-              select: {
-                partDesignation: true,
-                name: true,
-                assemblyMark: true,
-              },
-            },
-          },
+          include: { assemblyPart: { select: assemblyPartSelect } },
         },
-        inspector: {
-          select: { id: true, name: true, email: true },
-        },
+        inspector: { select: { id: true, name: true, email: true } },
+        rfiRequest: { select: { id: true, rfiNumber: true, status: true } },
       },
       orderBy: { inspectionDate: 'desc' },
     });
@@ -96,12 +82,91 @@ export async function POST(request: Request) {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
+
+    // Batch creation mode: items[] array
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const {
+        projectId,
+        buildingId,
+        rfiRequestId,
+        inspectionDate,
+        items,
+      } = body as {
+        projectId: string;
+        buildingId?: string;
+        rfiRequestId?: string;
+        inspectionDate?: string;
+        items: {
+          productionLogId: string;
+          partDesignation: string;
+          drawingLength?: number;
+          actualLength?: number;
+          toleranceMm?: number;
+          remarks?: string;
+        }[];
+      };
+
+      if (!projectId) {
+        return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
+      }
+
+      const created = [];
+      for (const item of items) {
+        const { productionLogId, partDesignation, drawingLength, actualLength, toleranceMm, remarks } = item;
+
+        if (!productionLogId || !partDesignation) continue;
+
+        const inspectionNumber = await generateInspectionNumber();
+
+        const tolerance = toleranceMm ?? 2;
+        let toleranceCheck = 'Pending';
+        let result = 'Pending';
+
+        if (actualLength !== undefined && actualLength !== null && drawingLength !== undefined && drawingLength !== null) {
+          const diff = Math.abs(actualLength - drawingLength);
+          toleranceCheck = diff <= tolerance ? 'Within' : 'Out of Tolerance';
+          result = toleranceCheck === 'Within' ? 'Accepted' : 'Rejected';
+        }
+
+        const record = await prisma.dimensionalInspection.create({
+          data: {
+            inspectionNumber,
+            projectId,
+            buildingId: buildingId || null,
+            productionLogId,
+            rfiRequestId: rfiRequestId || null,
+            partDesignation,
+            drawingReference: null,
+            requiredLength: drawingLength ?? null,
+            measuredLength: actualLength ?? null,
+            lengthTolerance: tolerance,
+            inspectorId: session.sub,
+            inspectionDate: inspectionDate ? new Date(inspectionDate) : new Date(),
+            toleranceCheck,
+            result,
+            remarks: remarks || null,
+          },
+          include: {
+            project: { select: { id: true, projectNumber: true, name: true } },
+            productionLog: {
+              include: { assemblyPart: { select: assemblyPartSelect } },
+            },
+          },
+        });
+
+        created.push(record);
+      }
+
+      return NextResponse.json(created, { status: 201 });
+    }
+
+    // Single creation (legacy)
     const {
       projectId,
       buildingId,
@@ -128,25 +193,22 @@ export async function POST(request: Request) {
       result,
       remarks,
       attachments,
+      rfiRequestId,
     } = body;
 
     if (!projectId || !productionLogId || !partDesignation) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Generate inspection number
     const inspectionNumber = await generateInspectionNumber();
 
-    // Create dimensional inspection
     const inspection = await prisma.dimensionalInspection.create({
       data: {
         inspectionNumber,
         projectId,
         buildingId: buildingId || null,
         productionLogId,
+        rfiRequestId: rfiRequestId || null,
         partDesignation,
         drawingReference: drawingReference || null,
         measuredLength: measuredLength ? parseFloat(measuredLength) : null,
@@ -172,26 +234,12 @@ export async function POST(request: Request) {
         attachments: attachments || null,
       },
       include: {
-        project: {
-          select: { id: true, projectNumber: true, name: true },
-        },
-        building: {
-          select: { id: true, designation: true, name: true },
-        },
+        project: { select: { id: true, projectNumber: true, name: true } },
+        building: { select: { id: true, designation: true, name: true } },
         productionLog: {
-          include: {
-            assemblyPart: {
-              select: {
-                partDesignation: true,
-                name: true,
-                assemblyMark: true,
-              },
-            },
-          },
+          include: { assemblyPart: { select: assemblyPartSelect } },
         },
-        inspector: {
-          select: { id: true, name: true, email: true },
-        },
+        inspector: { select: { id: true, name: true, email: true } },
       },
     });
 
