@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FolderKanban, Layers, Paintbrush, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { formatRal, getRalHex, getRalName, isKnownRal } from '@/lib/ral-colors';
+import { cn } from '@/lib/utils';
 
 type CoatingSource = 'system' | 'legacy' | 'scope';
 
@@ -75,6 +76,19 @@ function RalSwatch({ ral }: { ral: string | null }) {
     </div>
   );
 }
+
+const PROJECT_TONES = [
+  { row: 'bg-sky-50 hover:bg-sky-100/80', accent: 'border-l-sky-500', chip: 'bg-sky-100 text-sky-800 ring-sky-300' },
+  { row: 'bg-amber-50 hover:bg-amber-100/80', accent: 'border-l-amber-500', chip: 'bg-amber-100 text-amber-800 ring-amber-300' },
+  { row: 'bg-emerald-50 hover:bg-emerald-100/80', accent: 'border-l-emerald-500', chip: 'bg-emerald-100 text-emerald-800 ring-emerald-300' },
+  { row: 'bg-rose-50 hover:bg-rose-100/80', accent: 'border-l-rose-500', chip: 'bg-rose-100 text-rose-800 ring-rose-300' },
+  { row: 'bg-violet-50 hover:bg-violet-100/80', accent: 'border-l-violet-500', chip: 'bg-violet-100 text-violet-800 ring-violet-300' },
+  { row: 'bg-teal-50 hover:bg-teal-100/80', accent: 'border-l-teal-500', chip: 'bg-teal-100 text-teal-800 ring-teal-300' },
+  { row: 'bg-orange-50 hover:bg-orange-100/80', accent: 'border-l-orange-500', chip: 'bg-orange-100 text-orange-800 ring-orange-300' },
+  { row: 'bg-indigo-50 hover:bg-indigo-100/80', accent: 'border-l-indigo-500', chip: 'bg-indigo-100 text-indigo-800 ring-indigo-300' },
+  { row: 'bg-lime-50 hover:bg-lime-100/80', accent: 'border-l-lime-600', chip: 'bg-lime-100 text-lime-800 ring-lime-300' },
+  { row: 'bg-fuchsia-50 hover:bg-fuchsia-100/80', accent: 'border-l-fuchsia-500', chip: 'bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-300' },
+] as const;
 
 export function CoatingSystemsReportClient() {
   const router = useRouter();
@@ -176,6 +190,12 @@ export function CoatingSystemsReportClient() {
       return String(av).localeCompare(String(bv), undefined, { numeric: true }) * dir;
     });
   }, [rows, sort]);
+
+  const projectTone = useMemo(() => {
+    const map = new Map<string, (typeof PROJECT_TONES)[number]>();
+    projects.forEach((p, i) => map.set(p.id, PROJECT_TONES[i % PROJECT_TONES.length]));
+    return map;
+  }, [projects]);
 
   const toggleSort = (key: string) => {
     setSort((prev) => ({
@@ -374,10 +394,16 @@ export function CoatingSystemsReportClient() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedRows.map((r) => (
-                    <TableRow key={r.key} className="hover:bg-muted/40">
-                      <TableCell className="font-medium whitespace-nowrap">
-                        <Link href={`/projects/${r.system.project.id}`} className="text-blue-600 hover:underline">
+                  sortedRows.map((r, idx) => {
+                    const tone = projectTone.get(r.system.project.id) ?? PROJECT_TONES[0];
+                    const startsGroup = idx === 0 || sortedRows[idx - 1].system.project.id !== r.system.project.id;
+                    return (
+                    <TableRow key={r.key} className={cn(tone.row, startsGroup && idx > 0 && 'border-t-2 border-t-slate-300')}>
+                      <TableCell className={cn('font-medium whitespace-nowrap border-l-4', tone.accent)}>
+                        <Link
+                          href={`/projects/${r.system.project.id}`}
+                          className={cn('inline-block rounded-md px-2 py-0.5 ring-1 ring-inset hover:underline', tone.chip)}
+                        >
                           {r.system.project.projectNumber}
                         </Link>
                       </TableCell>
@@ -416,7 +442,8 @@ export function CoatingSystemsReportClient() {
                         {r.system.totalMicrons > 0 ? `${r.system.totalMicrons} µm` : <span className="text-muted-foreground font-normal">—</span>}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
