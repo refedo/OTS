@@ -118,3 +118,8 @@ export function getRalHex(ral: string | null | undefined): string {
 export function getRalName(ral: string | null | undefined): string {
   return RAL_NAMES[normalizeRal(ral)] ?? 'Unknown Color';
 }
+
+export function formatRal(ral: string): string {
+  const digits = normalizeRal(ral);
+  return digits ? `RAL ${digits}` : ral.trim();
+}

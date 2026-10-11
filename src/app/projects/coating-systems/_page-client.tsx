@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FolderKanban, Layers, Paintbrush, Palette, RefreshCw, Search, ShieldCheck } from 'lucide-react';
-import { getRalHex, getRalName, isKnownRal } from '@/lib/ral-colors';
+import { formatRal, getRalHex, getRalName, isKnownRal } from '@/lib/ral-colors';
 
 type CoatingSource = 'system' | 'legacy' | 'scope';
 
@@ -66,10 +66,10 @@ function RalSwatch({ ral }: { ral: string | null }) {
             ? { backgroundColor: getRalHex(ral) }
             : { backgroundImage: 'repeating-linear-gradient(45deg,#e5e7eb 0 4px,#f9fafb 4px 8px)' }
         }
-        title={known ? `RAL ${ral} – ${getRalName(ral)}` : 'Colour not in RAL Classic palette'}
+        title={known ? `${formatRal(ral)} – ${getRalName(ral)}` : 'Colour not in RAL Classic palette'}
       />
       <div className="leading-tight">
-        <div className="text-sm font-medium whitespace-nowrap">RAL {ral}</div>
+        <div className="text-sm font-medium whitespace-nowrap">{formatRal(ral)}</div>
         <div className="text-xs text-muted-foreground whitespace-nowrap">{known ? getRalName(ral) : 'Unknown colour'}</div>
       </div>
     </div>
@@ -226,7 +226,7 @@ export function CoatingSystemsReportClient() {
       'Coat #': r.coatIndex ?? '',
       'Coat': r.coatName,
       'Microns (µm)': r.microns ?? '',
-      'RAL': r.ralNumber ? `RAL ${r.ralNumber}` : '',
+      'RAL': r.ralNumber ? formatRal(r.ralNumber) : '',
       'RAL Colour': r.ralNumber && isKnownRal(r.ralNumber) ? getRalName(r.ralNumber) : '',
       'System Total DFT (µm)': r.system.totalMicrons || '',
       'Source': SOURCE_LABEL[r.system.source],
