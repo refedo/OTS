@@ -101,6 +101,7 @@ import {
   ShoppingCart,
   ArrowRightLeft,
   Undo2,
+  Paintbrush,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -197,6 +198,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Kickoff Checklists', href: '/projects/kickoff', icon: ClipboardCheck, newSince: '2026-05-02' },
+      { name: 'Coating Systems', href: '/projects/coating-systems', icon: Paintbrush, newSince: '2026-10-11' },
       { name: 'Project Planning', href: '/planning', icon: Calendar },
       { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
     ],
