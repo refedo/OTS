@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
             key: 'Cache-Control',
             value: 'public, max-age=0, must-revalidate',
           },
+          {
+            // Covers app pages, API responses, downloads and other routes.
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive',
+          },
         ],
       },
       {
