@@ -24,6 +24,17 @@ export const metadata: Metadata = {
     default: "Hexa Steel® OTS ™",
   },
   description: "Comprehensive operations tracking and management system for Hexa Steel",
+  // OTS is a private internal application and should never be indexed.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
   manifest: "/api/manifest",
   appleWebApp: {
     capable: true,
