@@ -40,6 +40,8 @@ jobs:
           npx prisma generate
       - name: TypeScript
         run: npx tsc --noEmit
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       - name: Supplier module tests
         run: npx vitest run src/lib/services/supply-chain/supplier-intake.test.ts
       - name: Automated test suite
