@@ -1,7 +1,7 @@
 
 import {NextRequest,NextResponse} from 'next/server';
 import prisma from '@/lib/db';
-import {authorizedGateway,documentsFromJson,getFormString,intakeEnabled,newOtp,otpHash,publicSupplierSnapshot,removeSupplierDocuments,saveSupplierDocuments,sendSupplierMail,verifyOtpHash} from '@/lib/services/supply-chain/supplier-intake.service';
+import {authorizedGateway,documentsFromJson,getFormString,intakeEnabled,newOtp,otpHash,publicSupplierSnapshot,removeSupplierDocuments,saveSupplierDocuments,sendSupplierMail,supplierSchema,verifyOtpHash} from '@/lib/services/supply-chain/supplier-intake.service';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 const noCache={'Cache-Control':'no-store'};
 const invalid=()=>NextResponse.json({error:'Verification code is invalid or expired.'},{status:401,headers:noCache});
@@ -45,10 +45,30 @@ export async function POST(req:NextRequest){
   if(app.otpHash&&app.otpAttempts<5)await prisma.scSupplierApplication.updateMany({where:{id:app.id,otpHash:app.otpHash},data:{otpAttempts:{increment:1}}});
   return invalid();
  }
- if(action==='verify')return NextResponse.json({ok:true,application:publicSupplierSnapshot(app)},{headers:noCache});
+ if(action==='verify')return NextResponse.json({ok:true,application:{
+  ...publicSupplierSnapshot(app),
+  ...(app.status==='UPDATE_REQUESTED'?{editable:{
+    scope:app.scope,category:app.category,products:app.products,services:app.services,capabilities:app.capabilities
+  }}:{})
+ }},{headers:noCache});
  if(app.status!=='UPDATE_REQUESTED')return NextResponse.json({error:'No update has been requested.'},{status:409,headers:noCache});
  const response=getFormString(data,'response').trim();
  if(response.length<5||response.length>1800)return NextResponse.json({error:'Please explain the requested update.'},{status:400});
+ let replacementProducts:unknown=app.products;
+ try{
+  if(data.has('products')) replacementProducts=JSON.parse(getFormString(data,'products'));
+ }catch{return NextResponse.json({error:'Invalid product details.'},{status:400});}
+ const corrected=supplierSchema.safeParse({
+  legalName:app.legalName,registrationNumber:app.registrationNumber,
+  registrationCountry:app.registrationCountry,contactName:app.contactName,
+  email:app.email,phone:app.phone,companyWebsite:app.companyWebsite||'',
+  supplierType:app.supplierType,scope:getFormString(data,'scope')||app.scope,
+  category:data.has('category')?getFormString(data,'category'):app.category||'',
+  products:replacementProducts,
+  services:data.has('services')?getFormString(data,'services'):app.services||'',
+  capabilities:data.has('capabilities')?getFormString(data,'capabilities'):app.capabilities||''
+ });
+ if(!corrected.success)return NextResponse.json({error:'Correct the product origins and required service details.'},{status:400});
  const previous=documentsFromJson(app.documents);
  if(previous.length>9)return NextResponse.json({error:'Document limit reached; contact Supply Chain.'},{status:400});
  let extra:Awaited<ReturnType<typeof saveSupplierDocuments>>=[];
@@ -57,7 +77,9 @@ export async function POST(req:NextRequest){
   const history=Array.isArray(app.reviewHistory)?app.reviewHistory:[];
   const changed=await prisma.scSupplierApplication.updateMany({
    where:{id:app.id,status:'UPDATE_REQUESTED',otpHash:app.otpHash,otpAttempts:{lt:5}},
-   data:{status:'SUBMITTED',publicMessage:'Additional information received. Your application is under review.',
+   data:{scope:corrected.data.scope,category:corrected.data.category||null,
+    products:corrected.data.products,services:corrected.data.services||null,capabilities:corrected.data.capabilities||null,
+    status:'SUBMITTED',publicMessage:'Additional information received. Your application is under review.',
     documents:[...previous,...extra],reviewHistory:[...history,{event:'RESUBMITTED',at:now.toISOString(),actor:'APPLICANT',response}],
     otpHash:null,otpExpiresAt:null,otpAttempts:0}
   });
