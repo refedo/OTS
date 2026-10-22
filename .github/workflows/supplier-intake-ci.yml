@@ -38,17 +38,38 @@ jobs:
         run: |
           npx prisma validate
           npx prisma generate
-      - name: TypeScript
+      - name: Full OTS TypeScript diagnostic
+        id: typecheck
+        continue-on-error: true
         run: npx tsc --noEmit
         env:
           NODE_OPTIONS: --max-old-space-size=6144
       - name: Supplier module tests
+        id: supplier_tests
+        continue-on-error: true
         run: npx vitest run src/lib/services/supply-chain/supplier-intake.test.ts
       - name: Automated test suite
+        id: all_tests
+        continue-on-error: true
         run: npm test
       - name: Production build
+        id: build
+        continue-on-error: true
         run: npm run build
         env:
           NODE_ENV: production
           NODE_OPTIONS: --max-old-space-size=4096
           NEXT_PUBLIC_APP_URL: https://ots.hexasteel.sa
+
+      - name: Evaluate all quality gates (do not hide existing TypeScript failures)
+        if: always()
+        shell: bash
+        run: |
+          echo "TypeScript: ${{ steps.typecheck.outcome }}"
+          echo "Supplier tests: ${{ steps.supplier_tests.outcome }}"
+          echo "All tests: ${{ steps.all_tests.outcome }}"
+          echo "Build: ${{ steps.build.outcome }}"
+          if [ "${{ steps.typecheck.outcome }}" != "success" ] || [ "${{ steps.supplier_tests.outcome }}" != "success" ] || [ "${{ steps.all_tests.outcome }}" != "success" ] || [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "::error::Supplier release is blocked until all TypeScript, test and build checks pass."
+            exit 1
+          fi
