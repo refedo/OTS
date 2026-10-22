@@ -1,0 +1,52 @@
+
+name: OTS Supplier Intake CI
+
+on:
+  push:
+    branches:
+      - feature/ots-supplier-intake-v1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/app/api/supplier-intake/**'
+      - 'src/app/api/supply-chain/supplier-applications/**'
+      - 'src/app/supply-chain/supplier-applications/**'
+      - 'src/lib/services/supply-chain/supplier-intake*'
+      - 'prisma/**'
+      - '.github/workflows/supplier-intake-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  supplier-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: mysql://placeholder:placeholder@localhost:3306/placeholder
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Prisma schema and generate client
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Supplier module tests
+        run: npx vitest run src/lib/services/supply-chain/supplier-intake.test.ts
+      - name: Automated test suite
+        run: npm test
+      - name: Production build
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_PUBLIC_APP_URL: https://ots.hexasteel.sa

@@ -39,10 +39,13 @@ export type SupplierDocument={id:string;storedName:string;name:string;size:numbe
 
 export function intakeEnabled(){
  return process.env.SUPPLIER_INTAKE_ENABLED==='true' &&
- Boolean(process.env.SUPPLIER_INTAKE_API_KEY) &&
- Boolean(process.env.SUPPLIER_OTP_SECRET) &&
+ (process.env.SUPPLIER_INTAKE_API_KEY||'').length>=32 &&
+ (process.env.SUPPLIER_OTP_SECRET||'').length>=32 &&
  Boolean(process.env.SUPPLIER_DOCUMENT_DIR) &&
- Boolean(process.env.SUPPLIER_CLAMSCAN_PATH);
+ Boolean(process.env.SUPPLIER_CLAMSCAN_PATH) &&
+ Boolean(process.env.SUPPLIER_MAIL_RESEND_API_KEY) &&
+ Boolean(process.env.SUPPLIER_MAIL_FROM) &&
+ Boolean(process.env.SUPPLIER_NOTIFY_EMAIL);
 }
 export function authorizedGateway(key:string|null){
  const secret=process.env.SUPPLIER_INTAKE_API_KEY||'';
@@ -88,8 +91,9 @@ async function privateRoot(){
  return root;
 }
 export async function saveSupplierDocuments(items:FormDataEntryValue[],allowEmpty=false){
- const files=items.filter((item):item is File=>typeof item==='object'&&item!==null&&'arrayBuffer' in item);
- if((!allowEmpty&&files.length===0)||files.length>3||items.length!==files.length)
+ const nonEmpty=allowEmpty?items.filter(item=>!(typeof item==='object'&&item!==null&&'size' in item&&item.size===0&&'name' in item&&item.name==='')):items;
+ const files=nonEmpty.filter((item):item is File=>typeof item==='object'&&item!==null&&'arrayBuffer' in item);
+ if((!allowEmpty&&files.length===0)||files.length>3||nonEmpty.length!==files.length)
   throw Error('Submit one to three PDF documents');
  const dir=await privateRoot();
  const scanner=process.env.SUPPLIER_CLAMSCAN_PATH;

@@ -81,8 +81,8 @@ export async function PATCH(req:NextRequest){
    return {status:newStatus,approvedSupplierId};
   });
   // This email is best-effort and non-blocking; status changes are durable even on provider failure.
-  void alertSupplierDecision(app.email,app.reference,result.status,publicMessage||null).catch(()=>undefined);
-  return NextResponse.json({ok:true,reference:app.reference,...result},{headers:noCache});
+  const emailSent=await alertSupplierDecision(app.email,app.reference,result.status,publicMessage||null).then(()=>true).catch(()=>false);
+  return NextResponse.json({ok:true,reference:app.reference,...result,emailSent},{headers:noCache});
  }catch(err){
   if(err instanceof Error&&err.message==='REVIEW_CONFLICT')return NextResponse.json({error:'Another reviewer has already changed this application.'},{status:409});
   return NextResponse.json({error:'Unable to save the review decision.'},{status:503});

@@ -42,7 +42,7 @@ export function SupplierApplicationsClient(){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({id:app.id,action,publicMessage,internalNotes})});
    const result=await r.json();if(!r.ok)throw Error(result.error||'Failed to save review');
-   setMessage('Review decision saved.');await refresh();
+   setMessage(result.emailSent?'Review decision saved and supplier notified.':'Review decision saved, but supplier notification failed. Contact the supplier and check email configuration.');await refresh();
   }catch(e){setMessage(e instanceof Error?e.message:'Review failed');}finally{setBusy(false);}
  }
  return <main className="mx-auto max-w-7xl px-4 py-8 md:px-8">
