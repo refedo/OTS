@@ -108,7 +108,7 @@ export async function saveSupplierDocuments(items:FormDataEntryValue[],allowEmpt
    await writeFile(filepath,bytes,{flag:'wx',mode:0o600});
    saved.push({id,storedName,name:path.basename(file.name).replace(/[^a-zA-Z0-9 ()._-]/g,'_').slice(0,120),size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),createdAt:new Date().toISOString()});
    // Scanner failures, timeouts, and detections all fail closed.
-   await execFileAsync(scanner,['--no-summary',filepath],{timeout:30000,maxBuffer:128*1024});
+   await execFileAsync(scanner,['--no-summary',filepath],{timeout:20000,maxBuffer:128*1024});
   }
   return saved;
  }catch(err){await removeSupplierDocuments(saved);throw err;}
