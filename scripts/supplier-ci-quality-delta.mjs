@@ -17,7 +17,16 @@ function typeErrors(name) {
   for (const line of output.split(/\r?\n/)) {
     const match = line.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/);
     if (!match) continue;
-    const key = match[1] + " | " + match[2] + " | " + match[3];
+    // TypeScript embeds absolute checkout paths inside some module-resolution
+    // messages. Baseline worktree and feature checkout are different directories.
+    // Normalize ONLY those two known roots, not module paths or error messages.
+    const roots = [
+      process.env.GITHUB_WORKSPACE,
+      process.env.RUNNER_TEMP && path.join(process.env.RUNNER_TEMP, "ots-supplier-baseline"),
+    ].filter(Boolean);
+    let message = match[3];
+    for (const root of roots) message = message.split(root).join("<checkout>");
+    const key = match[1] + " | " + match[2] + " | " + message;
     items.set(key, (items.get(key) || 0) + 1);
   }
   return items;
