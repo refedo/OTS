@@ -36,3 +36,9 @@
 - This change does not modify database schema, deployment settings, vendor master or website main branch. Deployment and acceptance remain separately verified.
 
 - Follow-up product coverage: per-product category retained in the existing JSON products array (backward compatible, no SQL migration), displayed in OTS supplier-review UI. Multi-category supplier registration on website PR #29 depends on this upgrade being deployed first.
+
+## CEO/Administrator authorization defect and correction (24 October 2026)
+- Root cause: `supply_chain.manage` was required by the new page, API and private-document route but absent from the canonical `PERMISSIONS` registry. Thus `isAdmin` users could not resolve that permission, and older persisted CEO/Admin role JSON also omitted it. Sidebar used a stale role-specific permission cache.
+- Fix: declare the new permission; inherit it for DB-verified CEO/Admin/Administrator roles at runtime even with older stored role JSON; still honor explicit per-user revocations and module restrictions. Use the same role-augmentation path in `/api/auth/me` and server `resolveUserPermissions`, so sidebar visibility and page/API checks agree. Rotate the client permission-cache key so existing sessions refetch permissions.
+- Staff without that permission cannot view or download private supplier documents. The check remains `supply_chain.manage` in both page and API, with no unchecked admin bypass. Added regression tests for CEO, Administrator, view-only, and explicit revocations.
+- No database changes and no change to unrelated OTS module access.

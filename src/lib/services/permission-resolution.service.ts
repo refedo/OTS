@@ -21,6 +21,23 @@ export interface CustomPermissions {
   revokes?: string[];
 }
 
+/**
+ * CEO and Administrator are executive OTS roles. Stored role JSON predates
+ * newly created modules, so provide the supplier-review permission at runtime.
+ * Explicit per-user revokes and module restrictions are still applied by
+ * resolvePermissionsFromData. The session role alone is never trusted.
+ */
+export const SUPPLIER_REVIEW_PERMISSION = 'supply_chain.manage';
+
+export function withExecutiveSupplierReviewPermission(
+  roleName: string | null | undefined,
+  rolePermissions: string[]
+): string[] {
+  const executive = ['ceo', 'admin', 'administrator'].includes((roleName || '').trim().toLowerCase());
+  if (!executive || rolePermissions.includes(SUPPLIER_REVIEW_PERMISSION)) return rolePermissions;
+  return [...rolePermissions, SUPPLIER_REVIEW_PERMISSION];
+}
+
 export interface PermissionResolutionData {
   isAdmin: boolean;
   rolePermissions: string[];
@@ -121,7 +138,7 @@ export async function resolveUserPermissions(userId: string): Promise<string[]> 
   // isAdmin starts with ALL permissions but PBAC revokes + module restrictions still apply
   const resolved = resolvePermissionsFromData({
     isAdmin: user.isAdmin,
-    rolePermissions,
+    rolePermissions: withExecutiveSupplierReviewPermission(user.role.name, rolePermissions),
     customPermissions: customPerms,
     restrictedModules,
   });

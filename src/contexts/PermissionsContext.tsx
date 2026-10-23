@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-const CACHE_KEY = 'ots_permissions';
+const CACHE_KEY = 'ots_permissions_v2_supplier_review';
 
 interface PermissionsState {
   permissions: string[];
