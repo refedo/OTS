@@ -14,7 +14,11 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/push/vapid-key',
-  '/api/manifest'
+  '/api/manifest',
+  // Public to the Next.js middleware only; scoped server-to-server key and an opt-in gate
+  // are checked inside each supplier intake handler (never unauthenticated data access).
+  '/api/supplier-intake',
+  '/api/supplier-intake/track'
 ]);
 
 export function middleware(req: NextRequest) {

@@ -301,6 +301,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v45.0.0 — Saudi Labor Law unauthorized-absence alerts (OTS-BL-080) ──────
   'v45_0_employee_absence_alerts.sql',  // EmployeeAbsenceAlert table (consecutive/intermittent ANP escalation)
+
+  // Supplier onboarding module, independent of the approved supplier master
+  'v46_0_supplier_applications.sql',
 ];
 
 /**

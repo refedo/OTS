@@ -1,0 +1,86 @@
+name: OTS Supplier Intake CI
+
+on:
+  push:
+    branches:
+      - feature/ots-supplier-intake-v1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/app/api/supplier-intake/**'
+      - 'src/app/api/supply-chain/supplier-applications/**'
+      - 'src/app/supply-chain/supplier-applications/**'
+      - 'src/lib/services/supply-chain/supplier-intake*'
+      - 'scripts/supplier-ci-quality-delta.mjs'
+      - 'prisma/**'
+      - '.github/workflows/supplier-intake-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  supplier-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DATABASE_URL: mysql://placeholder:placeholder@localhost:3306/placeholder
+      NODE_ENV: test
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate supplier feature Prisma schema
+        run: npx prisma validate
+
+      - name: Collect unchanged OTS merge-base diagnostic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          BASE_SHA=$(git merge-base HEAD origin/main)
+          echo "Comparison baseline: $BASE_SHA"
+          BASE_DIR="$RUNNER_TEMP/ots-supplier-baseline"
+          git worktree add --detach "$BASE_DIR" "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$BASE_DIR/node_modules"
+          cd "$BASE_DIR"
+          npx prisma generate
+          set +e
+          npx tsc --noEmit --incremental false --pretty false > "$RUNNER_TEMP/base-tsc.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/base-tsc.exit"
+          npx vitest run --reporter=json --outputFile="$RUNNER_TEMP/base-vitest.json" > "$RUNNER_TEMP/base-vitest.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/base-vitest.exit"
+          exit 0
+
+      - name: Collect supplier branch TypeScript and test evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prisma generate
+          set +e
+          npx tsc --noEmit --incremental false --pretty false > "$RUNNER_TEMP/feature-tsc.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/feature-tsc.exit"
+          npx vitest run --reporter=json --outputFile="$RUNNER_TEMP/feature-vitest.json" > "$RUNNER_TEMP/feature-vitest.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/feature-vitest.exit"
+          exit 0
+
+      - name: Require no TypeScript or full-suite test regressions
+        run: node scripts/supplier-ci-quality-delta.mjs "$RUNNER_TEMP"
+
+      - name: Supplier module unit tests
+        run: npx vitest run src/lib/services/supply-chain/supplier-intake.test.ts
+
+      - name: Production build (existing OTS build configuration)
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: --max-old-space-size=4096
+          NEXT_PUBLIC_APP_URL: https://ots.hexasteel.sa
+        run: npm run build

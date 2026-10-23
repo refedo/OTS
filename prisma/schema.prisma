@@ -8201,3 +8201,46 @@ model InvAdjustment {
   @@index([createdAt])
   @@map("inv_adjustments")
 }
+
+
+/**
+ * Public supplier intake remains distinct from the approved supplier master.
+ * Applicants never have OTS employee accounts; tracking requires email OTP.
+ */
+model ScSupplierApplication {
+  id                  String    @id @default(uuid()) @db.Char(36)
+  reference           String    @unique @db.VarChar(40)
+  legalName           String    @db.VarChar(200)
+  registrationNumber  String    @db.VarChar(100)
+  registrationCountry String    @db.VarChar(100)
+  contactName         String    @db.VarChar(120)
+  email               String    @db.VarChar(250)
+  phone               String    @db.VarChar(35)
+  companyWebsite      String?   @db.VarChar(250)
+  supplierType        String    @db.VarChar(30)
+  scope               String    @db.VarChar(20)
+  category            String?   @db.VarChar(120)
+  products            Json
+  services            String?   @db.Text
+  capabilities        String?   @db.Text
+  documents           Json
+  status              String    @default("SUBMITTED") @db.VarChar(24)
+  publicMessage       String?   @db.Text
+  internalNotes       String?   @db.Text
+  reviewHistory       Json
+  reviewedById        String?   @db.Char(36)
+  approvedSupplierId  String?   @unique @db.Char(36)
+  otpHash             String?   @db.VarChar(64)
+  otpExpiresAt        DateTime?
+  otpAttempts         Int       @default(0)
+  otpSentAt           DateTime?
+  otpDailyCount       Int       @default(0)
+  otpDay              String?   @db.VarChar(10)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([registrationNumber, registrationCountry])
+  @@map("ScSupplierApplication")
+}
