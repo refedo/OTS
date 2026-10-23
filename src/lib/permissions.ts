@@ -302,6 +302,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'supply_chain.view', name: 'View Supply Chain', description: 'Access LCR data, reports, and procurement tracking', category: 'supply_chain' },
       { id: 'supply_chain.sync', name: 'Run LCR Sync', description: 'Trigger manual Google Sheets sync for LCR data', category: 'supply_chain' },
       { id: 'supply_chain.alias', name: 'Manage Aliases', description: 'Create and manage supplier/building alias mappings with auto back-fill', category: 'supply_chain' },
+      { id: 'supply_chain.manage', name: 'Manage Supplier Applications', description: 'Review supplier registrations, confidential documents and qualification decisions', category: 'supply_chain' },
     ],
   },
   {

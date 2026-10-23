@@ -158,6 +158,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/supply-chain/lcr/reports': ['supply_chain.view'],
   '/supply-chain/lcr/aliases': ['supply_chain.alias'],
   '/supply-chain/suppliers': ['supply_chain.view'],
+  '/supply-chain/supplier-applications': ['supply_chain.manage'],
   '/supply-chain/purchase-orders': ['supply_chain.view'],
   '/supply-chain/approved-suppliers': ['supply_chain.view'],
   '/supply-chain/subcontractors': ['subcontractors.view'],

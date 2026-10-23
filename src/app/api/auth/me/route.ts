@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
-import { resolvePermissionsFromData, parseCustomPermissions } from '@/lib/services/permission-resolution.service';
+import { resolvePermissionsFromData, parseCustomPermissions, withExecutiveSupplierReviewPermission, SUPPLIER_REVIEW_PERMISSION } from '@/lib/services/permission-resolution.service';
 
 export async function GET() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -19,7 +19,7 @@ export async function GET() {
 
   const permissions = resolvePermissionsFromData({
     isAdmin: user.isAdmin,
-    rolePermissions: (user.role.permissions as string[]) || [],
+    rolePermissions: withExecutiveSupplierReviewPermission(user.role.name, (user.role.permissions as string[]) || []),
     customPermissions: parseCustomPermissions(user.customPermissions),
     restrictedModules: (user.role.restrictedModules as string[]) || [],
   });
@@ -27,7 +27,12 @@ export async function GET() {
   // navPermissions reflects the role's selected permissions for sidebar visibility.
   // Admins get all resolved permissions so new modules are always visible.
   // Non-admins respect their role's explicit permission selections.
-  const navPermissions = user.isAdmin ? permissions : (user.role.permissions as string[]) || [];
+  const roleNavPermissions = ((user.role.permissions as string[]) || [])
+    .filter(id => id !== SUPPLIER_REVIEW_PERMISSION);
+  const navPermissions = user.isAdmin ? permissions : [
+    ...roleNavPermissions,
+    ...(permissions.includes(SUPPLIER_REVIEW_PERMISSION) ? [SUPPLIER_REVIEW_PERMISSION] : []),
+  ];
 
   return NextResponse.json({
     id: user.id,

@@ -12,6 +12,7 @@ export const STATUS = ['SUBMITTED','UNDER_REVIEW','UPDATE_REQUESTED','APPROVED',
 export type SupplierStatus = typeof STATUS[number];
 
 const products = z.array(z.object({
+  category:z.string().trim().min(2).max(120).optional(),
   name:z.string().trim().min(2).max(160),
   origin:z.string().trim().min(2).max(100)
 })).max(12);

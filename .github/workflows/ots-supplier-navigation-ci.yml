@@ -1,0 +1,45 @@
+name: OTS Supplier Navigation CI
+
+on:
+  push:
+    branches: [feature/ots-supplier-applications-sidebar]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/app-sidebar.tsx'
+      - 'src/lib/navigation-permissions.ts'
+      - 'src/lib/__tests__/supplier-applications-navigation.test.ts'
+      - 'src/lib/__tests__/supplier-applications-permissions.test.ts'
+      - 'src/lib/permissions.ts'
+      - 'src/lib/services/permission-resolution.service.ts'
+      - 'src/app/api/auth/me/route.ts'
+      - 'src/contexts/PermissionsContext.tsx'
+      - '.github/workflows/ots-supplier-navigation-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  supplier-navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: mysql://placeholder:placeholder@localhost:3306/placeholder
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Supplier navigation permissions tests
+        run: npx vitest run src/lib/__tests__/supplier-applications-navigation.test.ts src/lib/__tests__/supplier-applications-permissions.test.ts
+      - name: Production build
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_APP_URL: https://ots.hexasteel.sa

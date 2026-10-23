@@ -28,3 +28,17 @@
 - HTTPS server-to-server key should be rotateable without downtime; endpoint private key never exposed to browsers.
 - TypeScript/build/CI evidence is verified separately. No main merge, no production deployment, no staging domain requested.
 - Official programme position unchanged: R1 68%, R2 0%, R3 0%. No claim of operational acceptance.
+
+## 24 October 2026 — Supply Chain navigation follow-up
+
+- Added **Supply Chain → Supplier Applications** entry to the global OTS sidebar with `supply_chain.manage` visibility. Existing Supplier Portal and Approved Suppliers pages already linked to the intake dashboard.
+- Added permission and link tests on isolated branch `feature/ots-supplier-applications-sidebar` from OTS main `7b114b85` (PR #620 integrated).
+- This change does not modify database schema, deployment settings, vendor master or website main branch. Deployment and acceptance remain separately verified.
+
+- Follow-up product coverage: per-product category retained in the existing JSON products array (backward compatible, no SQL migration), displayed in OTS supplier-review UI. Multi-category supplier registration on website PR #29 depends on this upgrade being deployed first.
+
+## CEO/Administrator authorization defect and correction (24 October 2026)
+- Root cause: `supply_chain.manage` was required by the new page, API and private-document route but absent from the canonical `PERMISSIONS` registry. Thus `isAdmin` users could not resolve that permission, and older persisted CEO/Admin role JSON also omitted it. Sidebar used a stale role-specific permission cache.
+- Fix: declare the new permission; inherit it for DB-verified CEO/Admin/Administrator roles at runtime even with older stored role JSON; still honor explicit per-user revocations and module restrictions. Use the same role-augmentation path in `/api/auth/me` and server `resolveUserPermissions`, so sidebar visibility and page/API checks agree. Rotate the client permission-cache key so existing sessions refetch permissions.
+- Staff without that permission cannot view or download private supplier documents. The check remains `supply_chain.manage` in both page and API, with no unchecked admin bypass. Added regression tests for CEO, Administrator, view-only, and explicit revocations.
+- No database changes and no change to unrelated OTS module access.
