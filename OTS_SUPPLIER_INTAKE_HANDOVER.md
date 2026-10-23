@@ -28,3 +28,9 @@
 - HTTPS server-to-server key should be rotateable without downtime; endpoint private key never exposed to browsers.
 - TypeScript/build/CI evidence is verified separately. No main merge, no production deployment, no staging domain requested.
 - Official programme position unchanged: R1 68%, R2 0%, R3 0%. No claim of operational acceptance.
+
+## 24 October 2026 — Supply Chain navigation follow-up
+
+- Added **Supply Chain → Supplier Applications** entry to the global OTS sidebar with `supply_chain.manage` visibility. Existing Supplier Portal and Approved Suppliers pages already linked to the intake dashboard.
+- Added permission and link tests on isolated branch `feature/ots-supplier-applications-sidebar` from OTS main `7b114b85` (PR #620 integrated).
+- This change does not modify database schema, deployment settings, vendor master or website main branch. Deployment and acceptance remain separately verified.

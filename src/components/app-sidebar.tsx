@@ -323,6 +323,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3 },
       { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch },
       { name: 'Supplier Portal', href: '/supply-chain/suppliers', icon: Factory, newSince: '2026-05-08' },
+      { name: 'Supplier Applications', href: '/supply-chain/supplier-applications', icon: ClipboardCheck, newSince: '2026-10-24' },
       { name: 'Approved Suppliers', href: '/supply-chain/approved-suppliers', icon: ShieldCheck, newSince: '2026-05-02' },
       { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
       { name: 'SC Contracts', href: '/supply-chain/subcontractors', icon: Handshake, newSince: '2026-05-07' },
