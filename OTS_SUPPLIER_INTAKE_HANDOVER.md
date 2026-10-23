@@ -34,3 +34,5 @@
 - Added **Supply Chain → Supplier Applications** entry to the global OTS sidebar with `supply_chain.manage` visibility. Existing Supplier Portal and Approved Suppliers pages already linked to the intake dashboard.
 - Added permission and link tests on isolated branch `feature/ots-supplier-applications-sidebar` from OTS main `7b114b85` (PR #620 integrated).
 - This change does not modify database schema, deployment settings, vendor master or website main branch. Deployment and acceptance remain separately verified.
+
+- Follow-up product coverage: per-product category retained in the existing JSON products array (backward compatible, no SQL migration), displayed in OTS supplier-review UI. Multi-category supplier registration on website PR #29 depends on this upgrade being deployed first.

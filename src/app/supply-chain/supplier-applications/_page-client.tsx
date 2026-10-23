@@ -80,7 +80,7 @@ export function SupplierApplicationsClient(){
       ] as const).map(([label,value])=><div key={label}><dt className="text-xs text-slate-500">{label}</dt><dd className="mt-1 break-words font-medium text-slate-800">{value}</dd></div>)}
      </dl>
      <h3 className="font-semibold text-[#2C3E50]">Specific products and origin</h3>
-     <ul className="mt-2 space-y-1 text-sm text-slate-700">{Array.isArray(app.products)?app.products.map((p:any,i:number)=><li key={i}>{String(p.name||'')} — {String(p.origin||'')}</li>):null}</ul>
+     <ul className="mt-2 space-y-1 text-sm text-slate-700">{Array.isArray(app.products)?app.products.map((p:any,i:number)=><li key={i}>{p.category?String(p.category)+' · ':''}{String(p.name||'')} — {String(p.origin||'')}</li>):null}</ul>
      <h3 className="mt-6 font-semibold text-[#2C3E50]">Private qualification documents</h3>
      <ul className="mt-2 space-y-2">{Array.isArray(app.documents)&&app.documents.map(f=><li key={f.id}><a href={'/api/supply-chain/supplier-applications/'+app.id+'/documents/'+f.id} className="text-sm font-medium text-[#2C3E50] underline">{f.name} ({Math.round(f.size/1024)} KB)</a></li>)}</ul>
      {app.approvedSupplierId&&<p className="mt-5 text-sm font-semibold text-[#2C3E50]">Linked to the OTS™ approved-supplier register.</p>}

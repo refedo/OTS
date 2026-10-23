@@ -6,7 +6,7 @@ const example={
  legalName:'International Steel Supply Ltd',registrationNumber:'CR-123456',registrationCountry:'Saudi Arabia',
  contactName:'Sales Representative',email:'SUPPLIER@EXAMPLE.COM',phone:'+966500000000',companyWebsite:'',
  supplierType:'Manufacturer',scope:'PRODUCTS',category:'Structural steel plates & sheets',
- products:[{name:'S355 steel plate',origin:'Saudi Arabia'}],services:'',capabilities:''
+ products:[{category:'Structural steel plates & sheets',name:'S355 steel plate',origin:'Saudi Arabia'}],services:'',capabilities:''
 };
 beforeEach(()=>{
  process.env.SUPPLIER_INTAKE_ENABLED='true';
@@ -24,6 +24,12 @@ describe('supplier qualification intake',()=>{
   expect(v.success).toBe(true);
   if(v.success)expect(v.data.email).toBe('supplier@example.com');
   expect(supplierSchema.safeParse({...example,products:[{name:'Plate',origin:''}]}).success).toBe(false);
+  const multiple=supplierSchema.safeParse({...example,products:[
+   {category:'Structural steel plates & sheets',name:'S355 plate',origin:'Saudi Arabia'},
+   {category:'Fasteners & anchors',name:'Anchor bolts',origin:'Germany'}
+  ]});
+  expect(multiple.success).toBe(true);
+  if(multiple.success)expect(multiple.data.products[1].category).toBe('Fasteners & anchors');
  });
  it('accepts specialist services and rejects missing service descriptions',()=>{
   expect(supplierSchema.safeParse({...example,scope:'SERVICES',products:[],category:'',services:'Engineering design and detailing'}).success).toBe(true);
